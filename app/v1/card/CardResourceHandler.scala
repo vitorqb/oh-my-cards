@@ -22,4 +22,10 @@ class CardResourceHandler {
     //!!!! TODO -> Implement create.
     CardResource("2", "/2", input.title, input.body)
   }
+
+  def get(id: String) = {
+    //!!!! TODO -> Implement create.
+    if (id.startsWith("1")) Some(CardResource(id, f"/$id", f"Card $id", ""))
+    else None
+  }
 }

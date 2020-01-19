@@ -10,6 +10,7 @@ class CardRouter @Inject()(controller: CardController) extends SimpleRouter {
 
   override def routes: Routes = {
     case GET(p"/") => controller.index
+    case GET(p"/$id") => controller.get(id)
     case POST(p"/") => controller.create
   }
 

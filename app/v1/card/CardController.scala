@@ -46,4 +46,11 @@ class CardController @Inject()(val controllerComponents: ControllerComponents)
       cardFormInput => Created(Json.toJson(resourceHandler.create(cardFormInput)))
     )
   }
+
+  def get(id: String) = Action { implicit request =>
+    resourceHandler.get(id) match {
+      case Some(card) => Ok(Json.toJson(card))
+      case None => NotFound
+    }
+  }
 }
