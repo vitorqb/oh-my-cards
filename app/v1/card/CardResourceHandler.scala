@@ -12,5 +12,14 @@ object CardResource {
 }
 
 class CardResourceHandler {
-  def find: Iterable[CardResource] = List(CardResource("1", "/foo", "Foo", "Foo Bar Baz"))
+
+  def find: Iterable[CardResource] = {
+    //!!!! TODO -> Implemente find.
+    List(CardResource("1", "/foo", "Foo", "Foo Bar Baz"))
+  }
+
+  def create(input: CardFormInput) = {
+    //!!!! TODO -> Implement create.
+    CardResource("2", "/2", input.title, input.body)
+  }
 }

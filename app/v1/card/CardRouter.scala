@@ -8,10 +8,9 @@ import play.api.routing.sird._
 
 class CardRouter @Inject()(controller: CardController) extends SimpleRouter {
 
-  val prefix = "/v1/cards"
-
   override def routes: Routes = {
     case GET(p"/") => controller.index
+    case POST(p"/") => controller.create
   }
 
 }
