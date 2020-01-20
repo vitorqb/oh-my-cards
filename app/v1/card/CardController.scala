@@ -1,5 +1,7 @@
 package v1.card
 
+import scala.util.{Try,Success,Failure}
+
 import javax.inject.Inject
 import play.api.mvc._
 import play.api.Logger
@@ -14,12 +16,12 @@ case class CardFormInput(title: String, body: String)
 /**
   * A controller for cards, defining the actions for the cards.
   */
-class CardController @Inject()(val controllerComponents: ControllerComponents)
+class CardController @Inject()(
+  val controllerComponents: ControllerComponents,
+  val resourceHandler: CardResourceHandler)
     extends BaseController {
 
   private val logger = Logger(getClass)
-
-  private val resourceHandler = new CardResourceHandler
 
   private val form: Form[CardFormInput] = {
     import play.api.data.Forms._
@@ -43,8 +45,16 @@ class CardController @Inject()(val controllerComponents: ControllerComponents)
     logger.info("Handling create card action...")
     form.bindFromRequest().fold(
       _ => BadRequest("Invalid post data!"),
-      cardFormInput => Created(Json.toJson(resourceHandler.create(cardFormInput)))
+      cardFormInput => resourceHandler.create(cardFormInput) match {
+        case Success(card) => Ok(Json.toJson(card))
+        case Failure(e) => handleCreateFailure(e)
+      }
     )
+  }
+
+  private def handleCreateFailure(e: Throwable): Result = {
+    logger.error("Card could not be created", e)
+    BadRequest("Unable to create the card")
   }
 
   def get(id: String) = Action { implicit request =>

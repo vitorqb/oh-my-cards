@@ -9,3 +9,4 @@ target
 /.g8
 /.bloop
 /.metals
+/dev.sqlite

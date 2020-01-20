@@ -1,5 +1,7 @@
 package v1.card
 
+import javax.inject.Inject
+import scala.util.{Try,Success,Failure}
 import play.api.libs.json.{Json,Format}
 
 /**
@@ -8,10 +10,16 @@ import play.api.libs.json.{Json,Format}
 case class CardResource(id: String, link: String, title: String, body: String)
 
 object CardResource {
+
   implicit val format: Format[CardResource] = Json.format
+
+  def fromCardData(cardData: CardData) = {
+    CardResource(cardData.id.fold("")(x => x), "", cardData.title, cardData.body)
+  }
+
 }
 
-class CardResourceHandler {
+class CardResourceHandler @Inject()(val repository: CardRepositoryImpl) {
 
   def find: Iterable[CardResource] = {
     //!!!! TODO -> Implemente find.
@@ -19,13 +27,16 @@ class CardResourceHandler {
   }
 
   def create(input: CardFormInput) = {
-    //!!!! TODO -> Implement create.
-    CardResource("2", "/2", input.title, input.body)
+    val cardData = CardData(None, input.title, input.body)
+    repository.create(cardData).flatMap(createdDataId =>
+      get(createdDataId) match {
+        case Some(cardResource) => Success(cardResource)
+        case None => Failure(new Exception("Could not find created resource!"))
+      }
+    )
   }
 
   def get(id: String) = {
-    //!!!! TODO -> Implement create.
-    if (id.startsWith("1")) Some(CardResource(id, f"/$id", f"Card $id", ""))
-    else None
+    repository.get(id).map(CardResource.fromCardData)
   }
 }
