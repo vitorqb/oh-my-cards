@@ -21,10 +21,7 @@ object CardResource {
 
 class CardResourceHandler @Inject()(val repository: CardRepositoryImpl) {
 
-  def find: Iterable[CardResource] = {
-    //!!!! TODO -> Implemente find.
-    List(CardResource("1", "/foo", "Foo", "Foo Bar Baz"))
-  }
+  def find: Iterable[CardResource] = throw new NotImplementedError
 
   def create(input: CardFormInput) = {
     val cardData = CardData(None, input.title, input.body)

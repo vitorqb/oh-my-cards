@@ -10,3 +10,5 @@ target
 /.bloop
 /.metals
 /dev.sqlite
+.env
+test.sqlite

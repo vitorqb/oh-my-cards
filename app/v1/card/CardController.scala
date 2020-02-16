@@ -35,11 +35,7 @@ class CardController @Inject()(
 
   }
 
-  //!!!! TODO -> Implement real get.
-  def index = Action {
-    logger.info("Handling index message...")
-    Ok(Json.toJson(resourceHandler.find))
-  }
+  def index = throw new NotImplementedError
 
   def create = Action { implicit request =>
     logger.info("Handling create card action...")
