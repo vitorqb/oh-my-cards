@@ -7,6 +7,10 @@ import play.api.mvc._
 import play.api.Logger
 import play.api.libs.json.Json
 import play.api.data.Form
+import com.mohiva.play.silhouette.api.Silhouette
+
+import v1.auth.{DefaultEnv}
+import v1.auth.User
 
 /**
   * Represents the user-inputted data for a card.
@@ -18,7 +22,8 @@ case class CardFormInput(title: String, body: String)
   */
 class CardController @Inject()(
   val controllerComponents: ControllerComponents,
-  val resourceHandler: CardResourceHandler)
+  val resourceHandler: CardResourceHandler,
+  val silhouette: Silhouette[DefaultEnv])
     extends BaseController {
 
   private val logger = Logger(getClass)
@@ -37,11 +42,11 @@ class CardController @Inject()(
 
   def index = throw new NotImplementedError
 
-  def create = Action { implicit request =>
+  def create = silhouette.SecuredAction { implicit request =>
     logger.info("Handling create card action...")
     form.bindFromRequest().fold(
       _ => BadRequest("Invalid post data!"),
-      cardFormInput => resourceHandler.create(cardFormInput) match {
+      cardFormInput => resourceHandler.create(cardFormInput, request.identity) match {
         case Success(card) => Ok(Json.toJson(card))
         case Failure(e) => handleCreateFailure(e)
       }
@@ -53,8 +58,8 @@ class CardController @Inject()(
     BadRequest("Unable to create the card")
   }
 
-  def get(id: String) = Action { implicit request =>
-    resourceHandler.get(id) match {
+  def get(id: String) = silhouette.SecuredAction { implicit request =>
+    resourceHandler.get(id, request.identity) match {
       case Some(card) => Ok(Json.toJson(card))
       case None => NotFound
     }
