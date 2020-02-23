@@ -7,6 +7,7 @@ import scala.concurrent.Future
 import scala.concurrent.ExecutionContext
 import com.google.inject.Inject
 import services.Clock
+import play.api.Logger
 
 
 class BearerTokenRequestProvider @Inject()(
@@ -17,11 +18,20 @@ class BearerTokenRequestProvider @Inject()(
 
   override def id = BearerTokenRequestProvider.ID
 
+  val logger = Logger(getClass)
+
   def authenticate[B](request: Request[B]): Future[Option[LoginInfo]] = {
+    logger.info("Authenticating new request...")
     BearerTokenRequestProvider.extractTokenValue(request) match {
       case Some(tokenValue) => userTokenRepository.findByTokenValue(tokenValue).map {
-        case Some(userToken) if userToken.isValid(clock) => Some(userToken.toLoginInfo(id))
-        case _ => None
+        case Some(userToken) if userToken.isValid(clock) => {
+          logger.info("Found token " + tokenValue)
+          Some(userToken.toLoginInfo(id))
+        }
+        case _ => {
+          logger.info("No token found")
+          None
+        }
       }
       case None => Future{ None }
     }
