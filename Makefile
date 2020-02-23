@@ -1,10 +1,12 @@
 .PHONY: run test ~test
 
+SOURCE_ENV=touch ./.env && . ./.env
+
 run:
-	. ./.env && sbt 'run'
+	$(SOURCE_ENV) && sbt 'run'
 
 test:
-	. ./.env && sbt 'test'
+	$(SOURCE_ENV) && sbt 'test'
 
 ~test:
-	. ./.env && sbt '~test'
+	$(SOURCE_ENV) && sbt '~test'
