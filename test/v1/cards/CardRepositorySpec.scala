@@ -41,4 +41,28 @@ class CardRepositorySpec extends PlaySpec with MockitoSugar {
 
   }
 
+  "CardRepository.find" should {
+
+    "find two out of tree cards for an user" in {
+      test.utils.TestUtils.testDB { db =>
+        val userId = "userid"
+
+        val uuidGenerator = mock[UUIDGenerator]
+        val repository = new CardRepositoryImpl(db, uuidGenerator)
+
+        val user = User(userId, "a@a.a")
+        val cardData1 = CardData(Some("id1"), "ONE", "one")
+        val cardData2 = CardData(Some("id2"), "TWO", "two")
+        val cardData3 = CardData(Some("id3"), "THREE", "three")
+        for (cardData <- Array[CardData](cardData1, cardData2, cardData3)) yield {
+          when(uuidGenerator.generate).thenReturn(cardData.id.value)
+          repository.create(cardData.copy(id=None), user)
+        }
+
+        repository.find(CardListRequest(1, 2, userId)) mustEqual Array(cardData3, cardData2)
+      }
+    }
+
+  }
+
 }

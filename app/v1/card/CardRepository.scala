@@ -19,6 +19,7 @@ final case class CardData(id: Option[String], title: String, body: String)
 trait CardRepository {
   def create(cardData: CardData, user: User): Try[String]
   def get(id: String, user: User): Option[CardData]
+  def find(r: CardListRequest): Iterable[CardData]
 }
 
 /**
@@ -48,5 +49,20 @@ class CardRepositoryImpl @Inject()(db: Database, uuidGenerator: UUIDGenerator)
       .on("id" -> id, "userId" -> user.id)
       .as(cardDataParser.*)
       .headOption
+  }
+
+  /**
+    * Finds a list of cards for a given user.
+    */
+  def find(request: CardListRequest): Iterable[CardData] = db.withConnection { implicit c =>
+    SQL(s"""
+      | SELECT id, title, body FROM cards
+      | WHERE userId = {userId}
+      | ORDER BY id DESC
+      | LIMIT ${request.pageSize}
+      | OFFSET ${(request.page - 1) * request.pageSize}
+      | """.stripMargin)
+      .on("userId" -> request.userId)
+      .as(cardDataParser.*)
   }
 }

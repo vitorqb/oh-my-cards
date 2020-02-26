@@ -17,6 +17,17 @@ import v1.auth.User
   */
 case class CardFormInput(title: String, body: String)
 
+
+/**
+  * Represents the user-inputted data for a request for a list of cards.
+  */
+case class CardListRequestInput(page: Int, pageSize: Int) {
+
+  def toCardListRequest(u: User) = CardListRequest(page, pageSize, u.id)
+
+}
+
+
 /**
   * A controller for cards, defining the actions for the cards.
   */
@@ -40,7 +51,23 @@ class CardController @Inject()(
 
   }
 
-  def index = throw new NotImplementedError
+  /**
+    * Endpoint used to query for a list of pages.
+    */
+  def list(page: Option[String], pageSize: Option[String]) = silhouette.SecuredAction {
+    implicit request =>
+    import CardListRequestParser._
+
+    logger.info(s"Getting cards for user ${request.identity} with page=$page, pageSize=$pageSize")
+    CardListRequestParser.parse(page, pageSize) match {
+      case Bad(msg) => BadRequest(msg)
+      case Good(input: CardListRequestInput) => {
+        val user = request.identity
+        val cards = resourceHandler.find(input.toCardListRequest(user))
+        Ok(Json.toJson(cards))
+      }
+    }
+  }
 
   def create = silhouette.SecuredAction { implicit request =>
     logger.info("Handling create card action...")
@@ -64,4 +91,46 @@ class CardController @Inject()(
       case None => NotFound
     }
   }
+}
+
+
+/**
+  * Helper object to parse CardListRequest inputs.
+  */
+object CardListRequestParser {
+
+  /**
+    * Parsing result. Good means a valid parsed value, Bad means an error msg.
+    */
+  sealed trait Result
+  case class Good(parsed: CardListRequestInput) extends Result
+  case class Bad(message: String) extends Result
+
+  val missingPage = Bad("Missing page.")
+  val missingPageSize = Bad("Missing page size.")
+  val genericError = Bad("Invalid parameters.")
+
+  private val form: Form[CardListRequestInput] = {
+    import play.api.data.Forms._
+
+    Form(
+      mapping(
+        "page" -> number,
+        "pageSize" -> number
+      )(CardListRequestInput.apply)(CardListRequestInput.unapply)
+    )
+  }
+
+  def parse(page: Option[String], pageSize: Option[String]): Result = {
+    (page, pageSize) match {
+      case (None, Some(_)) | (None, None) => missingPage
+      case (Some(_), None) => missingPageSize
+      case (Some(x), Some(y)) => form.bind(Map("page" -> x, "pageSize" -> y)).fold(
+        _ => genericError,
+        cardListReq => Good(cardListReq)
+      )
+    }
+
+  }
+
 }

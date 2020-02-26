@@ -20,9 +20,37 @@ object CardResource {
 
 }
 
+
+/**
+  * Represents a request for a list of CardResource.
+  */
+case class CardListRequest(page: Int, pageSize: Int, userId: String)
+
+
+/**
+  * Represents a response for a paginated list of CardResource.
+  */
+case class CardListResponse(page: Int, pageSize: Int, items: Iterable[CardResource])
+
+object CardListResponse {
+
+  implicit val format: Format[CardListResponse] = Json.format
+
+  def fromRequest(req: CardListRequest, cards: Iterable[CardResource]): CardListResponse = {
+    CardListResponse(req.page, req.pageSize, cards)
+  }
+
+}
+
+/**
+  * A resource handler for Cards.
+  */
 class CardResourceHandler @Inject()(val repository: CardRepositoryImpl) {
 
-  def find: Iterable[CardResource] = throw new NotImplementedError
+  def find(cardListReq: CardListRequest): CardListResponse = {
+    val cards = repository.find(cardListReq).map(CardResource.fromCardData(_))
+    CardListResponse.fromRequest(cardListReq, cards)
+  }
 
   def create(input: CardFormInput, user: User) = {
     val cardData = CardData(None, input.title, input.body)

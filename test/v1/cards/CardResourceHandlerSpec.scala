@@ -37,4 +37,32 @@ class CardResourceHandlerSpec extends PlaySpec with MockitoSugar {
 
   }
 
+  "CardResourceHandlerSpec.find" should {
+
+    "Returns resources from repository data" in {
+      val cardResource1 = CardResource("foo1", "", "baz1", "")
+      val cardData1 = CardData(Some("foo1"), "baz1", "")
+
+      val cardResource2 = CardResource("foo2", "", "baz2", "")
+      val cardData2 = CardData(Some("foo2"), "baz2", "")
+
+      val cardListReq = CardListRequest(1, 2, "userid")
+
+      val repository = mock[CardRepositoryImpl]
+      when(repository.find(cardListReq)).thenReturn(Array(cardData1, cardData2))
+
+      val handler = new CardResourceHandler(repository)
+
+      val user = mock[User]
+      when(user.id).thenReturn("userid")
+
+      val result = handler.find(cardListReq)
+
+      result.items mustEqual Array(cardResource1, cardResource2)
+      result.page mustEqual 1
+      result.pageSize mustEqual 2
+    }
+
+  }
+
 }
