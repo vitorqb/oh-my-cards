@@ -15,4 +15,5 @@ GET     /assets/*file               controllers.Assets.versioned(path="/public",
 # Authentication
 POST    /v1/auth/oneTimePassword    v1.auth.AuthController.createOneTimePassword
 POST    /v1/auth/token              v1.auth.AuthController.createToken
+POST    /v1/auth/tokenRecovery      v1.auth.AuthController.recoverTokenFromCookie
 GET     /v1/auth/user               v1.auth.AuthController.getUser
