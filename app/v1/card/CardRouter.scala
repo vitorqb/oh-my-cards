@@ -9,7 +9,7 @@ import play.api.routing.sird._
 class CardRouter @Inject()(controller: CardController) extends SimpleRouter {
 
   override def routes: Routes = {
-    case GET(p"/") => controller.index
+    case GET(p"/" ? q_?"page=$page" & q_?"pageSize=$pageSize") => controller.list(page, pageSize)
     case GET(p"/$id") => controller.get(id)
     case POST(p"/") => controller.create
   }
