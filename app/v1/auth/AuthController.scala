@@ -15,6 +15,7 @@ import _root_.services.RandomStringGenerator
 import play.api.libs.json.Json
 import play.api.libs.json.JsObject
 import play.api.libs.json.JsString
+import java.{util => ju}
 
 /**
   * Wrapper for sending emails with tokens.
@@ -70,11 +71,14 @@ class AuthController @Inject()(
   val oneTimePasswordRepository: OneTimePasswordInfoRepository,
   val oneTimePasswordProvider: OneTimePasswordProvider,
   val oneTimePasswordInfoGenerator: OneTimePasswordInfoGenerator,
+  val tokenEncrypter: TokenEncrypter,
   val mailService: MailService,
   val userService: UserService,
   val tokenService: TokenService)(
   implicit val ec: ExecutionContext)
     extends BaseController {
+
+  private val AUTH_COOKIE = "OHMYCARDS_AUTH"
 
   def createOneTimePassword = silhouette.UnsecuredAction.async { implicit request =>
     Forms.OneTimePasswordInputForm.bindFromRequest.fold(
@@ -108,15 +112,33 @@ class AuthController @Inject()(
           case Failure(e) => throw e
           case Success(user) => for {
             token <- tokenService.generateTokenForUser(user)
+            encryptedToken = ju.Base64.getEncoder.encodeToString(tokenEncrypter.encrypt(token))
           } yield {
-            Ok(Json.toJson(Json.obj("value" -> token.token)))
+            Ok(Json.toJson(token)).withCookies(Cookie(AUTH_COOKIE, encryptedToken))
           }
         }
       }
     )
   }
 
+  def recoverTokenFromCookie = silhouette.UnsecuredAction.async { implicit request => Future {
+    decryptAuthCookie(request) match {
+      case None => BadRequest
+      case Some(x) => Ok(Json.toJson(Json.obj("value" -> x)))
+    }
+  }}
+
   def getUser = silhouette.SecuredAction.async { implicit request => Future {
     Ok(Json.toJson(Json.obj("email" -> request.identity.email)))
   }}
+
+  private def decryptAuthCookie[A](r: Request[A]): Option[String] = {
+    r.cookies.get(AUTH_COOKIE).map(_.value).map(decodeBase64(_)).flatMap(encryptedToken => {
+      tokenEncrypter.decrypt(encryptedToken).map(arrayOfBytesToString(_))
+    })
+  }
+
+  private def arrayOfBytesToString(a: Array[Byte]): String = a.map(_.toChar).mkString
+  private def decodeBase64(x: String): Array[Byte] = ju.Base64.getDecoder.decode(x.getBytes)
+
 }

@@ -10,6 +10,7 @@ import play.api.libs.ws.WSClient
 import play.api.Configuration
 import services.{MailServiceImpl,MailServiceFakeImpl}
 import com.google.inject.Provides
+import v1.auth.TokenEncrypter
 
 class Module extends AbstractModule with ScalaModule {
 
@@ -31,6 +32,11 @@ class Module extends AbstractModule with ScalaModule {
       new MailServiceFakeImpl(conf)
     }
     new MailServiceImpl(ws, conf)
+  }
+
+  @Provides
+  def provideTokenEncrypter(conf: Configuration): TokenEncrypter = {
+    new TokenEncrypter(conf.get[String]("play.http.secret.key"))
   }
 
 }
