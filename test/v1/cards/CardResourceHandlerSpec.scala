@@ -50,6 +50,7 @@ class CardResourceHandlerSpec extends PlaySpec with MockitoSugar {
 
       val repository = mock[CardRepositoryImpl]
       when(repository.find(cardListReq)).thenReturn(Array(cardData1, cardData2))
+      when(repository.countItemsMatching(cardListReq)).thenReturn(10)
 
       val handler = new CardResourceHandler(repository)
 
@@ -61,6 +62,7 @@ class CardResourceHandlerSpec extends PlaySpec with MockitoSugar {
       result.items mustEqual Array(cardResource1, cardResource2)
       result.page mustEqual 1
       result.pageSize mustEqual 2
+      result.countOfItems mustEqual 10
     }
 
   }

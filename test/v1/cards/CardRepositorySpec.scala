@@ -59,10 +59,49 @@ class CardRepositorySpec extends PlaySpec with MockitoSugar {
           repository.create(cardData.copy(id=None), user)
         }
 
+        //Create for other user
+        val otherUser = User("bar", "b@b.b@")
+        val cardDataOtherUser1 = CardData(Some("id4"), "FOUR", "four")
+        when(uuidGenerator.generate).thenReturn(cardDataOtherUser1.id.value)
+        repository.create(cardDataOtherUser1.copy(id=None), otherUser)
+
         repository.find(CardListRequest(1, 2, userId)) mustEqual Array(cardData3, cardData2)
       }
     }
 
+  }
+
+  "CardRepository.countItemsMatching" should {
+
+    "count the number of items for an user" in {
+      test.utils.TestUtils.testDB { db =>
+        val uuidGenerator = mock[UUIDGenerator]
+        val repository =  new CardRepositoryImpl(db, uuidGenerator)
+
+        //Create for user
+        val user = User("foo", "a@a.a")
+        val cardData1 = CardData(Some("id1"), "ONE", "one")
+        val cardData2 = CardData(Some("id2"), "TWO", "two")
+        val cardData3 = CardData(Some("id3"), "THREE", "three")
+        for (cardData <- Array[CardData](cardData1, cardData2, cardData3)) yield {
+          when(uuidGenerator.generate).thenReturn(cardData.id.value)
+          repository.create(cardData.copy(id=None), user)
+        }
+
+        //Create for other user
+        val otherUser = User("bar", "b@b.b@")
+        val cardDataOtherUser1 = CardData(Some("id4"), "FOUR", "four")
+        when(uuidGenerator.generate).thenReturn(cardDataOtherUser1.id.value)
+        repository.create(cardDataOtherUser1.copy(id=None), otherUser)
+
+        //User three has no cards
+        val userThree = User("baz", "c@c.c@")
+
+        repository.countItemsMatching(CardListRequest(0, 0, user.id)) mustEqual 3
+        repository.countItemsMatching(CardListRequest(0, 0, otherUser.id)) mustEqual 1
+        repository.countItemsMatching(CardListRequest(0, 0, userThree.id)) mustEqual 0
+      }
+    }
   }
 
 }

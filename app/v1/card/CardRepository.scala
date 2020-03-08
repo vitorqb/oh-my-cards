@@ -7,6 +7,7 @@ import anorm.{SQL,RowParser,Macro}
 import play.api.db.Database
 import v1.auth.User
 import services.UUIDGenerator
+import anorm.`package`.SqlStringInterpolation
 
 /**
   * The data for a Card.
@@ -64,5 +65,18 @@ class CardRepositoryImpl @Inject()(db: Database, uuidGenerator: UUIDGenerator)
       | """.stripMargin)
       .on("userId" -> request.userId)
       .as(cardDataParser.*)
+  }
+
+  /**
+    * Returns the total number of items matching a request for a list of cards.
+    */
+  def countItemsMatching(request: CardListRequest): Int = db.withConnection { implicit c =>
+    val parser = anorm.SqlParser.get[Int]("count").*
+    SQL"""
+        SELECT COUNT(*) AS count FROM cards WHERE userId = ${request.userId}
+       """
+      .as(parser)
+      .headOption
+      .getOrElse(0)
   }
 }
