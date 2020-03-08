@@ -30,14 +30,21 @@ case class CardListRequest(page: Int, pageSize: Int, userId: String)
 /**
   * Represents a response for a paginated list of CardResource.
   */
-case class CardListResponse(page: Int, pageSize: Int, items: Iterable[CardResource])
+case class CardListResponse(
+  page: Int,
+  pageSize: Int,
+  items: Iterable[CardResource],
+  countOfItems: Int)
 
 object CardListResponse {
 
   implicit val format: Format[CardListResponse] = Json.format
 
-  def fromRequest(req: CardListRequest, cards: Iterable[CardResource]): CardListResponse = {
-    CardListResponse(req.page, req.pageSize, cards)
+  def fromRequest(
+    req: CardListRequest,
+    cards: Iterable[CardResource],
+    countOfCards: Int): CardListResponse = {
+    CardListResponse(req.page, req.pageSize, cards, countOfCards)
   }
 
 }
@@ -49,7 +56,8 @@ class CardResourceHandler @Inject()(val repository: CardRepositoryImpl) {
 
   def find(cardListReq: CardListRequest): CardListResponse = {
     val cards = repository.find(cardListReq).map(CardResource.fromCardData(_))
-    CardListResponse.fromRequest(cardListReq, cards)
+    val countOfCards = repository.countItemsMatching(cardListReq)
+    CardListResponse.fromRequest(cardListReq, cards, countOfCards)
   }
 
   def create(input: CardFormInput, user: User) = {
