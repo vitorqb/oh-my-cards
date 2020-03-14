@@ -16,6 +16,8 @@ import v1.auth.User
 
 class CardResourceHandlerSpec extends PlaySpec with MockitoSugar {
 
+  implicit val ec: ExecutionContext = ExecutionContext.global
+
   "CardResourceHandlerSpec.create" should {
 
     "Delegate to repository.create" in {

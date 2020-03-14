@@ -13,9 +13,12 @@ import scala.util.Try
 import scala.util.Success
 import v1.auth.User
 import services.UUIDGenerator
+import scala.util.Failure
 
 
-class CardRepositorySpec extends PlaySpec with MockitoSugar {
+class CardRepositorySpec extends PlaySpec with MockitoSugar with ScalaFutures {
+
+  implicit val ec: ExecutionContext = ExecutionContext.global
 
   "CardRepository create and get" should {
 
@@ -102,6 +105,49 @@ class CardRepositorySpec extends PlaySpec with MockitoSugar {
         repository.countItemsMatching(CardListRequest(0, 0, userThree.id)) mustEqual 0
       }
     }
+  }
+
+  "CardRepository.delete" should {
+
+    "fail if the card does not exist" in {
+      test.utils.TestUtils.testDB { db =>
+        val repository = new CardRepositoryImpl(db, mock[UUIDGenerator])
+        repository.delete("FOO", mock[User]).futureValue mustEqual Failure(new CardDoesNotExist)
+      }
+    }
+
+    "fail if the card does not exist for a specific user" in {
+      test.utils.TestUtils.testDB { db =>
+        val uuidGenerator = mock[UUIDGenerator]
+        val repository =  new CardRepositoryImpl(db, uuidGenerator)
+
+        val user = User("foo", "a@a.a")
+        val cardData = CardData(Some("id"), "foo", "bar")
+        when(uuidGenerator.generate).thenReturn(cardData.id.value)
+        repository.create(cardData.copy(id=None), user)
+
+        val otherUser = User("bar", "b@b.b")
+
+        repository.delete("id", otherUser).futureValue mustEqual Failure(new CardDoesNotExist)
+      }
+    }
+
+    "find and delete card that exists" in {
+      test.utils.TestUtils.testDB { db =>
+        val uuidGenerator = mock[UUIDGenerator]
+        val repository =  new CardRepositoryImpl(db, uuidGenerator)
+
+        val user = User("foo", "a@a.a")
+        val cardData = CardData(Some("id"), "foo", "bar")
+        when(uuidGenerator.generate).thenReturn(cardData.id.value)
+        repository.create(cardData.copy(id=None), user)
+
+        repository.delete("id", user).futureValue
+
+        repository.get("id", user) mustEqual None
+      }
+    }
+
   }
 
 }

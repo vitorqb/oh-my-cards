@@ -8,6 +8,16 @@ import play.api.db.Database
 import v1.auth.User
 import services.UUIDGenerator
 import anorm.`package`.SqlStringInterpolation
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext
+
+/**
+  * Custom exception signaling that a card does not exist.
+  */
+final case class CardDoesNotExist(
+  private val message: String = "The required card does not exist.",
+  private val cause: Throwable = None.orNull
+) extends Exception(message, cause)
 
 /**
   * The data for a Card.
@@ -26,8 +36,10 @@ trait CardRepository {
 /**
   * An implementation for a card repository.
   */
-class CardRepositoryImpl @Inject()(db: Database, uuidGenerator: UUIDGenerator)
-    extends CardRepository {
+class CardRepositoryImpl @Inject()(
+  db: Database,
+  uuidGenerator: UUIDGenerator)(
+  implicit val ec: ExecutionContext) extends CardRepository {
 
   private val cardDataParser: RowParser[CardData] = Macro.namedParser[CardData]
 
@@ -72,11 +84,24 @@ class CardRepositoryImpl @Inject()(db: Database, uuidGenerator: UUIDGenerator)
     */
   def countItemsMatching(request: CardListRequest): Int = db.withConnection { implicit c =>
     val parser = anorm.SqlParser.get[Int]("count").*
-    SQL"""
+      SQL"""
         SELECT COUNT(*) AS count FROM cards WHERE userId = ${request.userId}
        """
       .as(parser)
       .headOption
       .getOrElse(0)
+  }
+
+  /**
+    * Deletes a card by it's id.
+    */
+  def delete(id: String, user: User): Future[Try[Unit]] = Future {
+    get(id, user) match {
+      case None => Failure(new CardDoesNotExist)
+      case Some(_) => db.withConnection { implicit c =>
+        SQL"""DELETE FROM cards where userId = ${user.id} AND id = ${id}""".executeUpdate
+        Success(())
+      }
+    }
   }
 }
