@@ -11,6 +11,9 @@ import com.mohiva.play.silhouette.api.Silhouette
 
 import v1.auth.{DefaultEnv}
 import v1.auth.User
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext
+import services.InputParser
 
 /**
   * Represents the user-inputted data for a card.
@@ -34,7 +37,8 @@ case class CardListRequestInput(page: Int, pageSize: Int) {
 class CardController @Inject()(
   val controllerComponents: ControllerComponents,
   val resourceHandler: CardResourceHandler,
-  val silhouette: Silhouette[DefaultEnv])
+  val silhouette: Silhouette[DefaultEnv])(
+  implicit val ec: ExecutionContext)
     extends BaseController {
 
   private val logger = Logger(getClass)
@@ -78,6 +82,22 @@ class CardController @Inject()(
         case Failure(e) => handleCreateFailure(e)
       }
     )
+  }
+
+  def delete(id: String) = silhouette.SecuredAction.async { implicit request =>
+    import InputParser._
+    logger.info(s"Handling delete card action for id $id...")
+    parseUUID(id) match {
+      case Bad(x) => Future(NotFound(x))
+      case Good(x) => resourceHandler.delete(x, request.identity).map {
+        case Success(_) => NoContent
+        case Failure(e: CardDoesNotExist) => NotFound
+        case Failure(e) => {
+          logger.error("Error deleting the card: ", e)
+          InternalServerError("Unkown error!")
+        }
+      }
+    }
   }
 
   private def handleCreateFailure(e: Throwable): Result = {

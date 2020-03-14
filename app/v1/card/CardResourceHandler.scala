@@ -4,6 +4,8 @@ import javax.inject.Inject
 import scala.util.{Try,Success,Failure}
 import play.api.libs.json.{Json,Format}
 import v1.auth.User
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext
 
 /**
   * Data transfer object for a card.
@@ -52,7 +54,9 @@ object CardListResponse {
 /**
   * A resource handler for Cards.
   */
-class CardResourceHandler @Inject()(val repository: CardRepositoryImpl) {
+class CardResourceHandler @Inject()(
+  val repository: CardRepositoryImpl)(
+  implicit val ec: ExecutionContext){
 
   def find(cardListReq: CardListRequest): CardListResponse = {
     val cards = repository.find(cardListReq).map(CardResource.fromCardData(_))
@@ -68,6 +72,10 @@ class CardResourceHandler @Inject()(val repository: CardRepositoryImpl) {
         case None => Failure(new Exception("Could not find created resource!"))
       }
     )
+  }
+
+  def delete(id: String, user: User): Future[Try[Unit]] = {
+    repository.delete(id, user)
   }
 
   def get(id: String, user: User) = {
