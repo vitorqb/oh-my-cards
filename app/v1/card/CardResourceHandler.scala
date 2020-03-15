@@ -8,9 +8,31 @@ import scala.concurrent.Future
 import scala.concurrent.ExecutionContext
 
 /**
+  * Custom exceptions.
+  */
+final case class InvalidCardData(
+  private val message: String = "The data for a card was not valid.",
+  private val cause: Throwable = None.orNull
+) extends Exception(message, cause)
+
+object InvalidCardData {
+  def emptyTitle = InvalidCardData(message="Title can not be empty!")
+}
+
+
+/**
   * Data transfer object for a card.
   */
-case class CardResource(id: String, link: String, title: String, body: String)
+case class CardResource(id: String, link: String, title: String, body: String) {
+
+  def asCardData: CardData = CardData(Some(id), title, body)
+
+  def updateWith(cardInput: CardFormInput): Try[CardResource] = {
+    if (cardInput.title == "") Failure(InvalidCardData.emptyTitle)
+    else Success(this.copy(title=cardInput.title,body=cardInput.body))
+  }
+
+}
 
 object CardResource {
 
@@ -64,7 +86,7 @@ class CardResourceHandler @Inject()(
     CardListResponse.fromRequest(cardListReq, cards, countOfCards)
   }
 
-  def create(input: CardFormInput, user: User) = {
+  def create(input: CardFormInput, user: User): Try[CardResource] = {
     val cardData = CardData(None, input.title, input.body)
     repository.create(cardData, user).flatMap(createdDataId =>
       get(createdDataId, user) match {
@@ -78,7 +100,20 @@ class CardResourceHandler @Inject()(
     repository.delete(id, user)
   }
 
-  def get(id: String, user: User) = {
+  def get(id: String, user: User): Option[CardResource] = {
     repository.get(id, user).map(CardResource.fromCardData)
+  }
+
+  def update(id: String, input: CardFormInput, user: User): Future[Try[CardResource]] = {
+    repository.get(id, user) match {
+      case Some(cardData) => CardResource.fromCardData(cardData).updateWith(input) match {
+        case Success(cardResource) => repository.update(cardResource.asCardData, user).map {
+          case Success(_) => Success(cardResource)
+          case Failure(e) => Failure(e)
+        }
+        case Failure(e) => Future(Failure(e))
+      }
+      case None => Future(Failure(new CardDoesNotExist))
+    }
   }
 }

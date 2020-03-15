@@ -39,7 +39,7 @@ class CardController @Inject()(
   val resourceHandler: CardResourceHandler,
   val silhouette: Silhouette[DefaultEnv])(
   implicit val ec: ExecutionContext)
-    extends BaseController {
+    extends BaseController with play.api.i18n.I18nSupport {
 
   private val logger = Logger(getClass)
 
@@ -84,6 +84,22 @@ class CardController @Inject()(
     )
   }
 
+  def update(id: String) = silhouette.SecuredAction.async { implicit request =>
+    import InputParser._
+    logger.info(s"Updating card with id ${id}")
+    parseUUID(id) match {
+      case Bad(x) => Future(NotFound)
+      case Good(id) => form.bindFromRequest().fold(
+        f => Future(BadRequest(f.errorsAsJson)),
+        cardFormInput => resourceHandler.update(id, cardFormInput, request.identity).map {
+          case Failure(e: CardDoesNotExist) => NotFound
+          case Failure(e) => unknownError(e)
+          case Success(card) => Ok(Json.toJson(card))
+        }
+      )
+    }
+  }
+
   def delete(id: String) = silhouette.SecuredAction.async { implicit request =>
     import InputParser._
     logger.info(s"Handling delete card action for id $id...")
@@ -92,10 +108,7 @@ class CardController @Inject()(
       case Good(x) => resourceHandler.delete(x, request.identity).map {
         case Success(_) => NoContent
         case Failure(e: CardDoesNotExist) => NotFound
-        case Failure(e) => {
-          logger.error("Error deleting the card: ", e)
-          InternalServerError("Unkown error!")
-        }
+        case Failure(e) => unknownError(e)
       }
     }
   }
@@ -103,6 +116,11 @@ class CardController @Inject()(
   private def handleCreateFailure(e: Throwable): Result = {
     logger.error("Card could not be created", e)
     BadRequest("Unable to create the card")
+  }
+
+  private def unknownError(e: Throwable) = {
+    logger.error("Unexpected error during update", e)
+    InternalServerError("Unknown error!")
   }
 
   def get(id: String) = silhouette.SecuredAction { implicit request =>
