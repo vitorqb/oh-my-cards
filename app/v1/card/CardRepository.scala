@@ -104,4 +104,16 @@ class CardRepositoryImpl @Inject()(
       }
     }
   }
+
+  /**
+    * Updates a card.
+    */
+  def update(data: CardData, user: User): Future[Try[Unit]] = Future { Try { db.withConnection {
+    implicit c =>
+    SQL"""
+       UPDATE cards SET title=${data.title}, body=${data.body} 
+       WHERE id=${data.id} AND userId=${user.id}
+       """
+      .executeUpdate()
+  }}}
 }

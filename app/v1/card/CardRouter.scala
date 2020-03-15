@@ -12,6 +12,7 @@ class CardRouter @Inject()(controller: CardController) extends SimpleRouter {
     case GET(p"/" ? q_?"page=$page" & q_?"pageSize=$pageSize") => controller.list(page, pageSize)
     case GET(p"/$id") => controller.get(id)
     case POST(p"/") => controller.create
+    case POST(p"/$id") => controller.update(id)
     case DELETE(p"/$id") => controller.delete(id)
   }
 
