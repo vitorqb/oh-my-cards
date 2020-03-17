@@ -1,2 +1,13 @@
 language: scala
-script: make test
+jobs:
+  include:
+    - stage: "Test"
+      script: make test
+    - stage: "Create Docker Image"
+      services:
+        docker
+      script: |
+        echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USER" --password-stdin
+        cd devops && make images/ohmycards/prod DOCKER=docker
+        docker push "${DOCKER_USER}/ohmycards:$(make version)"
+      if: branch = master AND type = push AND fork = false

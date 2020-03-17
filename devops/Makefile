@@ -1,4 +1,4 @@
-.PHONY: images/ohmycards/prod images/ohmycards/dev images/scala-sbt clean build
+.PHONY: images/ohmycards/prod images/ohmycards/dev images/scala-sbt clean build version
 
 # Versions to use (on scala-sbt image)
 SBT_VERSION ?= 1.3.4
@@ -11,7 +11,6 @@ GROUP_ID ?= $(shell id -g)
 # The tag for the different images
 OHMYCARDS_SCALA_SBT_TAG ?= latest
 OHMYCARDS_DEV_TAG ?= latest
-OHMYCARDS_PROD_TAG ?= latest
 
 # Regexp of files to ignore when copying source files to build directory.
 IGNORE_BUILD_FILES_REG ?= ^(devops|\.|\.\.|\.g8|\.bloop|\.metals|target|\.git)$$
@@ -24,12 +23,12 @@ BUILD_DIR ?= ./build
 
 # Get's the current version for the ohmycards source code in ./build/
 define version
-    $(shell sed -n -r -e '/^version/ s/^.*\"(.*)\".*$$/\1/p' <$(BUILD_DIR)/build.sbt | tr -d '\n')
+$(shell sed -n -r -e '/^version/ s/^.*\"(.*)\".*$$/\1/p' <$(BUILD_DIR)/build.sbt | tr -d '\n')
 endef
 
 # A nicer echo command
 define echo
-    @echo ""; echo "=>> "${1}; echo ""
+@echo ""; echo "=>> "${1}; echo ""
 endef
 
 # Builds the ohmycards prod image.
@@ -49,7 +48,7 @@ images/ohmycards/prod: build
 	  --build-arg USER_ID="$(USER_ID)" \
 	  --build-arg GROUP_ID="$(GROUP_ID)" \
 	  --build-arg OHMYCARDS_VERSION="$(VERSION)"\
-	  -t 'ohmycards/ohmycards:$(OHMYCARDS_PROD_TAG)' \
+	  -t 'vitorqb23/ohmycards:$(VERSION)' \
 	  $(BUILD_DIR)
 
 # Builds the ohmycards dev image.
@@ -58,7 +57,7 @@ images/ohmycards/dev: build images/scala-sbt
 	$(DOCKER) \
 	  build\
 	  --build-arg OHMYCARDS_VERSION="$(VERSION)"\
-	  -t 'ohmycards/ohmycards-dev:$(OHMYCARDS_DEV_TAG)' \
+	  -t 'vitorqb23/ohmycards-dev:$(OHMYCARDS_DEV_TAG)' \
 	  $(BUILD_DIR)
 
 # Builds the base scala-sbt image. See https://hub.docker.com/r/hseeberger/scala-sbt/
@@ -69,7 +68,7 @@ images/scala-sbt:
 	  --build-arg SCALA_VERSION="$(SCALA_VERSION)" \
 	  --build-arg USER_ID="$(USER_ID)" \
 	  --build-arg GROUP_ID="$(GROUP_ID)" \
-	  -t "ohmycards/scala-sbt:$(OHMYCARDS_SCALA_SBT_TAG)" \
+	  -t "vitorqb23/ohmycards-scala-sbt:$(OHMYCARDS_SCALA_SBT_TAG)" \
 	  github.com/hseeberger/scala-sbt.git#:debian
 
 # Cleans the build dir
@@ -83,4 +82,6 @@ build: clean
 	$(call echo,"Copying all source to build directory...")
 	ls -a .. | grep -vP '$(IGNORE_BUILD_FILES_REG)' | xargs -I {} cp -rv ../{} $(BUILD_DIR)/{}
 
-
+# Simply echos the version
+version:
+	@echo $(call version) | tr -d '\n'
