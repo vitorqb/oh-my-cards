@@ -17,11 +17,14 @@ OHMYCARDS_PROD_TAG ?= latest
 IGNORE_BUILD_FILES_REG ?= ^(devops|\.|\.\.|\.g8|\.bloop|\.metals|target|\.git)$$
 
 # The docker command to use
-DOCKER ?= docker
+DOCKER ?= sudo docker
+
+# The build directory to use
+BUILD_DIR ?= ./build
 
 # Get's the current version for the ohmycards source code in ./build/
 define version
-    $(shell sed -n -r -e '/^version/ s/^.*\"(.*)\".*$$/\1/p' <./build/build.sbt | tr -d '\n')
+    $(shell sed -n -r -e '/^version/ s/^.*\"(.*)\".*$$/\1/p' <$(BUILD_DIR)/build.sbt | tr -d '\n')
 endef
 
 # A nicer echo command
@@ -35,10 +38,10 @@ images/ohmycards/prod: build
 	@echo "INFO: version=$(VERSION)"
 
 	$(call echo,"Compiling the source code (generating .tgz artifact).") 
-	$(MAKE) -C ./build/ build
+	$(MAKE) -C $(BUILD_DIR) build
 
 	$(call echo,"Copying the Dockerfile on the build context.")
-	cp ./docker/ohmycards/prod/Dockerfile ./build/Dockerfile
+	cp ./docker/ohmycards/prod/Dockerfile $(BUILD_DIR)/Dockerfile
 
 	$(call echo,"Preparing docker image with artifact.")
 	$(DOCKER) \
@@ -47,16 +50,16 @@ images/ohmycards/prod: build
 	  --build-arg GROUP_ID="$(GROUP_ID)" \
 	  --build-arg OHMYCARDS_VERSION="$(VERSION)"\
 	  -t 'ohmycards/ohmycards:$(OHMYCARDS_PROD_TAG)' \
-	  build
+	  $(BUILD_DIR)
 
 # Builds the ohmycards dev image.
 images/ohmycards/dev: build images/scala-sbt
-	cp ./docker/ohmycards/dev/Dockerfile ./build/Dockerfile
+	cp ./docker/ohmycards/dev/Dockerfile $(BUILD_DIR)/Dockerfile
 	$(DOCKER) \
 	  build\
 	  --build-arg OHMYCARDS_VERSION="$(VERSION)"\
 	  -t 'ohmycards/ohmycards-dev:$(OHMYCARDS_DEV_TAG)' \
-	  build
+	  $(BUILD_DIR)
 
 # Builds the base scala-sbt image. See https://hub.docker.com/r/hseeberger/scala-sbt/
 images/scala-sbt:
@@ -72,12 +75,12 @@ images/scala-sbt:
 # Cleans the build dir
 clean:
 	$(call echo,"Cleaning build directory...")
-	rm -rf ./build
+	rm -rf $(BUILD_DIR)
+	mkdir -p $(BUILD_DIR)
 
 # Prepares the build directory with the ohmycards contents
 build: clean
 	$(call echo,"Copying all source to build directory...")
-	mkdir ./build
-	ls -a .. | grep -vP '$(IGNORE_BUILD_FILES_REG)' | xargs -I {} cp -rv ../{} ./build/{}
+	ls -a .. | grep -vP '$(IGNORE_BUILD_FILES_REG)' | xargs -I {} cp -rv ../{} $(BUILD_DIR)/{}
 
 

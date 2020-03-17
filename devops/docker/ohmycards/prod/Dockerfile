@@ -17,7 +17,7 @@ RUN tar -vzxf oh-my-cards-${OHMYCARDS_VERSION}.tgz && rm -rf oh-my-cards-${OHMYC
 RUN ln -s /home/ohmycards/oh-my-cards-${OHMYCARDS_VERSION}/bin/oh-my-cards /home/ohmycards/run
 RUN chmod +x /home/ohmycards/run
 
-EXPOSE 9000
+EXPOSE 8000
 
 ENTRYPOINT ["/home/ohmycards/run"]
 CMD []
