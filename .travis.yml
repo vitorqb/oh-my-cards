@@ -1,13 +1,24 @@
 language: scala
+before_cache:
+  - rm -fv $HOME/.ivy2/.sbt.ivy.lock
+  - find $HOME/.ivy2/cache -name "ivydata-*.properties" -print -delete
+  - find $HOME/.sbt        -name "*.lock"               -print -delete
+cache:
+  directories:
+    - $HOME/.cache/coursier
+    - $HOME/.ivy2/cache
+    - $HOME/.sbt
 jobs:
   include:
     - stage: "Test"
       script: make test
+      if: branch = master
     - stage: "Create Docker Image"
       services:
         docker
       script: |
         echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USER" --password-stdin
-        cd devops && make images/ohmycards/prod DOCKER=docker
-        docker push "${DOCKER_USER}/ohmycards:$(make version)"
-      if: branch = master AND type = push AND fork = false
+        export IMGTAG="${DOCKER_USER}/ohmycards:$(git describe --tags | tr -d '\n')"
+        cd devops && make images/ohmycards/prod DOCKER=docker IMGTAG="$IMGTAG"
+        docker push "$IMGTAG"
+      if: branch = master
