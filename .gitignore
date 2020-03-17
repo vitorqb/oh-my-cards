@@ -12,3 +12,4 @@ target
 /dev.sqlite
 .env
 test.sqlite
+/devops/build
