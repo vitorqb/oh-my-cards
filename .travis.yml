@@ -21,4 +21,4 @@ jobs:
         export IMGTAG="${DOCKER_USER}/ohmycards:$(git describe --tags | tr -d '\n')"
         cd devops && make images/ohmycards/prod DOCKER=docker IMGTAG="$IMGTAG"
         docker push "$IMGTAG"
-      if: branch = master
+      if: branch = master OR tag IS present
