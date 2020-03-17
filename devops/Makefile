@@ -43,7 +43,7 @@ images/ohmycards/prod: build
 	$(MAKE) -C $(BUILD_DIR) build
 
 	$(call echo,"Copying the Dockerfile on the build context.")
-	cp ./docker/ohmycards/prod/Dockerfile $(BUILD_DIR)/Dockerfile
+	cp ./docker/ohmycards/prod/* $(BUILD_DIR)/
 
 	$(call echo,"Preparing docker image with artifact.")
 	$(DOCKER) \
