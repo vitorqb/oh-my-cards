@@ -12,6 +12,9 @@ GROUP_ID ?= $(shell id -g)
 OHMYCARDS_SCALA_SBT_TAG ?= latest
 OHMYCARDS_DEV_TAG ?= latest
 
+# The tag for the prod image
+IMGTAG ?= ohmycards:latest
+
 # Regexp of files to ignore when copying source files to build directory.
 IGNORE_BUILD_FILES_REG ?= ^(devops|\.|\.\.|\.g8|\.bloop|\.metals|target|\.git)$$
 
@@ -48,7 +51,7 @@ images/ohmycards/prod: build
 	  --build-arg USER_ID="$(USER_ID)" \
 	  --build-arg GROUP_ID="$(GROUP_ID)" \
 	  --build-arg OHMYCARDS_VERSION="$(VERSION)"\
-	  -t 'vitorqb23/ohmycards:$(VERSION)' \
+	  -t '$(IMGTAG)' \
 	  $(BUILD_DIR)
 
 # Builds the ohmycards dev image.
