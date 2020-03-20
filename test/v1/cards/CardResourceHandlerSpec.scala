@@ -40,7 +40,7 @@ class CardResourceHandlerSpec
   "CardResourceHandlerSpec.create" should {
 
     "Delegate to repository.create" in {
-      val cardFormInput = CardFormInput("foo", "bar")
+      val cardFormInput = CardFormInput("foo", Some("bar"))
       val cardData = CardData(None, "foo", "bar")
       val createdCardDataId = "1"
       val createdCardData = cardData.copy(id=Some(createdCardDataId))
@@ -93,7 +93,7 @@ class CardResourceHandlerSpec
     "unitary tests" should {
 
       val id = "FOO"
-      val input = CardFormInput("title2", "body2")
+      val input = CardFormInput("title2", Some("body2"))
       val user = mock[User]
       val repository = mock[CardRepositoryImpl]
       val handler = new CardResourceHandler(repository)
@@ -106,7 +106,7 @@ class CardResourceHandlerSpec
 
       "Fail if card can not be updated with inputs" in {
         //empty title -> error
-        val input_ = input.copy(title="", body="")
+        val input_ = input.copy(title="", body=Some(""))
         when(repository.get(id, user)).thenReturn(Some(cardData))
         handler.update(id, input_, user).futureValue mustEqual Failure(InvalidCardData.emptyTitle)
       }
@@ -125,13 +125,13 @@ class CardResourceHandlerSpec
         test.utils.TestUtils.testDB { implicit db =>
           //Creates a card
           val user = User("userId", "userEmail")
-          val input = CardFormInput("title", "body")
+          val input = CardFormInput("title", Some("body"))
           val repository = new CardRepositoryImpl(db, new UUIDGenerator)
           val handler = new CardResourceHandler(repository)
           val created = handler.create(input, user).get
 
           //Updates it
-          val updateInput = input.copy(title="title2", body="body2")
+          val updateInput = input.copy(title="title2", body=Some("body2"))
           val updated = handler.update(created.id, updateInput, user).futureValue.get
 
           updated mustEqual created.copy(title="title2", body="body2")

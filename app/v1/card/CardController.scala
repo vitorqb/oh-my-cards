@@ -18,7 +18,11 @@ import services.InputParser
 /**
   * Represents the user-inputted data for a card.
   */
-case class CardFormInput(title: String, body: String)
+case class CardFormInput(title: String, body: Option[String]) {
+
+  def asCardData: CardData = CardData(None, title, body.getOrElse(""))
+
+}
 
 
 /**
@@ -49,7 +53,7 @@ class CardController @Inject()(
     Form(
       mapping(
         "title" -> nonEmptyText,
-        "body" -> text
+        "body" -> optional(text)
       )(CardFormInput.apply)(CardFormInput.unapply)
     )
 
