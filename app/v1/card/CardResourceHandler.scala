@@ -29,7 +29,7 @@ case class CardResource(id: String, link: String, title: String, body: String) {
 
   def updateWith(cardInput: CardFormInput): Try[CardResource] = {
     if (cardInput.title == "") Failure(InvalidCardData.emptyTitle)
-    else Success(this.copy(title=cardInput.title,body=cardInput.body))
+    else Success(this.copy(title=cardInput.title, body=cardInput.body.getOrElse("")))
   }
 
 }
@@ -87,8 +87,7 @@ class CardResourceHandler @Inject()(
   }
 
   def create(input: CardFormInput, user: User): Try[CardResource] = {
-    val cardData = CardData(None, input.title, input.body)
-    repository.create(cardData, user).flatMap(createdDataId =>
+    repository.create(input.asCardData, user).flatMap(createdDataId =>
       get(createdDataId, user) match {
         case Some(cardResource) => Success(cardResource)
         case None => Failure(new Exception("Could not find created resource!"))
