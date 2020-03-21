@@ -3,13 +3,14 @@ package v1.card
 import javax.inject.Inject
 import java.util.UUID.randomUUID
 import scala.util.{Try,Success,Failure}
-import anorm.{SQL,RowParser,Macro}
+import anorm.{SQL,RowParser,Macro,SqlParser}
 import play.api.db.Database
 import v1.auth.User
 import services.UUIDGenerator
 import anorm.`package`.SqlStringInterpolation
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext
+import java.sql.Connection
 
 /**
   * Custom exception signaling that a card does not exist.
@@ -22,7 +23,7 @@ final case class CardDoesNotExist(
 /**
   * The data for a Card.
   */
-final case class CardData(id: Option[String], title: String, body: String)
+final case class CardData(id: Option[String], title: String, body: String, tags: List[String])
 
 /**
   * An interface for a card repository.
@@ -38,20 +39,27 @@ trait CardRepository {
   */
 class CardRepositoryImpl @Inject()(
   db: Database,
-  uuidGenerator: UUIDGenerator)(
+  uuidGenerator: UUIDGenerator,
+  tagsRepo: TagsRepository)(
   implicit val ec: ExecutionContext) extends CardRepository {
 
-  private val cardDataParser: RowParser[CardData] = Macro.namedParser[CardData]
+  private val cardDataParser: RowParser[CardData] = {
+    import anorm._
+    SqlParser.str("id") ~ SqlParser.str("title") ~ SqlParser.str("body") map {
+      case id ~ title ~ body => CardData(Some(id), title, body, List())
+    }
+  }
 
   def create(cardData: CardData, user: User): Try[String] = {
     if (cardData.id.isDefined) {
       Failure(new Exception("Id for create should be null!"))
     } else {
       val id = uuidGenerator.generate
-      db.withConnection { implicit c =>
+      db.withTransaction { implicit c =>
         SQL("INSERT INTO cards(id, userId, title, body) VALUES ({id}, {userId}, {title}, {body});")
           .on("id" -> id, "userId" -> user.id, "title" -> cardData.title, "body" -> cardData.body)
           .executeInsert()
+        tagsRepo.create(id, cardData.tags)
         Success(id)
       }
     }
@@ -62,6 +70,7 @@ class CardRepositoryImpl @Inject()(
       .on("id" -> id, "userId" -> user.id)
       .as(cardDataParser.*)
       .headOption
+      .map(_.copy(tags=tagsRepo.get(id)))
   }
 
   /**
@@ -77,6 +86,7 @@ class CardRepositoryImpl @Inject()(
       | """.stripMargin)
       .on("userId" -> request.userId)
       .as(cardDataParser.*)
+      .map(cardData => cardData.copy(tags=tagsRepo.get(cardData.id.get)))
   }
 
   /**
@@ -100,6 +110,7 @@ class CardRepositoryImpl @Inject()(
       case None => Failure(new CardDoesNotExist)
       case Some(_) => db.withConnection { implicit c =>
         SQL"""DELETE FROM cards where userId = ${user.id} AND id = ${id}""".executeUpdate
+        tagsRepo.delete(id)
         Success(())
       }
     }
@@ -108,12 +119,44 @@ class CardRepositoryImpl @Inject()(
   /**
     * Updates a card.
     */
-  def update(data: CardData, user: User): Future[Try[Unit]] = Future { Try { db.withConnection {
+  def update(data: CardData, user: User): Future[Try[Unit]] = Future { Try { db.withTransaction {
     implicit c =>
     SQL"""
        UPDATE cards SET title=${data.title}, body=${data.body} 
        WHERE id=${data.id} AND userId=${user.id}
        """
       .executeUpdate()
+    tagsRepo.delete(data.id.get)
+    tagsRepo.create(data.id.get, data.tags)
   }}}
+}
+
+/**
+  * Helper object manage cards tags.
+  */
+private class TagsRepository {
+
+  /**
+    * Delets all tags for a given card id.
+    */
+  def delete(cardId: String)(implicit c:Connection): Unit = {
+    SQL"DELETE FROM cardsTags WHERE cardId = ${cardId}".execute()
+  }
+
+  /**
+    * Create all tags for a given card id.
+    */
+  def create(cardId: String, tags: List[String])(implicit c: Connection): Unit = {
+    tags.foreach { tag =>
+      SQL"INSERT INTO cardsTags(cardId, tag) VALUES (${cardId}, ${tag})".executeInsert()
+    }
+  }
+
+  /**
+    * Returns all tags for a given card id.
+    */
+  def get(cardId: String)(implicit c: Connection): List[String] = {
+    SQL"SELECT tag FROM cardsTags WHERE cardId = ${cardId} ORDER BY tag"
+      .as(SqlParser.scalar[String].*)
+  }
 }

@@ -18,11 +18,46 @@ import services.UUIDGenerator
 
 class CardResourceSpec extends PlaySpec {
 
+  val baseCardResource = CardResource("id", "link", "title", "body", List("A"))
+  val baseCardInput = CardFormInput(
+    baseCardResource.title,
+    Some(baseCardResource.body),
+    Some(baseCardResource.tags)
+  )
+
   "asCardData" should {
 
     "convert to a card data" in {
-      (CardResource("id", "link", "title", "body").asCardData mustEqual
-        CardData(Some("id"), "title", "body"))
+      baseCardResource.asCardData mustEqual CardData(Some("id"), "title", "body", List("A"))
+    }
+
+  }
+
+  "updateWith" should {
+
+    "updates the title" in {
+      (baseCardResource.updateWith(baseCardInput.copy(title="otherTitle")).get
+        mustEqual baseCardResource.copy(title="otherTitle"))
+    }
+
+    "updates the body" in {
+      (baseCardResource.updateWith(baseCardInput.copy(body=Some("otherTitle"))).get
+        mustEqual baseCardResource.copy(body="otherTitle"))
+    }
+
+    "updates the body to empty string" in {
+      (baseCardResource.updateWith(baseCardInput.copy(body=None)).get
+        mustEqual baseCardResource.copy(body=""))
+    }
+
+    "updates the tags" in {
+      (baseCardResource.updateWith(baseCardInput.copy(tags=Some(List("AAA", "BBB")))).get
+        mustEqual baseCardResource.copy(tags=List("AAA", "BBB")))
+    }
+
+    "updates the tags when tags is empty" in {
+      (baseCardResource.updateWith(baseCardInput.copy(tags=None)).get
+        mustEqual baseCardResource.copy(tags=List()))
     }
 
   }
@@ -40,8 +75,8 @@ class CardResourceHandlerSpec
   "CardResourceHandlerSpec.create" should {
 
     "Delegate to repository.create" in {
-      val cardFormInput = CardFormInput("foo", Some("bar"))
-      val cardData = CardData(None, "foo", "bar")
+      val cardFormInput = CardFormInput("foo", Some("bar"), None)
+      val cardData = CardData(None, "foo", "bar", List())
       val createdCardDataId = "1"
       val createdCardData = cardData.copy(id=Some(createdCardDataId))
       val user = mock[User]
@@ -61,11 +96,11 @@ class CardResourceHandlerSpec
   "CardResourceHandlerSpec.find" should {
 
     "Returns resources from repository data" in {
-      val cardResource1 = CardResource("foo1", "", "baz1", "")
-      val cardData1 = CardData(Some("foo1"), "baz1", "")
+      val cardResource1 = CardResource("foo1", "", "baz1", "", List())
+      val cardData1 = CardData(Some("foo1"), "baz1", "", List())
 
-      val cardResource2 = CardResource("foo2", "", "baz2", "")
-      val cardData2 = CardData(Some("foo2"), "baz2", "")
+      val cardResource2 = CardResource("foo2", "", "baz2", "", List("A"))
+      val cardData2 = CardData(Some("foo2"), "baz2", "", List("A"))
 
       val cardListReq = CardListRequest(1, 2, "userid")
 
@@ -93,11 +128,11 @@ class CardResourceHandlerSpec
     "unitary tests" should {
 
       val id = "FOO"
-      val input = CardFormInput("title2", Some("body2"))
+      val input = CardFormInput("title2", Some("body2"), None)
       val user = mock[User]
       val repository = mock[CardRepositoryImpl]
       val handler = new CardResourceHandler(repository)
-      val cardData = CardData(Some(id), "title1", "body1")
+      val cardData = CardData(Some(id), "title1", "body1", List())
       
       "Fails if card not found" in {
         when(repository.get(id, user)).thenReturn(None)
@@ -125,8 +160,8 @@ class CardResourceHandlerSpec
         test.utils.TestUtils.testDB { implicit db =>
           //Creates a card
           val user = User("userId", "userEmail")
-          val input = CardFormInput("title", Some("body"))
-          val repository = new CardRepositoryImpl(db, new UUIDGenerator)
+          val input = CardFormInput("title", Some("body"), None)
+          val repository = new CardRepositoryImpl(db, new UUIDGenerator, new TagsRepository)
           val handler = new CardResourceHandler(repository)
           val created = handler.create(input, user).get
 

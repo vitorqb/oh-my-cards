@@ -23,13 +23,13 @@ object InvalidCardData {
 /**
   * Data transfer object for a card.
   */
-case class CardResource(id: String, link: String, title: String, body: String) {
+case class CardResource(id: String, link: String, title: String, body: String, tags: List[String]) {
 
-  def asCardData: CardData = CardData(Some(id), title, body)
+  def asCardData: CardData = CardData(Some(id), title, body, tags)
 
   def updateWith(cardInput: CardFormInput): Try[CardResource] = {
     if (cardInput.title == "") Failure(InvalidCardData.emptyTitle)
-    else Success(this.copy(title=cardInput.title, body=cardInput.body.getOrElse("")))
+    else Success(this.copy(title=cardInput.title, body=cardInput.getBody, tags=cardInput.getTags))
   }
 
 }
@@ -39,7 +39,7 @@ object CardResource {
   implicit val format: Format[CardResource] = Json.format
 
   def fromCardData(cardData: CardData) = {
-    CardResource(cardData.id.fold("")(x => x), "", cardData.title, cardData.body)
+    CardResource(cardData.id.fold("")(x => x), "", cardData.title, cardData.body, cardData.tags)
   }
 
 }
