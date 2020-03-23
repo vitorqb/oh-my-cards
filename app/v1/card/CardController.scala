@@ -5,7 +5,7 @@ import scala.util.{Try,Success,Failure}
 import javax.inject.Inject
 import play.api.mvc._
 import play.api.Logger
-import play.api.libs.json.Json
+import play.api.libs.json.{Json,JsValue}
 import play.api.data.Form
 import com.mohiva.play.silhouette.api.Silhouette
 
@@ -14,6 +14,8 @@ import v1.auth.User
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext
 import services.InputParser
+import play.api.libs.json.JsPath.json
+import play.api.i18n.MessagesProvider
 
 /**
   * Represents the user-inputted data for a card.
@@ -47,9 +49,14 @@ object CardFormInput {
 /**
   * Represents the user-inputted data for a request for a list of cards.
   */
-case class CardListRequestInput(page: Int, pageSize: Int) {
+case class CardListRequestInput(page: Int, pageSize: Int, tags: Option[String]) {
 
-  def toCardListRequest(u: User) = CardListRequest(page, pageSize, u.id)
+  def tagsList: List[String] = tags match {
+    case Some(s) => List.from(s.split(",").map(_.trim))
+    case None => List()
+  }
+
+  def toCardListRequest(u: User): CardListRequest = CardListRequest(page, pageSize, u.id, tagsList)
 
 }
 
@@ -68,14 +75,14 @@ class CardController @Inject()(
   /**
     * Endpoint used to query for a list of pages.
     */
-  def list(page: Option[String], pageSize: Option[String]) = silhouette.SecuredAction {
+  def list() = silhouette.SecuredAction {
     implicit request =>
     import CardListRequestParser._
 
-    logger.info(s"Getting cards for user ${request.identity} with page=$page, pageSize=$pageSize")
-    CardListRequestParser.parse(page, pageSize) match {
-      case Bad(msg) => BadRequest(msg)
-      case Good(input: CardListRequestInput) => {
+    logger.info(s"Getting cards for user ${request.identity}")
+    CardListRequestParser.parse() match {
+      case Right(js) => BadRequest(js)
+      case Left(input: CardListRequestInput) => {
         val user = request.identity
         val cards = resourceHandler.find(input.toCardListRequest(user))
         Ok(Json.toJson(cards))
@@ -156,38 +163,22 @@ class CardController @Inject()(
   */
 object CardListRequestParser {
 
-  /**
-    * Parsing result. Good means a valid parsed value, Bad means an error msg.
-    */
-  sealed trait Result
-  case class Good(parsed: CardListRequestInput) extends Result
-  case class Bad(message: String) extends Result
-
-  val missingPage = Bad("Missing page.")
-  val missingPageSize = Bad("Missing page size.")
-  val genericError = Bad("Invalid parameters.")
-
   private val form: Form[CardListRequestInput] = {
     import play.api.data.Forms._
 
     Form(
       mapping(
         "page" -> number,
-        "pageSize" -> number
+        "pageSize" -> number,
+        "tags" -> optional(text)
       )(CardListRequestInput.apply)(CardListRequestInput.unapply)
     )
   }
 
-  def parse(page: Option[String], pageSize: Option[String]): Result = {
-    (page, pageSize) match {
-      case (None, Some(_)) | (None, None) => missingPage
-      case (Some(_), None) => missingPageSize
-      case (Some(x), Some(y)) => form.bind(Map("page" -> x, "pageSize" -> y)).fold(
-        _ => genericError,
-        cardListReq => Good(cardListReq)
-      )
-    }
-
+  def parse()(
+    implicit request: Request[AnyContent],
+    mp: MessagesProvider
+  ): Either[CardListRequestInput, JsValue] = {
+    form.bindFromRequest().fold(f => Right(f.errorsAsJson), x => Left(x))
   }
-
 }

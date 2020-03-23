@@ -1,35 +1,91 @@
 package v1.card
 
 import org.scalatestplus.play._
+import play.api.test.FakeRequest
+import play.api.libs.json.JsValue
+import play.api.libs.json.JsDefined
+import play.api.libs.json.JsUndefined
+import test.utils.JsonUtils
+import play.api.i18n.MessagesImpl
+import play.api.i18n.MessagesProvider
+import play.api.i18n.Lang
+import play.api.i18n.DefaultMessagesApi
+import v1.auth.User
 
+trait CardListRequestParserTestUtils extends JsonUtils {
+  import CardListRequestParser._
 
-class CardListRequestParserSpec extends PlaySpec {
+  implicit class EnrichedResult[T](private val x: Either[CardListRequestInput, JsValue]) {
+    def isBadWithJsKey(k: String) = x match {
+      case Left(_) => false
+      case Right(x: JsValue) => x hasKey k
+      case Right(x) => false
+    }
+  }
 
-  val pageVal = 2
-  val page = Some(pageVal.toString)
-  val pageSizeVal = 5
-  val pageSize = Some(pageSizeVal.toString)
+}
 
-  "CardListRequestParserSpec.parse" should {
+class CardListRequestInputSpec extends PlaySpec {
 
-    "Return error if page is missing" in {
-      CardListRequestParser.parse(None, pageSize) mustEqual CardListRequestParser.missingPage
+  "ToCardListRequest" should {
+    val user = User("A", "B")
+
+    "Without tags" in {
+      (CardListRequestInput(10, 20, None).toCardListRequest(user)
+        mustEqual CardListRequest(10, 20, "A", List()))
     }
 
-    "Return error if pageSize is missing" in {
-      CardListRequestParser.parse(page, None) mustEqual CardListRequestParser.missingPageSize
-    }
-
-    "Return error if page is not a number" in {
-      (CardListRequestParser.parse(Some("FOO"), pageSize)
-        mustEqual CardListRequestParser.genericError)
-    }
-
-    "Returns success if all good" in {
-      import CardListRequestParser._
-      CardListRequestParser.parse(page, pageSize) mustEqual Good(CardListRequestInput(2, 5))
+    "With tags" in {
+      (CardListRequestInput(10, 20, Some("foo,bar, baz")).toCardListRequest(user)
+        mustEqual CardListRequest(10, 20, "A", List("foo", "bar", "baz")))
     }
 
   }
 
 }
+
+class CardListRequestParserSpec extends PlaySpec with CardListRequestParserTestUtils {
+
+  implicit val messagesProvider: MessagesProvider = MessagesImpl(Lang("en"), new DefaultMessagesApi)
+  val pageVal = 2
+  val page = Some(pageVal.toString)
+  val pageSizeVal = 5
+  val pageSize = Some(pageSizeVal.toString)
+
+  "CardListRequestParser.parse with implicit request" should {
+    import CardListRequestParser._
+
+    "Base" in {
+      implicit val request = FakeRequest("GET", "/foo?page=1&pageSize=2")
+      CardListRequestParser.parse() mustEqual Left(CardListRequestInput(1,2,None))
+    }
+
+    "Return error if page is missing" in {
+      implicit val request = FakeRequest("GET", "/foo?pageSize=1")
+      CardListRequestParser.parse().isBadWithJsKey("page") mustEqual true
+    }
+
+    "Return error if pageSize is missing" in {
+      implicit val request = FakeRequest("GET", "/foo?page=1")
+      CardListRequestParser.parse().isBadWithJsKey("pageSize") mustEqual true
+    }
+
+    "Return error if page is not a number" in {
+      implicit val request = FakeRequest("GET", "/foo?page=aaa&pageSize=2")
+      CardListRequestParser.parse().isBadWithJsKey("page") mustEqual true
+    }
+
+    "Returns success if all good" in {
+      implicit val request = FakeRequest("GET", "/foo?page=2&pageSize=2")
+      CardListRequestParser.parse() mustEqual Left(CardListRequestInput(2,2,None))
+    }
+
+    "With tags work fine" in {
+      implicit val request = FakeRequest("GET", "/foo?page=2&pageSize=2&tags=foo,bar")
+      CardListRequestParser.parse() mustEqual Left(CardListRequestInput(2,2,Some("foo,bar")))
+    }
+
+  }
+
+}
+

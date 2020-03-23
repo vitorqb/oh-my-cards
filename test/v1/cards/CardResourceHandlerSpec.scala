@@ -102,7 +102,7 @@ class CardResourceHandlerSpec
       val cardResource2 = CardResource("foo2", "", "baz2", "", List("A"))
       val cardData2 = CardData(Some("foo2"), "baz2", "", List("A"))
 
-      val cardListReq = CardListRequest(1, 2, "userid")
+      val cardListReq = CardListRequest(1, 2, "userid", List())
 
       val repository = mock[CardRepositoryImpl]
       when(repository.find(cardListReq)).thenReturn(Array(cardData1, cardData2))

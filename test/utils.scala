@@ -45,3 +45,16 @@ object TestUtils {
   }
 
 }
+
+/**
+  * Utils for testing with json objects.
+  */
+trait JsonUtils {
+  import play.api.libs.json._
+  implicit class EnrichedJsonForTest(val js: JsValue) {
+    def hasKey(key: String): Boolean = (js \ key) match {
+      case JsDefined(_) => true
+      case JsUndefined() => false
+    }
+  }
+}

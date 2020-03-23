@@ -14,9 +14,13 @@ import scala.util.Success
 import v1.auth.User
 import services.UUIDGenerator
 import scala.util.Failure
+import play.api.db.Database
 
 
-class CardRepositorySpec extends PlaySpec with MockitoSugar with ScalaFutures {
+class CardRepositorySpec extends PlaySpec
+    with MockitoSugar
+    with ScalaFutures
+    with BeforeAndAfterEach {
 
   implicit val ec: ExecutionContext = ExecutionContext.global
 
@@ -54,21 +58,27 @@ class CardRepositorySpec extends PlaySpec with MockitoSugar with ScalaFutures {
 
   "CardRepository.find" should {
 
+    val userId = "userid"
+    val user = User(userId, "a@a.a")
+    val cardData1 = CardData(Some("id1"), "ONE", "one", List())
+    val cardData2 = CardData(Some("id2"), "TWO", "two", List("ANOTHER_TAG", "A_TAG"))
+    val cardData3 = CardData(Some("id3"), "THREE", "three", List())
+
+    /**
+      * Saves all cards fixtures to the db using uuidGenerator and repository.
+      */
+    def saveCardsFixtures(uuidGenerator: UUIDGenerator, repository: CardRepository) = {
+      for (cardData <- Array[CardData](cardData1, cardData2, cardData3)) yield {
+        when(uuidGenerator.generate).thenReturn(cardData.id.value)
+        repository.create(cardData.copy(id=None), user)
+      }
+    }
+
     "find two out of tree cards for an user" in {
       test.utils.TestUtils.testDB { db =>
-        val userId = "userid"
-
         val uuidGenerator = mock[UUIDGenerator]
         val repository = new CardRepositoryImpl(db, uuidGenerator, new TagsRepository)
-
-        val user = User(userId, "a@a.a")
-        val cardData1 = CardData(Some("id1"), "ONE", "one", List())
-        val cardData2 = CardData(Some("id2"), "TWO", "two", List("ANOTHER_TAG", "A_TAG"))
-        val cardData3 = CardData(Some("id3"), "THREE", "three", List())
-        for (cardData <- Array[CardData](cardData1, cardData2, cardData3)) yield {
-          when(uuidGenerator.generate).thenReturn(cardData.id.value)
-          repository.create(cardData.copy(id=None), user)
-        }
+        saveCardsFixtures(uuidGenerator, repository)
 
         //Create for other user
         val otherUser = User("bar", "b@b.b@")
@@ -76,10 +86,29 @@ class CardRepositorySpec extends PlaySpec with MockitoSugar with ScalaFutures {
         when(uuidGenerator.generate).thenReturn(cardDataOtherUser1.id.value)
         repository.create(cardDataOtherUser1.copy(id=None), otherUser)
 
-        repository.find(CardListRequest(1, 2, userId)) mustEqual Array(cardData3, cardData2)
+        repository.find(CardListRequest(1, 2, userId, List())) mustEqual List(cardData3, cardData2)
       }
     }
 
+    "Filters out unwanted tags" in {
+      test.utils.TestUtils.testDB { db =>
+        val uuidGenerator = mock[UUIDGenerator]
+        val repository = new CardRepositoryImpl(db, uuidGenerator, new TagsRepository)
+        saveCardsFixtures(uuidGenerator, repository)
+
+        repository.find(CardListRequest(1, 2, userId, List("A_TAG"))) mustEqual(List(cardData2))
+      }
+    }
+
+    "Filters out unwanted tags (CASE INSENSITIVE)" in {
+      test.utils.TestUtils.testDB { db =>
+        val uuidGenerator = mock[UUIDGenerator]
+        val repository = new CardRepositoryImpl(db, uuidGenerator, new TagsRepository)
+        saveCardsFixtures(uuidGenerator, repository)
+
+        repository.find(CardListRequest(1, 2, userId, List("a_tag"))) mustEqual(List(cardData2))
+      }
+    }
   }
 
   "TagsRepository" should {
@@ -119,33 +148,42 @@ class CardRepositorySpec extends PlaySpec with MockitoSugar with ScalaFutures {
 
   "CardRepository.countItemsMatching" should {
 
-    "count the number of items for an user" in {
+    val user = User("foo", "a@a.a")
+    val cardData1 = CardData(Some("id1"), "ONE", "TWO", List("a", "b"))
+    val cardData2 = CardData(Some("id2"), "one", "two", List("A", "B"))
+    val cardData3 = CardData(Some("id3"), "THREE", "three", List("C"))
+
+    /**
+      * Stores the cards data in the db.
+      */
+    def saveCardsFixtures(uuidGenerator: UUIDGenerator, repository: CardRepository) = {
+      for (cardData <- Array[CardData](cardData1, cardData2, cardData3)) yield {
+        when(uuidGenerator.generate).thenReturn(cardData.id.value)
+        repository.create(cardData.copy(id=None), user)
+      }
+    }
+    
+    "count the number of items for an user and not for other users." in {
       test.utils.TestUtils.testDB { db =>
         val uuidGenerator = mock[UUIDGenerator]
         val repository =  new CardRepositoryImpl(db, uuidGenerator, new TagsRepository)
+        saveCardsFixtures(uuidGenerator, repository)
 
-        //Create for user
-        val user = User("foo", "a@a.a")
-        val cardData1 = CardData(Some("id1"), "ONE", "one", List())
-        val cardData2 = CardData(Some("id2"), "TWO", "two", List())
-        val cardData3 = CardData(Some("id3"), "THREE", "three", List())
-        for (cardData <- Array[CardData](cardData1, cardData2, cardData3)) yield {
-          when(uuidGenerator.generate).thenReturn(cardData.id.value)
-          repository.create(cardData.copy(id=None), user)
-        }
+        //Creates for other user
+        when(uuidGenerator.generate()).thenReturn("otherUserCardId")
+        repository.create(CardData(None, "four", "four", List("b")), User("other", "other"))
 
-        //Create for other user
-        val otherUser = User("bar", "b@b.b@")
-        val cardDataOtherUser1 = CardData(Some("id4"), "FOUR", "four", List())
-        when(uuidGenerator.generate).thenReturn(cardDataOtherUser1.id.value)
-        repository.create(cardDataOtherUser1.copy(id=None), otherUser)
+        repository.countItemsMatching(CardListRequest(0, 0, user.id, List("b"))) mustEqual 2
+      }
+    }
 
-        //User three has no cards
-        val userThree = User("baz", "c@c.c@")
+    "filters by tag" in {
+test.utils.TestUtils.testDB { db =>
+        val uuidGenerator = mock[UUIDGenerator]
+        val repository =  new CardRepositoryImpl(db, uuidGenerator, new TagsRepository)
+        saveCardsFixtures(uuidGenerator, repository)
 
-        repository.countItemsMatching(CardListRequest(0, 0, user.id)) mustEqual 3
-        repository.countItemsMatching(CardListRequest(0, 0, otherUser.id)) mustEqual 1
-        repository.countItemsMatching(CardListRequest(0, 0, userThree.id)) mustEqual 0
+        repository.countItemsMatching(CardListRequest(0, 0, user.id, List())) mustEqual 3
       }
     }
   }
