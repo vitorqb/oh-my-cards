@@ -86,27 +86,50 @@ class CardRepositorySpec extends PlaySpec
         when(uuidGenerator.generate).thenReturn(cardDataOtherUser1.id.value)
         repository.create(cardDataOtherUser1.copy(id=None), otherUser)
 
-        repository.find(CardListRequest(1, 2, userId, List())) mustEqual List(cardData3, cardData2)
+        (repository.find(CardListRequest(1, 2, userId, List(), List()))
+          mustEqual
+          List(cardData3, cardData2))
       }
     }
 
-    "Filters out unwanted tags" in {
+    "Filters wanted tags only" in {
       test.utils.TestUtils.testDB { db =>
         val uuidGenerator = mock[UUIDGenerator]
         val repository = new CardRepositoryImpl(db, uuidGenerator, new TagsRepository)
         saveCardsFixtures(uuidGenerator, repository)
 
-        repository.find(CardListRequest(1, 2, userId, List("A_TAG"))) mustEqual(List(cardData2))
+        (repository.find(CardListRequest(1, 2, userId, List("A_TAG"), List()))
+          mustEqual
+          List(cardData2))
       }
     }
 
-    "Filters out unwanted tags (CASE INSENSITIVE)" in {
+    "Filters wanted tags (CASE INSENSITIVE)" in {
       test.utils.TestUtils.testDB { db =>
         val uuidGenerator = mock[UUIDGenerator]
         val repository = new CardRepositoryImpl(db, uuidGenerator, new TagsRepository)
         saveCardsFixtures(uuidGenerator, repository)
 
-        repository.find(CardListRequest(1, 2, userId, List("a_tag"))) mustEqual(List(cardData2))
+        (repository.find(CardListRequest(1, 2, userId, List("a_tag"), List()))
+          mustEqual
+          List(cardData2))
+      }
+    }
+
+    "Removes unwanted tags" in {
+      test.utils.TestUtils.testDB { implicit db =>
+        val uuidGenerator = mock[UUIDGenerator]
+        val repository = new CardRepositoryImpl(db, uuidGenerator, new TagsRepository)
+        saveCardsFixtures(uuidGenerator, repository)
+
+        //Adds another card
+        val cardData4 = CardData(Some("id4"), "FOUR", "four", List("A_TAG"))
+        when(uuidGenerator.generate).thenReturn(cardData4.id.value)
+        repository.create(cardData4.copy(id=None), user)
+
+        (repository.find(CardListRequest(1, 2, userId, List("a_tag"), List("another_TAG")))
+          mustEqual
+          List(cardData4))
       }
     }
   }
@@ -150,7 +173,7 @@ class CardRepositorySpec extends PlaySpec
 
     val user = User("foo", "a@a.a")
     val cardData1 = CardData(Some("id1"), "ONE", "TWO", List("a", "b"))
-    val cardData2 = CardData(Some("id2"), "one", "two", List("A", "B"))
+    val cardData2 = CardData(Some("id2"), "one", "two", List("A", "B", "D"))
     val cardData3 = CardData(Some("id3"), "THREE", "three", List("C"))
 
     /**
@@ -173,17 +196,36 @@ class CardRepositorySpec extends PlaySpec
         when(uuidGenerator.generate()).thenReturn("otherUserCardId")
         repository.create(CardData(None, "four", "four", List("b")), User("other", "other"))
 
-        repository.countItemsMatching(CardListRequest(0, 0, user.id, List("b"))) mustEqual 2
+        (repository.countItemsMatching(CardListRequest(0, 0, user.id, List("b"), List()))
+          mustEqual
+          2)
       }
     }
 
     "filters by tag" in {
-test.utils.TestUtils.testDB { db =>
+      test.utils.TestUtils.testDB { db =>
         val uuidGenerator = mock[UUIDGenerator]
         val repository =  new CardRepositoryImpl(db, uuidGenerator, new TagsRepository)
         saveCardsFixtures(uuidGenerator, repository)
 
-        repository.countItemsMatching(CardListRequest(0, 0, user.id, List())) mustEqual 3
+        (repository.countItemsMatching(CardListRequest(0, 0, user.id, List(), List()))
+          mustEqual
+          3)
+      }
+    }
+
+    "removes by tag" in {
+      test.utils.TestUtils.testDB { db =>
+        val uuidGenerator = mock[UUIDGenerator]
+        val repository =  new CardRepositoryImpl(db, uuidGenerator, new TagsRepository)
+        saveCardsFixtures(uuidGenerator, repository)
+
+        (repository.countItemsMatching(CardListRequest(0, 0, user.id, List("a", "b"), List("d")))
+          mustEqual
+          1)
+        (repository.countItemsMatching(CardListRequest(0, 0, user.id, List("a", "b"), List("c")))
+          mustEqual
+          2)
       }
     }
   }

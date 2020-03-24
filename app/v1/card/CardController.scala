@@ -49,14 +49,25 @@ object CardFormInput {
 /**
   * Represents the user-inputted data for a request for a list of cards.
   */
-case class CardListRequestInput(page: Int, pageSize: Int, tags: Option[String]) {
+case class CardListRequestInput(
+  page: Int,
+  pageSize: Int,
+  tags: Option[String],
+  tagsNot: Option[String]) {
 
   def tagsList: List[String] = tags match {
     case Some(s) => List.from(s.split(",").map(_.trim))
     case None => List()
   }
 
-  def toCardListRequest(u: User): CardListRequest = CardListRequest(page, pageSize, u.id, tagsList)
+  def tagsNotList: List[String] = tagsNot match {
+    case Some(s) => List.from(s.split(",").map(_.trim))
+    case None => List()
+  }
+
+  def toCardListRequest(u: User): CardListRequest = {
+    CardListRequest(page, pageSize, u.id, tagsList, tagsNotList)
+  }
 
 }
 
@@ -170,7 +181,8 @@ object CardListRequestParser {
       mapping(
         "page" -> number,
         "pageSize" -> number,
-        "tags" -> optional(text)
+        "tags" -> optional(text),
+        "tagsNot" -> optional(text)
       )(CardListRequestInput.apply)(CardListRequestInput.unapply)
     )
   }

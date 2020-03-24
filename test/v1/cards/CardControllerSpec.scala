@@ -31,13 +31,18 @@ class CardListRequestInputSpec extends PlaySpec {
     val user = User("A", "B")
 
     "Without tags" in {
-      (CardListRequestInput(10, 20, None).toCardListRequest(user)
-        mustEqual CardListRequest(10, 20, "A", List()))
+      (CardListRequestInput(10, 20, None, None).toCardListRequest(user)
+        mustEqual CardListRequest(10, 20, "A", List(), List()))
     }
 
     "With tags" in {
-      (CardListRequestInput(10, 20, Some("foo,bar, baz")).toCardListRequest(user)
-        mustEqual CardListRequest(10, 20, "A", List("foo", "bar", "baz")))
+      (CardListRequestInput(10, 20, Some("foo,bar, baz"), None).toCardListRequest(user)
+        mustEqual CardListRequest(10, 20, "A", List("foo", "bar", "baz"), List()))
+    }
+
+    "With tagsNot" in {
+      (CardListRequestInput(10, 20, Some("foo,bar, baz"), Some("B,C")).toCardListRequest(user)
+        mustEqual CardListRequest(10, 20, "A", List("foo", "bar", "baz"), List("B", "C")))
     }
 
   }
@@ -57,7 +62,7 @@ class CardListRequestParserSpec extends PlaySpec with CardListRequestParserTestU
 
     "Base" in {
       implicit val request = FakeRequest("GET", "/foo?page=1&pageSize=2")
-      CardListRequestParser.parse() mustEqual Left(CardListRequestInput(1,2,None))
+      CardListRequestParser.parse() mustEqual Left(CardListRequestInput(1,2,None,None))
     }
 
     "Return error if page is missing" in {
@@ -77,12 +82,21 @@ class CardListRequestParserSpec extends PlaySpec with CardListRequestParserTestU
 
     "Returns success if all good" in {
       implicit val request = FakeRequest("GET", "/foo?page=2&pageSize=2")
-      CardListRequestParser.parse() mustEqual Left(CardListRequestInput(2,2,None))
+      CardListRequestParser.parse() mustEqual Left(CardListRequestInput(2,2,None,None))
     }
 
     "With tags work fine" in {
       implicit val request = FakeRequest("GET", "/foo?page=2&pageSize=2&tags=foo,bar")
-      CardListRequestParser.parse() mustEqual Left(CardListRequestInput(2,2,Some("foo,bar")))
+      (CardListRequestParser.parse()
+        mustEqual
+        Left(CardListRequestInput(2,2,Some("foo,bar"),None)))
+    }
+
+    "With tagsNot work fine" in {
+      implicit val request = FakeRequest("GET", "/foo?page=2&pageSize=2&tags=foo,bar&tagsNot=a")
+      (CardListRequestParser.parse()
+        mustEqual
+        Left(CardListRequestInput(2,2,Some("foo,bar"),Some("a"))))
     }
 
   }
