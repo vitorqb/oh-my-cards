@@ -77,14 +77,13 @@ class CardRepositoryImpl @Inject()(
     * Finds a list of cards for a given user.
     */
   def find(request: CardListRequest): Iterable[CardData] = db.withConnection { implicit c =>
-    SQL(s"""
-      | SELECT id, title, body FROM cards
-      | WHERE userId = {userId}
-      | ORDER BY id DESC
-      | LIMIT ${request.pageSize}
-      | OFFSET ${(request.page - 1) * request.pageSize}
-      | """.stripMargin)
-      .on("userId" -> request.userId)
+    SQL(s"""SELECT id, title, body FROM cards WHERE userId = {userId}
+          ${tagsFilter(request.tags)}
+          ORDER BY id DESC LIMIT {pageSize} OFFSET {offset}""")
+      .on("userId" -> request.userId,
+          "pageSize" -> request.pageSize,
+          "offset" -> (request.page - 1) * request.pageSize,
+          "lowerTags" -> request.tags.map(_.toLowerCase))
       .as(cardDataParser.*)
       .map(cardData => cardData.copy(tags=tagsRepo.get(cardData.id.get)))
   }
@@ -93,13 +92,19 @@ class CardRepositoryImpl @Inject()(
     * Returns the total number of items matching a request for a list of cards.
     */
   def countItemsMatching(request: CardListRequest): Int = db.withConnection { implicit c =>
-    val parser = anorm.SqlParser.get[Int]("count").*
-      SQL"""
-        SELECT COUNT(*) AS count FROM cards WHERE userId = ${request.userId}
-       """
+    val parser = (anorm.SqlParser.get[Int]("count").*)
+    SQL(s"SELECT COUNT(*) AS count FROM cards WHERE userId = {userId} ${tagsFilter(request.tags)}")
+      .on("userId" -> request.userId, "lowerTags" -> request.tags.map(_.toLowerCase))
       .as(parser)
       .headOption
       .getOrElse(0)
+  }
+
+  /**
+    * Small helper that returns an sql string to filter cards based on tags.
+    */
+  def tagsFilter(tags: List[String]): String = if (tags.isEmpty) "" else {
+    " AND id IN (SELECT cardId FROM cardsTags WHERE LOWER(tag) IN ({lowerTags}))"
   }
 
   /**
