@@ -79,11 +79,13 @@ class CardRepositoryImpl @Inject()(
   def find(request: CardListRequest): Iterable[CardData] = db.withConnection { implicit c =>
     SQL(s"""SELECT id, title, body FROM cards WHERE userId = {userId}
           ${tagsFilter(request.tags)}
+          ${tagsNotFilter(request.tagsNot)}
           ORDER BY id DESC LIMIT {pageSize} OFFSET {offset}""")
       .on("userId" -> request.userId,
           "pageSize" -> request.pageSize,
           "offset" -> (request.page - 1) * request.pageSize,
-          "lowerTags" -> request.tags.map(_.toLowerCase))
+          "lowerTags" -> request.tags.map(_.toLowerCase),
+          "lowerTagsNot" -> request.tagsNot.map(_.toLowerCase))
       .as(cardDataParser.*)
       .map(cardData => cardData.copy(tags=tagsRepo.get(cardData.id.get)))
   }
@@ -93,8 +95,13 @@ class CardRepositoryImpl @Inject()(
     */
   def countItemsMatching(request: CardListRequest): Int = db.withConnection { implicit c =>
     val parser = (anorm.SqlParser.get[Int]("count").*)
-    SQL(s"SELECT COUNT(*) AS count FROM cards WHERE userId = {userId} ${tagsFilter(request.tags)}")
-      .on("userId" -> request.userId, "lowerTags" -> request.tags.map(_.toLowerCase))
+    SQL(s"""
+         SELECT COUNT(*) AS count FROM cards WHERE userId = {userId}
+         ${tagsFilter(request.tags)}
+         ${tagsNotFilter(request.tagsNot)}""")
+      .on("userId" -> request.userId,
+          "lowerTags" -> request.tags.map(_.toLowerCase),
+          "lowerTagsNot" -> request.tagsNot.map(_.toLowerCase))
       .as(parser)
       .headOption
       .getOrElse(0)
@@ -105,6 +112,13 @@ class CardRepositoryImpl @Inject()(
     */
   def tagsFilter(tags: List[String]): String = if (tags.isEmpty) "" else {
     " AND id IN (SELECT cardId FROM cardsTags WHERE LOWER(tag) IN ({lowerTags}))"
+  }
+
+  /**
+    * Small helper that returns an sql string to filter out cards based on tags.
+    */
+  def tagsNotFilter(tags: List[String]): String = if (tags.isEmpty) "" else {
+    " AND id NOT IN (SELECT cardId FROM cardsTags WHERE LOWER(tag) IN ({lowerTagsNot}))"
   }
 
   /**

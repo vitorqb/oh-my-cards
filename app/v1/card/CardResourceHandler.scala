@@ -48,7 +48,12 @@ object CardResource {
 /**
   * Represents a request for a list of CardResource.
   */
-case class CardListRequest(page: Int, pageSize: Int, userId: String, tags: List[String])
+case class CardListRequest(
+  page: Int,
+  pageSize: Int,
+  userId: String,
+  tags: List[String],
+  tagsNot: List[String])
 
 
 /**
