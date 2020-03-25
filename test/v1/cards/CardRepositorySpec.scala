@@ -15,6 +15,7 @@ import v1.auth.User
 import services.UUIDGenerator
 import scala.util.Failure
 import play.api.db.Database
+import test.utils.StringUtils
 
 
 class CardRepositorySpec extends PlaySpec
@@ -60,9 +61,9 @@ class CardRepositorySpec extends PlaySpec
 
     val userId = "userid"
     val user = User(userId, "a@a.a")
-    val cardData1 = CardData(Some("id1"), "ONE", "one", List())
+    val cardData1 = CardData(Some("id1"), "ONE", "one", List("B"))
     val cardData2 = CardData(Some("id2"), "TWO", "two", List("ANOTHER_TAG", "A_TAG"))
-    val cardData3 = CardData(Some("id3"), "THREE", "three", List())
+    val cardData3 = CardData(Some("id3"), "THREE", "three", List("A", "C"))
 
     /**
       * Saves all cards fixtures to the db using uuidGenerator and repository.
@@ -92,7 +93,7 @@ class CardRepositorySpec extends PlaySpec
       }
     }
 
-    "Filters wanted tags only" in {
+    "Filters wanted tags only(simple)" in {
       test.utils.TestUtils.testDB { db =>
         val uuidGenerator = mock[UUIDGenerator]
         val repository = new CardRepositoryImpl(db, uuidGenerator, new TagsRepository)
@@ -101,6 +102,31 @@ class CardRepositorySpec extends PlaySpec
         (repository.find(CardListRequest(1, 2, userId, List("A_TAG"), List()))
           mustEqual
           List(cardData2))
+      }
+    }
+
+    "Filters wanted tags only (complex)" in {
+      test.utils.TestUtils.testDB { db =>
+        val uuidGenerator = mock[UUIDGenerator]
+        val repository = new CardRepositoryImpl(db, uuidGenerator, new TagsRepository)
+        saveCardsFixtures(uuidGenerator, repository)
+
+        //Extra cards
+        val extraCard1 = CardData(Some("extraId1"), "_", "-", List("A", "B", "C"))
+        when(uuidGenerator.generate).thenReturn(extraCard1.id.value)
+        repository.create(extraCard1.copy(id=None), user)
+
+        val extraCard2 = CardData(Some("extraId2"), "_", "-", List("A"))
+        when(uuidGenerator.generate).thenReturn(extraCard2.id.value)
+        repository.create(extraCard2.copy(id=None), user)
+
+        val extraCard3 = CardData(Some("extraId3"), "_", "-", List("B", "C"))
+        when(uuidGenerator.generate).thenReturn(extraCard3.id.value)
+        repository.create(extraCard3.copy(id=None), user)
+
+        (repository.find(CardListRequest(1, 2, userId, List("c", "B"), List()))
+          mustEqual
+          List(extraCard3, extraCard1))
       }
     }
 
@@ -301,6 +327,55 @@ class CardRepositorySpec extends PlaySpec
         val newCardData = cardData.copy(id=Some("id"), tags=List("D"))
         repository.update(newCardData, user).futureValue
         repository.get("id", user).get mustEqual newCardData
+      }
+    }
+
+  }
+
+}
+
+class CardSqlBuilderSpec extends PlaySpec with StringUtils {
+
+  "CardSqlBuilderSpec.build" should {
+
+    val request: CardListRequest = new CardListRequest(1, 2, "id", List(), List())
+
+    "produce the query for a list query" should {
+
+      "generate sql without any tags" in {
+        (CardSqlBuilder.listQuery(request).build.cleanForComparison
+          mustEqual
+          """SELECT id, title, body FROM cards WHERE userId = {userId}
+             ORDER BY id DESC LIMIT {pageSize} OFFSET {offset}""".cleanForComparison)
+      }
+
+      "generate sql with tags and tagsNot" in {
+        val request_ = request.copy(tags=List("A"), tagsNot=List("B"))
+        (CardSqlBuilder.listQuery(request_).build.cleanForComparison
+          mustEqual
+          """SELECT id, title, body FROM cards WHERE userId = {userId}
+             AND {tagsFilterSqlSeq}
+             AND id NOT IN (SELECT cardId FROM cardsTags WHERE LOWER(tag) IN ({lowerTagsNot}))
+             ORDER BY id DESC LIMIT {pageSize} OFFSET {offset}""".cleanForComparison)
+      }
+
+    }
+    "produce the query for a count query" should {
+
+      "generate sql without any tags" in {
+        (CardSqlBuilder.countQuery(request).build.cleanForComparison
+          mustEqual
+          """SELECT COUNT(*) as count FROM cards WHERE userId = {userId}""")
+      }
+
+      "generate sql with tags and tagsNot" in {
+        val request_ = request.copy(tags=List("A"), tagsNot=List("B"))
+        (CardSqlBuilder.countQuery(request_).build.cleanForComparison
+          mustEqual
+          """SELECT COUNT(*) as count FROM cards WHERE userId = {userId}
+             AND {tagsFilterSqlSeq}
+             AND id NOT IN (SELECT cardId FROM cardsTags WHERE LOWER(tag) IN ({lowerTagsNot}))
+          """.cleanForComparison)
       }
     }
 
