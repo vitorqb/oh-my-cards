@@ -58,3 +58,14 @@ trait JsonUtils {
     }
   }
 }
+
+/**
+  * String comparison utils.
+  */
+trait StringUtils {
+
+  implicit class EnrichedStringForTest(val s: String) {
+    def cleanForComparison: String = s.trim.replaceAll("\\n+", "").replaceAll(" +", " ")
+  }
+
+}

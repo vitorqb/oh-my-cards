@@ -3,7 +3,7 @@ package v1.card
 import javax.inject.Inject
 import java.util.UUID.randomUUID
 import scala.util.{Try,Success,Failure}
-import anorm.{SQL,RowParser,Macro,SqlParser}
+import anorm.{SQL,RowParser,Macro,SqlParser,SeqParameter}
 import play.api.db.Database
 import v1.auth.User
 import services.UUIDGenerator
@@ -77,11 +77,10 @@ class CardRepositoryImpl @Inject()(
     * Finds a list of cards for a given user.
     */
   def find(request: CardListRequest): Iterable[CardData] = db.withConnection { implicit c =>
-    SQL(s"""SELECT id, title, body FROM cards WHERE userId = {userId}
-          ${tagsFilter(request.tags)}
-          ${tagsNotFilter(request.tagsNot)}
-          ORDER BY id DESC LIMIT {pageSize} OFFSET {offset}""")
-      .on("userId" -> request.userId,
+    CardSqlBuilder.listQuery(request)
+      .sql
+      .on("tagsFilterSqlSeq" -> tagsFilterSqlSeq(request.tags),
+          "userId" -> request.userId,
           "pageSize" -> request.pageSize,
           "offset" -> (request.page - 1) * request.pageSize,
           "lowerTags" -> request.tags.map(_.toLowerCase),
@@ -95,11 +94,10 @@ class CardRepositoryImpl @Inject()(
     */
   def countItemsMatching(request: CardListRequest): Int = db.withConnection { implicit c =>
     val parser = (anorm.SqlParser.get[Int]("count").*)
-    SQL(s"""
-         SELECT COUNT(*) AS count FROM cards WHERE userId = {userId}
-         ${tagsFilter(request.tags)}
-         ${tagsNotFilter(request.tagsNot)}""")
-      .on("userId" -> request.userId,
+    CardSqlBuilder.countQuery(request)
+      .sql
+      .on("tagsFilterSqlSeq" -> tagsFilterSqlSeq(request.tags),
+          "userId" -> request.userId,
           "lowerTags" -> request.tags.map(_.toLowerCase),
           "lowerTagsNot" -> request.tagsNot.map(_.toLowerCase))
       .as(parser)
@@ -108,10 +106,15 @@ class CardRepositoryImpl @Inject()(
   }
 
   /**
-    * Small helper that returns an sql string to filter cards based on tags.
+    * Returns a SeqParameter for the filter of including tags.
     */
-  def tagsFilter(tags: List[String]): String = if (tags.isEmpty) "" else {
-    " AND id IN (SELECT cardId FROM cardsTags WHERE LOWER(tag) IN ({lowerTags}))"
+  def tagsFilterSqlSeq(tags: List[String]): SeqParameter[String] = {
+    SeqParameter(
+      seq=tags.map(_.toLowerCase),
+      sep=" AND ",
+      pre="id IN (SELECT cardId FROM cardsTags WHERE LOWER(tag) = ",
+      post=")"
+    )
   }
 
   /**
@@ -178,4 +181,51 @@ private class TagsRepository {
     SQL"SELECT tag FROM cardsTags WHERE cardId = ${cardId} ORDER BY tag"
       .as(SqlParser.scalar[String].*)
   }
+}
+
+/**
+  * Helper object to build an sql query for cards.
+  */
+private class CardSqlBuilder(
+  val queryType: CardSqlBuilder.QueryType,
+  val request: CardListRequest) {
+  import CardSqlBuilder._
+
+  def build(): String = {
+    s"""SELECT ${select} 
+        FROM cards
+        WHERE userId = {userId}
+        ${tagsFilter}
+        ${tagsNotFilter}
+        ${order}"""
+  }
+
+  def sql = SQL(build())
+  private def select = queryType match {
+    case List()  => "id, title, body"
+    case Count() => "COUNT(*) as count"
+  }
+  private def tagsFilter = if (request.tags.isEmpty) "" else "AND {tagsFilterSqlSeq}"
+  private def tagsNotFilter = if (request.tags.isEmpty) "" else {
+    " AND id NOT IN (SELECT cardId FROM cardsTags WHERE LOWER(tag) IN ({lowerTagsNot}))"
+  }
+  private def order = queryType match {
+    case List()  => "ORDER BY id DESC LIMIT {pageSize} OFFSET {offset}"
+    case Count() => ""
+  }
+}
+
+
+private object CardSqlBuilder {
+
+  /**
+    * Represents the Query Types that can be produced.
+    */
+  sealed trait QueryType
+  case class List() extends QueryType
+  case class Count() extends QueryType
+
+  // Shortcut constructors
+  def listQuery(r: CardListRequest) = new CardSqlBuilder(List(), r)
+  def countQuery(r: CardListRequest) = new CardSqlBuilder(Count(), r)
 }
