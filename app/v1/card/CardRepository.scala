@@ -118,13 +118,6 @@ class CardRepositoryImpl @Inject()(
   }
 
   /**
-    * Small helper that returns an sql string to filter out cards based on tags.
-    */
-  def tagsNotFilter(tags: List[String]): String = if (tags.isEmpty) "" else {
-    " AND id NOT IN (SELECT cardId FROM cardsTags WHERE LOWER(tag) IN ({lowerTagsNot}))"
-  }
-
-  /**
     * Deletes a card by it's id.
     */
   def delete(id: String, user: User): Future[Try[Unit]] = Future {
@@ -206,7 +199,7 @@ private class CardSqlBuilder(
     case Count() => "COUNT(*) as count"
   }
   private def tagsFilter = if (request.tags.isEmpty) "" else "AND {tagsFilterSqlSeq}"
-  private def tagsNotFilter = if (request.tags.isEmpty) "" else {
+  private def tagsNotFilter = if (request.tagsNot.isEmpty) "" else {
     " AND id NOT IN (SELECT cardId FROM cardsTags WHERE LOWER(tag) IN ({lowerTagsNot}))"
   }
   private def order = queryType match {

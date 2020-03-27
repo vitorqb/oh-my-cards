@@ -153,9 +153,9 @@ class CardRepositorySpec extends PlaySpec
         when(uuidGenerator.generate).thenReturn(cardData4.id.value)
         repository.create(cardData4.copy(id=None), user)
 
-        (repository.find(CardListRequest(1, 2, userId, List("a_tag"), List("another_TAG")))
+        (repository.find(CardListRequest(1, 2, userId, List(), List("b", "c")))
           mustEqual
-          List(cardData4))
+          List(cardData4, cardData2))
       }
     }
   }
