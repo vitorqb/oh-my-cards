@@ -16,6 +16,7 @@ import scala.concurrent.ExecutionContext
 import services.InputParser
 import play.api.libs.json.JsPath.json
 import play.api.i18n.MessagesProvider
+import utils.StringUtils
 
 /**
   * Represents the user-inputted data for a card.
@@ -55,19 +56,10 @@ case class CardListRequestInput(
   tags: Option[String],
   tagsNot: Option[String]) {
 
-  def tagsList: List[String] = tags match {
-    case Some(s) => List.from(s.split(",").map(_.trim))
-    case None => List()
-  }
-
-  def tagsNotList: List[String] = tagsNot match {
-    case Some(s) => List.from(s.split(",").map(_.trim))
-    case None => List()
-  }
-
-  def toCardListRequest(u: User): CardListRequest = {
+  def tagsList: List[String] = tags.map(StringUtils.splitByComma).getOrElse(List())
+  def tagsNotList: List[String] = tagsNot.map(StringUtils.splitByComma).getOrElse(List())
+  def toCardListRequest(u: User): CardListRequest =
     CardListRequest(page, pageSize, u.id, tagsList, tagsNotList)
-  }
 
 }
 
