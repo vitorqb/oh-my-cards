@@ -55,6 +55,23 @@ class CardRepositorySpec extends PlaySpec
       }
     }
 
+    "User creates three cards and get one" in {
+      test.utils.TestUtils.testDB { db =>
+        val uuidGenerator = mock[UUIDGenerator]
+        val user = User("foo", "bar")
+        val repository = new CardRepositoryImpl(db, uuidGenerator, new TagsRepository)
+
+        for (cardData <- Seq(CardData(Some("1"), "t", "b", List()),
+                             CardData(Some("2"), "t", "b", List()),
+                             CardData(Some("3"), "t", "b", List())))
+        yield {
+          when(uuidGenerator.generate).thenReturn(cardData.id.get)
+          repository.create(cardData.copy(id=None), user).get mustEqual cardData.id.get
+          repository.get(cardData.id.get, user) mustEqual Some(cardData)
+        }
+      }
+    }
+
   }
 
   "CardRepository.find" should {
@@ -384,7 +401,7 @@ class CardSqlBuilderSpec extends PlaySpec with StringUtils {
       "" in {
         (CardSqlBuilder.buildForGet
           mustEqual
-          "SELECT id, title, body FROM cards WHERE userId = {userId}")
+          "SELECT id, title, body FROM cards WHERE userId = {userId} AND id = {id}")
       }
 
     }
