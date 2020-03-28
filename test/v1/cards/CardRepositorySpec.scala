@@ -343,7 +343,7 @@ class CardSqlBuilderSpec extends PlaySpec with StringUtils {
     "produce the query for a list query" should {
 
       "generate sql without any tags" in {
-        (CardSqlBuilder.listQuery(request).build.cleanForComparison
+        (CardSqlBuilder.buildForFind(request).cleanForComparison
           mustEqual
           """SELECT id, title, body FROM cards WHERE userId = {userId}
              ORDER BY id DESC LIMIT {pageSize} OFFSET {offset}""".cleanForComparison)
@@ -351,7 +351,7 @@ class CardSqlBuilderSpec extends PlaySpec with StringUtils {
 
       "generate sql with tags and tagsNot" in {
         val request_ = request.copy(tags=List("A"), tagsNot=List("B"))
-        (CardSqlBuilder.listQuery(request_).build.cleanForComparison
+        (CardSqlBuilder.buildForFind(request_).cleanForComparison
           mustEqual
           """SELECT id, title, body FROM cards WHERE userId = {userId}
              AND {tagsFilterSqlSeq}
@@ -363,20 +363,30 @@ class CardSqlBuilderSpec extends PlaySpec with StringUtils {
     "produce the query for a count query" should {
 
       "generate sql without any tags" in {
-        (CardSqlBuilder.countQuery(request).build.cleanForComparison
+        (CardSqlBuilder.buildForCount(request).cleanForComparison
           mustEqual
           """SELECT COUNT(*) as count FROM cards WHERE userId = {userId}""")
       }
 
       "generate sql with tags and tagsNot" in {
         val request_ = request.copy(tags=List("A"), tagsNot=List("B"))
-        (CardSqlBuilder.countQuery(request_).build.cleanForComparison
+        (CardSqlBuilder.buildForCount(request_).cleanForComparison
           mustEqual
           """SELECT COUNT(*) as count FROM cards WHERE userId = {userId}
              AND {tagsFilterSqlSeq}
              AND id NOT IN (SELECT cardId FROM cardsTags WHERE LOWER(tag) IN ({lowerTagsNot}))
           """.cleanForComparison)
       }
+    }
+
+    "procuce the query for a get query" should {
+
+      "" in {
+        (CardSqlBuilder.buildForGet
+          mustEqual
+          "SELECT id, title, body FROM cards WHERE userId = {userId}")
+      }
+
     }
 
   }

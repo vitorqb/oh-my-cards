@@ -56,7 +56,7 @@ class CardRepositoryImpl @Inject()(
     } else {
       val id = uuidGenerator.generate
       db.withTransaction { implicit c =>
-        SQL("INSERT INTO cards(id, userId, title, body) VALUES ({id}, {userId}, {title}, {body});")
+        SQL(CardSqlBuilder.buildForInsert)
           .on("id" -> id, "userId" -> user.id, "title" -> cardData.title, "body" -> cardData.body)
           .executeInsert()
         tagsRepo.create(id, cardData.tags)
@@ -66,7 +66,7 @@ class CardRepositoryImpl @Inject()(
   }
 
   def get(id: String, user: User): Option[CardData] = db.withConnection { implicit c =>
-    SQL("SELECT id, title, body FROM cards WHERE id = {id} AND userId = {userId}")
+    SQL(CardSqlBuilder.buildForGet)
       .on("id" -> id, "userId" -> user.id)
       .as(cardDataParser.*)
       .headOption
@@ -77,8 +77,7 @@ class CardRepositoryImpl @Inject()(
     * Finds a list of cards for a given user.
     */
   def find(request: CardListRequest): Iterable[CardData] = db.withConnection { implicit c =>
-    CardSqlBuilder.listQuery(request)
-      .sql
+    SQL(CardSqlBuilder.buildForFind(request))
       .on("tagsFilterSqlSeq" -> tagsFilterSqlSeq(request.tags),
           "userId" -> request.userId,
           "pageSize" -> request.pageSize,
@@ -94,8 +93,7 @@ class CardRepositoryImpl @Inject()(
     */
   def countItemsMatching(request: CardListRequest): Int = db.withConnection { implicit c =>
     val parser = (anorm.SqlParser.get[Int]("count").*)
-    CardSqlBuilder.countQuery(request)
-      .sql
+    SQL(CardSqlBuilder.buildForCount(request))
       .on("tagsFilterSqlSeq" -> tagsFilterSqlSeq(request.tags),
           "userId" -> request.userId,
           "lowerTags" -> request.tags.map(_.toLowerCase),
@@ -124,7 +122,7 @@ class CardRepositoryImpl @Inject()(
     get(id, user) match {
       case None => Failure(new CardDoesNotExist)
       case Some(_) => db.withConnection { implicit c =>
-        SQL"""DELETE FROM cards where userId = ${user.id} AND id = ${id}""".executeUpdate
+        SQL(CardSqlBuilder.buildForDelete).on("id" -> id, "userId" -> user.id).executeUpdate
         tagsRepo.delete(id)
         Success(())
       }
@@ -136,10 +134,8 @@ class CardRepositoryImpl @Inject()(
     */
   def update(data: CardData, user: User): Future[Try[Unit]] = Future { Try { db.withTransaction {
     implicit c =>
-    SQL"""
-       UPDATE cards SET title=${data.title}, body=${data.body} 
-       WHERE id=${data.id} AND userId=${user.id}
-       """
+    SQL(CardSqlBuilder.buildForUpdate)
+      .on("title" -> data.title, "body" -> data.body, "id" -> data.id, "userId" -> user.id)
       .executeUpdate()
     tagsRepo.delete(data.id.get)
     tagsRepo.create(data.id.get, data.tags)
@@ -179,36 +175,6 @@ private class TagsRepository {
 /**
   * Helper object to build an sql query for cards.
   */
-private class CardSqlBuilder(
-  val queryType: CardSqlBuilder.QueryType,
-  val request: CardListRequest) {
-  import CardSqlBuilder._
-
-  def build(): String = {
-    s"""SELECT ${select} 
-        FROM cards
-        WHERE userId = {userId}
-        ${tagsFilter}
-        ${tagsNotFilter}
-        ${order}"""
-  }
-
-  def sql = SQL(build())
-  private def select = queryType match {
-    case List()  => "id, title, body"
-    case Count() => "COUNT(*) as count"
-  }
-  private def tagsFilter = if (request.tags.isEmpty) "" else "AND {tagsFilterSqlSeq}"
-  private def tagsNotFilter = if (request.tagsNot.isEmpty) "" else {
-    " AND id NOT IN (SELECT cardId FROM cardsTags WHERE LOWER(tag) IN ({lowerTagsNot}))"
-  }
-  private def order = queryType match {
-    case List()  => "ORDER BY id DESC LIMIT {pageSize} OFFSET {offset}"
-    case Count() => ""
-  }
-}
-
-
 private object CardSqlBuilder {
 
   /**
@@ -217,8 +183,51 @@ private object CardSqlBuilder {
   sealed trait QueryType
   case class List() extends QueryType
   case class Count() extends QueryType
+  case class Get() extends QueryType
 
-  // Shortcut constructors
-  def listQuery(r: CardListRequest) = new CardSqlBuilder(List(), r)
-  def countQuery(r: CardListRequest) = new CardSqlBuilder(Count(), r)
+  /**
+    * Returns a sql string for listing cards.
+    */
+  def buildForFind(req: CardListRequest): String =
+    s"""SELECT ${select(List())} ${fromWhere} ${tagsFilter(req)} ${tagsNotFilter(req)}
+        ORDER BY id DESC LIMIT {pageSize} OFFSET {offset}"""
+
+  /**
+    * Returns a sql string for counting cards.
+    */
+  def buildForCount(req: CardListRequest): String =
+    s"SELECT ${select(Count())} ${fromWhere} ${tagsFilter(req)} ${tagsNotFilter(req)}"
+
+  /**
+    * Returns a sql string for getting cards.
+    */
+  def buildForGet: String = s"SELECT ${select(Get())} ${fromWhere}"
+
+  /**
+    * Returns a sql string for inserting cards.
+    */
+  def buildForInsert: String =
+    "INSERT INTO cards(id, userId, title, body) VALUES ({id}, {userId}, {title}, {body});"
+
+  /**
+    * Returns a sql string for deleting cards.
+    */
+  def buildForDelete: String = s"DELETE ${fromWhere} AND id = {id}"
+
+  /**
+    * Returns a sql string for updating a card.
+    */
+  def buildForUpdate: String =
+    "UPDATE cards SET title={title}, body={body} WHERE id={id} AND userId={userId}"
+
+  private def fromWhere = "FROM cards WHERE userId = {userId}"
+  private def select(queryType: QueryType) = queryType match {
+    case List() | Get() => "id, title, body"
+    case Count() => "COUNT(*) as count"
+  }
+  private def tagsFilter(request: CardListRequest) =
+    if (request.tags.isEmpty) "" else "AND {tagsFilterSqlSeq}"
+  private def tagsNotFilter(request: CardListRequest) =
+    if (request.tagsNot.isEmpty) ""
+    else " AND id NOT IN (SELECT cardId FROM cardsTags WHERE LOWER(tag) IN ({lowerTagsNot}))"
 }

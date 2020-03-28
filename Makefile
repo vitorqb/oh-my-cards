@@ -14,6 +14,9 @@ test:
 ~test:
 	$(SOURCE_ENV) && $(SOURCE_ENV_TEST) && sbt '~test'
 
+sbt:
+	$(SOURCE_ENV) && $(SOURCE_ENV_TEST) && sbt
+
 # Creates a .tgz artifact with all needed dependencies
 build:
 	sbt 'universal:packageZipTarball'
