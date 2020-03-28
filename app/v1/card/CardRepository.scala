@@ -201,7 +201,7 @@ private object CardSqlBuilder {
   /**
     * Returns a sql string for getting cards.
     */
-  def buildForGet: String = s"SELECT ${select(Get())} ${fromWhere}"
+  def buildForGet: String = s"SELECT ${select(Get())} ${fromWhere} AND id = {id}"
 
   /**
     * Returns a sql string for inserting cards.
