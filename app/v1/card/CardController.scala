@@ -31,16 +31,14 @@ case class CardFormInput(title: String, body: Option[String], tags: Option[List[
 }
 
 object CardFormInput {
-  val tagMinLength = 1
-  val tagMaxLength = 100
-
   val form: Form[CardFormInput] = {
     import play.api.data.Forms.{list => fList, _}
+    import utils.TagsUtils.Forms._
     Form(
       mapping(
         "title" -> nonEmptyText,
         "body" -> optional(text),
-        "tags" -> optional(fList(text(CardFormInput.tagMinLength, CardFormInput.tagMaxLength)))
+        "tags" -> optional(tags)
       )(CardFormInput.apply)(CardFormInput.unapply)
     )
 

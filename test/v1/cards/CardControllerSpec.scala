@@ -5,11 +5,7 @@ import play.api.test.FakeRequest
 import play.api.libs.json.JsValue
 import play.api.libs.json.JsDefined
 import play.api.libs.json.JsUndefined
-import test.utils.JsonUtils
-import play.api.i18n.MessagesImpl
-import play.api.i18n.MessagesProvider
-import play.api.i18n.Lang
-import play.api.i18n.DefaultMessagesApi
+import test.utils._
 import v1.auth.User
 
 trait CardListRequestParserTestUtils extends JsonUtils {
@@ -49,9 +45,11 @@ class CardListRequestInputSpec extends PlaySpec {
 
 }
 
-class CardListRequestParserSpec extends PlaySpec with CardListRequestParserTestUtils {
+class CardListRequestParserSpec
+    extends PlaySpec
+    with CardListRequestParserTestUtils
+    with WithImplicitMessageProvider{
 
-  implicit val messagesProvider: MessagesProvider = MessagesImpl(Lang("en"), new DefaultMessagesApi)
   val pageVal = 2
   val page = Some(pageVal.toString)
   val pageSizeVal = 5

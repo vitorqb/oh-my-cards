@@ -13,3 +13,4 @@ target
 .env
 test.sqlite
 /devops/build
+/.dir-locals.el
