@@ -95,6 +95,18 @@ class CardGridProfileRepository @Inject()(
     */
   def userHasProfileWithName(user: User, name: String): Future[Boolean] =
     getProfileIdFromName(name, user).map(! _.isEmpty)
+
+  /**
+    * List the name of all profiles for an user.
+    */
+  def listNames(user: User): Future[List[String]] = Future {
+    import anorm.SqlParser._
+    db.withConnection { implicit c =>
+      SQL("SELECT name FROM cardGridprofiles WHERE userId = {userId}")
+        .on("userId" -> user.id)
+        .as(str(1).*)
+    }
+  }
 }
 
 /**

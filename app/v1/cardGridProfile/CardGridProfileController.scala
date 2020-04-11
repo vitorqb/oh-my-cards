@@ -65,6 +65,13 @@ class CardGridProfileController @Inject()(
   }}
 
   /**
+    * Returns a list with the name for all CardGridProfiles.
+    */
+  def listNames = silhouette.SecuredAction.async { implicit request =>
+    handler.listNames(request.identity).map(names => Ok(Json.obj("names" -> names)))
+  }
+
+  /**
     * Maps an error during the handling of a request to a Result.
     */
   def resultFromError(error: Throwable): Result = {

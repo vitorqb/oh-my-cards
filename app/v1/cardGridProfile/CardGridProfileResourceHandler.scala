@@ -71,4 +71,6 @@ class CardGridProfileResourceHandler @Inject()(
 
   def read(name: String, user: User): Future[Option[CardGridProfileResource]] =
     repository.readFromName(name, user).map(x => x.map(y => CardGridProfileResource.fromData(y)))
+
+  def listNames(user: User): Future[List[String]] = repository.listNames(user)
 }
