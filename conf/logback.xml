@@ -27,7 +27,9 @@
   <logger name="play" level="DEBUG" />
   <logger name="application" level="DEBUG" />
   <logger name="v1.card.CardController" level="DEBUG" />
-
+  <logger name="com.mohiva" level="DEBUG" />
+  <logger name="com.mohiva.play.silhouette.api.Silhouette" level="DEBUG" />
+  
   <root level="INFO">
     <!--<appender-ref ref="ASYNCFILE" />-->
     <appender-ref ref="ASYNCSTDOUT" />

@@ -12,6 +12,9 @@ GET     /assets/*file               controllers.Assets.versioned(path="/public",
 # CRUD For a card
 ->      /v1/cards                   v1.card.CardRouter
 
+# Cards Grid Profiles
+->     /v1/cards-grid-profile       v1.cardGridProfile.CardGridProfileRouter
+
 # Authentication
 POST    /v1/auth/oneTimePassword    v1.auth.AuthController.createOneTimePassword
 POST    /v1/auth/token              v1.auth.AuthController.createToken
