@@ -93,6 +93,30 @@ class CardGridProfileRepositorySpec extends PlaySpec with MockitoSugar with Scal
     }
   }
 
+  "listNames" should {
+
+    "return empty list if nothing found" in {
+      TestUtils.testDB { implicit db =>
+        val repository = new CardGridProfileRepository(db, uuidGenerator)
+        repository.listNames(user).futureValue mustEqual List()
+      }
+    }
+
+    "return a list of names" in {
+      TestUtils.testDB { implicit db =>
+        db.withConnection { implicit c =>
+          SQL("""INSERT INTO cardGridProfiles(id, name, userId)
+                 VALUES ('id', 'name', 'userId'), 
+                        ('id2', 'name2', 'userId2')""")
+            .executeInsert()
+        }
+        val repository = new CardGridProfileRepository(db, uuidGenerator)
+        val user = User("userId", "user@email")
+        repository.listNames(user).futureValue mustEqual List("name")
+      }
+    }
+  }
+
   "userHasProfileWithName" should {
 
     trait UserHasProfileWithName {

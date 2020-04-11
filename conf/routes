@@ -14,6 +14,7 @@ GET     /assets/*file               controllers.Assets.versioned(path="/public",
 
 # Cards Grid Profiles
 ->     /v1/cards-grid-profile       v1.cardGridProfile.CardGridProfileRouter
+GET    /v1/metadata/cards-grid-profile/names v1.cardGridProfile.CardGridProfileController.listNames
 
 # Authentication
 POST    /v1/auth/oneTimePassword    v1.auth.AuthController.createOneTimePassword
