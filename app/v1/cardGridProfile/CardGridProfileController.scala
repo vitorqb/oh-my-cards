@@ -34,11 +34,6 @@ class CardGridProfileController @Inject()(
     */
   def create = silhouette.SecuredAction.async { implicit request => {
 
-    def handleInvalidInput[A](invalidForm: Form[A]) = {
-      logger.info(s"Invalid input: $invalidForm")
-      Future.successful(BadRequest(invalidForm.errorsAsJson)),
-    }
-
     def handleValidInput(input: CardGridProfileInput) = {
       logger.info(s"Valid input: $input")
       handler.create(input, request.identity).map(resourceToResult _).recover(resultFromError _)
@@ -52,17 +47,26 @@ class CardGridProfileController @Inject()(
     * Reads a CardGridProfile from a request.
     */
   def read(name: String) = silhouette.SecuredAction.async { implicit request => {
-
-    def maybeResourceToResult(maybeResource: Option[CardGridProfileResource]) = {
-      maybeResource match {
-        case Some(resource) => resourceToResult(resource)
-        case None => NotFound
-      }
-    }
-
     logger.info(s"Getting from name $name for user ${request.identity}")
     handler.read(name, request.identity).map(maybeResourceToResult _).recover(resultFromError _)
   }}
+
+  /**
+    * Updates a CardGridProfile from a request.
+    */
+  def update(name: String) = silhouette.SecuredAction.async { implicit request =>
+
+    def handleValidInput(input: CardGridProfileInput) = {
+      logger.info(s"Valid input: $input")
+      handler
+        .update(name, request.identity, input)
+        .map(maybeResourceToResult _)
+        .recover(resultFromError _)
+    }
+
+    logger.info(s"Updating profile with name [$name] for user [$request.identity].")
+    CardGridProfileInput.form.bindFromRequest.fold(handleInvalidInput, handleValidInput)
+  }
 
   /**
     * Returns a list with the name for all CardGridProfiles.
@@ -90,6 +94,23 @@ class CardGridProfileController @Inject()(
     Ok(Json.toJson(resource))
   }
 
+  /**
+    * Maps a maybe resource into a Result.
+    */
+  def maybeResourceToResult(maybeResource: Option[CardGridProfileResource]) = {
+    maybeResource match {
+      case Some(resource) => resourceToResult(resource)
+      case None => NotFound
+    }
+  }
+
+  /**
+    * Handles when an invalid input was received.
+    */
+  def handleInvalidInput[A](invalidForm: Form[A])(implicit r: Request[AnyContent]) = {
+    logger.info(s"Invalid input: $invalidForm")
+    Future.successful(BadRequest(invalidForm.errorsAsJson))
+  }
 }
 
 /**
@@ -107,16 +128,8 @@ case class CardGridProfileInput(name: String, config: CardGridConfigInput) {
 
 }
 
-/**
-  * Input object for a Cards Grid Configuration.
-  */
-case class CardGridConfigInput(
-  page: Option[Int],
-  pageSize: Option[Int],
-  includeTags: Option[List[String]],
-  excludeTags: Option[List[String]])
-
 object CardGridProfileInput {
+
   val form: Form[CardGridProfileInput] = {
     import play.api.data.Forms.{list => fList, _}
     import utils.TagsUtils.Forms._
@@ -132,4 +145,29 @@ object CardGridProfileInput {
       )(CardGridProfileInput.apply)(CardGridProfileInput.unapply)
     )
   }
+
+  def fromData(d: CardGridProfileData): CardGridProfileInput = CardGridProfileInput(
+    d.name,
+    CardGridConfigInput.fromData(d.config)
+  )
+}
+
+/**
+  * Input object for a Cards Grid Configuration.
+  */
+case class CardGridConfigInput(
+  page: Option[Int],
+  pageSize: Option[Int],
+  includeTags: Option[List[String]],
+  excludeTags: Option[List[String]])
+
+object CardGridConfigInput {
+
+  def fromData(d: CardGridConfigData): CardGridConfigInput = CardGridConfigInput(
+    d.page,
+    d.pageSize,
+    d.includeTags,
+    d.excludeTags
+  )
+
 }

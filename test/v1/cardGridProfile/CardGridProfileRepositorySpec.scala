@@ -12,8 +12,15 @@ import anorm.SqlParser
 import org.scalatest.concurrent.ScalaFutures
 import java.sql.Connection
 import play.api.db.Database
+import org.scalatest.time.Span
+import org.scalatest.time.Millis
 
 class CardGridProfileRepositorySpec extends PlaySpec with MockitoSugar with ScalaFutures {
+
+  /**
+    * Increases patience for future because we were having timeouts
+    */
+  override implicit def patienceConfig = new PatienceConfig(Span(1000, Millis))
 
   val input = CardGridProfileInput(
     "Name",
@@ -63,6 +70,43 @@ class CardGridProfileRepositorySpec extends PlaySpec with MockitoSugar with Scal
         }
       }
     }
+  }
+
+  "updae" should {
+
+    "update a card grid profile" in {
+      TestUtils.testDB { db =>
+        val repository = new CardGridProfileRepository(db, uuidGenerator)
+        val oldInput = CardGridProfileInput(
+          "name",
+          CardGridConfigInput(Some(1), Some(2), None, Some(List("B")))
+        )
+        val oldData = repository.create(oldInput, user).futureValue
+
+        val newInput = CardGridProfileInput(
+          "newName",
+          CardGridConfigInput(None, Some(3), Some(List("A")), None)
+        )
+        val expectedNewData = CardGridProfileData(
+          oldData.id,
+          user.id,
+          newInput.name,
+          CardGridConfigData(
+            oldData.config.id,
+            newInput.config.page,
+            newInput.config.pageSize,
+            newInput.config.includeTags,
+            newInput.config.excludeTags
+          )
+        )
+
+        val newData = repository.update(oldData, newInput).futureValue
+        newData mustEqual repository.read(oldData.id).futureValue
+        newData mustEqual repository.read(newData.id).futureValue
+        newData mustEqual expectedNewData
+      }
+    }
+
   }
 
   "getProfileIdFromName" should {
@@ -161,7 +205,7 @@ class CardGridProfileCreatorSpec extends PlaySpec {
       TestUtils.testDB { implicit db =>
         db.withTransaction { implicit t =>
           val input_ = input.copyConfig(page=Some(1), pageSize=Some(2))
-          val creator = new CardGridProfileCreator(t, input_, user, "profileId", "configId")
+          val creator = new CardGridProfileCreator(input_, "profileId", "configId")
           creator.createConfig
           countWhere("page=1 AND pageSize=2 AND profileId='profileId'") mustEqual 1
         }
@@ -171,7 +215,7 @@ class CardGridProfileCreatorSpec extends PlaySpec {
     "Store the config in the db with nulls" in {
       TestUtils.testDB { implicit db =>
         db.withTransaction { implicit t =>
-          val creator = new CardGridProfileCreator(t, input, user, "profileId", "configId")
+          val creator = new CardGridProfileCreator(input, "profileId", "configId")
           creator.createConfig
           countWhere("page IS null AND pageSize IS null AND profileId='profileId'") mustEqual 1
         }
@@ -188,7 +232,7 @@ class CardGridProfileCreatorSpec extends PlaySpec {
     "empty" in {
       TestUtils.testDB { implicit db =>
         db.withTransaction { implicit t =>
-          val creator = new CardGridProfileCreator(t, input, user, "profileId", "configId")
+          val creator = new CardGridProfileCreator(input, "profileId", "configId")
           creator.createIncludeTags
           countWhere("1 = 1") mustEqual 0
         }
@@ -199,7 +243,7 @@ class CardGridProfileCreatorSpec extends PlaySpec {
       TestUtils.testDB { implicit db =>
         db.withTransaction { implicit t =>
           val input_ = input.copyConfig(includeTags=Some(List("A", "B")))
-          val creator = new CardGridProfileCreator(t, input_, user, "profileId", "configId")
+          val creator = new CardGridProfileCreator(input_, "profileId", "configId")
           creator.createIncludeTags
           countWhere("configId = 'configId'") mustEqual 2
           countWhere("tag = 'A' AND configId = 'configId'") mustEqual 1
@@ -219,7 +263,7 @@ class CardGridProfileCreatorSpec extends PlaySpec {
       TestUtils.testDB { implicit db =>
         db.withTransaction { implicit t =>
           val input_ = input.copyConfig(excludeTags=Some(List("FOO", "BAR")))
-          val creator = new CardGridProfileCreator(t, input_, user, "profileId", "configId")
+          val creator = new CardGridProfileCreator(input_, "profileId", "configId")
           creator.createExcludeTags
           countWhere("configId = 'configId'") mustEqual 2
           countWhere("tag = 'FOO' AND configId = 'configId'") mustEqual 1
@@ -239,8 +283,8 @@ class CardGridProfileCreatorSpec extends PlaySpec {
       TestUtils.testDB { implicit db =>
         db.withTransaction { implicit t =>
           val input_ = input.copy(name="FOO")
-          val creator = new CardGridProfileCreator(t, input_, user, "profileId", "configId")
-          creator.createProfile
+          val creator = new CardGridProfileCreator(input_, "profileId", "configId")
+          creator.createProfile(user)
           countWhere("id = 'profileId' AND name = 'FOO'") mustEqual 1
         }
       }
@@ -328,6 +372,74 @@ class CardGridProfileReaderSpec extends PlaySpec with ScalaFutures {
             excludeTags
           )
           result mustEqual expected
+        }
+      }
+    }
+  }
+}
+
+class CardGridProfileUpdaterSpec extends PlaySpec with MockitoSugar {
+
+  val configId = "configId"
+  val emptyConfigData = CardGridConfigData(configId, None, None, None, None)
+  val emptyConfigInput = CardGridConfigInput(None, None, None, None)
+  val user = User("userId", "user@email")
+  val profileId = "profileId"
+  val creator = mock[CardGridProfileCreator]
+
+  "updateProfile" should {
+    "update profile name" in {
+      TestUtils.testDB { implicit db =>
+        db.withTransaction { implicit c =>
+          val oldData = CardGridProfileData(profileId, "userId", "OldName", emptyConfigData)
+          val oldInput = CardGridProfileInput.fromData(oldData)
+          new CardGridProfileCreator(oldInput, profileId, "configId").createProfile(user)
+
+          val newInput = CardGridProfileInput("NewName", emptyConfigInput)
+          new CardGridProfileUpdater(oldData, newInput, creator).updateProfile()
+
+          (SQL("SELECT COUNT(*) FROM cardGridProfiles WHERE id = 'profileId' AND name = 'NewName'")
+            .as(SqlParser.int(1).single)
+            mustEqual
+            1)
+        }
+      }
+    }
+  }
+
+  "updateConfig" should {
+    "updates page and pageSize" in {
+      TestUtils.testDB { implicit db =>
+        db.withTransaction { implicit c =>
+          val oldConfigData = CardGridConfigData(
+            configId,
+            Some(1),
+            Some(2),
+            Some(List("A")),
+            Some(List("B"))
+          )
+          val oldConfigInput = CardGridConfigInput.fromData(oldConfigData)
+          val oldData = CardGridProfileData(profileId, "userId", "OldName", oldConfigData)
+          val oldInput = CardGridProfileInput.fromData(oldData)
+          new CardGridProfileCreator(oldInput, profileId, "configId").createConfig
+
+          val newConfigData = oldConfigData.copy(
+            page=None,
+            pageSize=None,
+            includeTags=None,
+            excludeTags=None
+          )
+          val newConfigInput = CardGridConfigInput.fromData(newConfigData)
+          val newInput = oldInput.copy(config=newConfigInput)
+          new CardGridProfileUpdater(oldData, newInput, creator).updateConfig()
+
+          (SQL("""SELECT COUNT(*) FROM cardGridConfigs
+                  WHERE id = 'configId'
+                  AND page IS NULL
+                  AND pageSize IS NULL""")
+            .as(SqlParser.int(1).single)
+            mustEqual
+            1)
         }
       }
     }

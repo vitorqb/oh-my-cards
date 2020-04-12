@@ -73,6 +73,43 @@ class CardGridProfileControllerSpec
     }
   }
 
+  "Edit a cardGridProfileInput" should {
+
+    def originalInput = CardGridProfileInput("Foo", CardGridConfigInput(None, None, None, None))
+    def repository = app.injector.instanceOf[CardGridProfileRepository]
+    val modifiedJson = Json.obj(
+      "name" -> "Foo",
+      "config" -> Json.obj("page" -> 1, "pageSize" -> 2, "includeTags" -> List("A"))
+    )
+    val request = FakeRequest().withJsonBody(modifiedJson)
+    def controller = app.injector.instanceOf[CardGridProfileController]
+
+    "update a profile" in {
+      repository.create(originalInput, user)
+
+      val result = controller.update("Foo")(request)
+
+      status(result) mustEqual 200
+      contentAsJson(result) mustEqual modifiedJson
+
+      val modifiedInput = repository.readFromName("Foo", user).futureValue.value
+      modifiedInput.name mustEqual "Foo"
+      modifiedInput.config.page mustEqual Some(1)
+      modifiedInput.config.pageSize mustEqual Some(2)
+      modifiedInput.config.includeTags mustEqual Some(List("A"))
+      modifiedInput.config.excludeTags mustEqual None
+    }
+
+    "return 404 if profile belongs to other user" in {
+      val otherUser = user.copy(user.id + "A", user.email + "A")
+      repository.create(originalInput, otherUser)
+      val result = controller.update("FOO")(request)
+
+      status(result) mustEqual 404
+    }
+
+  }
+
   "listNames" should {
 
     def createProfile(
