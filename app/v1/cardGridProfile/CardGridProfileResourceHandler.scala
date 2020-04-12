@@ -96,7 +96,7 @@ class CardGridProfileResourceHandler @Inject()(
       case None => Future.successful(None)
       case Some(existingData) => for {
         _ <- checkNewNameDoesNotExist
-        updatedData <- repository.update(existingData, input)
+        updatedData <- repository.update(existingData, input, user)
         updatedResource = CardGridProfileResource.fromData(updatedData)
       } yield Some(updatedResource)
     }

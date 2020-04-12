@@ -103,7 +103,7 @@ class CardGridProfileResourceHandlerSpec extends PlaySpec with MockitoSugar with
 
       val repository = mock[CardGridProfileRepository]
       when(repository.readFromName("ProfileName", user)).thenReturn(Future.successful(readData))
-      when(repository.update(readData.get, input)).thenReturn(Future.successful(updatedData))
+      when(repository.update(readData.get, input, user)).thenReturn(Future.successful(updatedData))
 
       val handler = new CardGridProfileResourceHandler(repository)
       handler.update("ProfileName", user, input).futureValue mustEqual Some(expectedResource)
