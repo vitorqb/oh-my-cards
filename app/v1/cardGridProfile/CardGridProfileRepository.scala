@@ -12,7 +12,12 @@ import java.sql.Connection
 /**
   * Represents a CardGridProfile
   */
-case class CardGridProfileData(id: String, userId: String, name: String, config: CardGridConfigData)
+case class CardGridProfileData(
+  id: String,
+  userId: String,
+  name: String,
+  config: CardGridConfigData
+)
 
 /**
   * Represents a CardGridConfig
@@ -39,14 +44,11 @@ class CardGridProfileRepository @Inject()(
     */
   def create(input: CardGridProfileInput, user: User): Future[CardGridProfileData] = {
     Future {
-      db.withTransaction { c =>
+      db.withTransaction { implicit c =>
         val configId = uuidGenerator.generate()
         val profileId = uuidGenerator.generate()
-        val creator = new CardGridProfileCreator(c, input, user, profileId, configId)
-        creator.createProfile
-        creator.createConfig
-        creator.createIncludeTags
-        creator.createExcludeTags
+        val creator = new CardGridProfileCreator(user, input, profileId, configId)
+        creator.execute()
         read(profileId)
       }
     }.flatten
@@ -58,14 +60,24 @@ class CardGridProfileRepository @Inject()(
   def read(id: String): Future[CardGridProfileData] = Future {
     db.withConnection { implicit c =>
       val reader = new CardGridProfileReader(id)
-      val configId = reader.configId
-      val includeTags = reader.readIncludeTags(configId)
-      val excludeTags = reader.readExcludeTags(configId)
-      val config = reader.readConfig(configId, includeTags, excludeTags)
-      val profile = reader.readProfile(config)
-      profile
+      reader.execute()
     }
   }
+
+  /**
+    * Updates a CardGridProfile.
+    */
+  def update(
+    existingData: CardGridProfileData,
+    newInput: CardGridProfileInput,
+    user: User
+  ): Future[CardGridProfileData] = Future {
+    db.withTransaction { implicit c =>
+      val updater = new CardGridProfileUpdater(existingData, newInput, user)
+      updater.execute()
+      read(existingData.id)
+    }
+  }.flatten
 
   /**
     * Reads a CardGridProfile from name.
@@ -113,22 +125,32 @@ class CardGridProfileRepository @Inject()(
   * A helper class exposing methods to create each part of a grid profile.
   */
 class CardGridProfileCreator(
-  c: Connection,
-  input: CardGridProfileInput,
   user: User,
+  input: CardGridProfileInput,
   profileId: String,
   configId: String
-) {
+)(
+  implicit c: Connection
+){
 
-  implicit val connection = c
+  def execute(): Unit = {
+    createProfile()
+    createConfig()
+    createIncludeTags()
+    createExcludeTags()
+  }
 
-  def createProfile: Unit = {
+  def createProfile(): Unit = {
     SQL("""INSERT INTO cardGridProfiles(id,name,userId) VALUES ({id}, {name}, {userId})""")
-      .on("id" -> profileId, "name" -> input.name, "userId" -> user.id)
+      .on(
+        "id" -> profileId,
+        "name" -> input.name,
+        "userId" -> user.id
+      )
       .executeInsert()
   }
 
-  def createConfig: Unit = {
+  def createConfig(): Unit = {
     val config = input.config
     SQL("""INSERT INTO cardGridConfigs(id, profileId, page, pageSize)
            VALUES ({configId}, {profileId}, {page}, {pageSize})""")
@@ -139,13 +161,13 @@ class CardGridProfileCreator(
       .executeInsert()
   }
 
-  def createIncludeTags: Unit = input.config.includeTags.getOrElse(List()).foreach { tag =>
+  def createIncludeTags(): Unit = input.config.includeTags.getOrElse(List()).foreach { tag =>
     SQL("""INSERT INTO cardGridConfigIncludeTags(configId, tag) VALUES ({configId}, {tag})""")
       .on("configId" -> configId, "tag" -> tag)
       .executeInsert()
   }
 
-  def createExcludeTags: Unit = input.config.excludeTags.map{ tags => tags.foreach{ tag =>
+  def createExcludeTags(): Unit = input.config.excludeTags.map{ tags => tags.foreach{ tag =>
     SQL("""INSERT INTO cardGridConfigExcludeTags(configId, tag) VALUES ({configId}, {tag})""")
       .on("configId" -> configId, "tag" -> tag)
       .executeInsert()
@@ -159,6 +181,13 @@ class CardGridProfileCreator(
 class CardGridProfileReader(profileId: String)(implicit val c: Connection) {
   import anorm.SqlParser._
   import anorm.~
+
+  def execute(): CardGridProfileData = {
+      val includeTags = readIncludeTags(configId)
+      val excludeTags = readExcludeTags(configId)
+      val config = readConfig(configId, includeTags, excludeTags)
+      readProfile(config)
+  }
 
   def configId: String =
     SQL("SELECT id FROM cardGridConfigs WHERE profileId = {profileId}")
@@ -203,5 +232,56 @@ class CardGridProfileReader(profileId: String)(implicit val c: Connection) {
         case x => Some(x)
       }
   }
+
+}
+
+/**
+  * A helper class exposing methods to update a cardGridProfile
+  */
+class CardGridProfileUpdater(
+  existingData: CardGridProfileData,
+  newInput: CardGridProfileInput,
+  user: User
+)(
+  implicit c: Connection
+) {
+
+  def execute(): Unit = {
+      updateProfile()
+      updateConfig()
+      updateIncludeTags()
+      updateExcludeTags()
+  }
+
+  def updateProfile(): Unit = {
+    SQL("UPDATE cardGridProfiles SET name={name} WHERE id={id}")
+      .on("id" -> existingData.id, "name" -> newInput.name)
+      .execute()
+  }
+
+  def updateConfig(): Unit = {
+    SQL("""UPDATE cardGridConfigs SET page={page}, pageSize={pageSize} WHERE id={id}""")
+      .on("id" -> existingData.config.id,
+          "page" -> newInput.config.page,
+          "pageSize" -> newInput.config.pageSize)
+    .execute()
+  }
+
+  def updateIncludeTags(): Unit = {
+    SQL("""DELETE FROM cardGridConfigIncludeTags WHERE configId={id}""")
+      .on("id" -> existingData.config.id)
+      .execute()
+    creator.createIncludeTags
+  }
+
+  def updateExcludeTags(): Unit = {
+    SQL("""DELETE FROM cardGridConfigExcludeTags WHERE configId={id}""")
+      .on("id" -> existingData.config.id)
+      .execute()
+    creator.createExcludeTags
+  }
+
+  lazy val creator: CardGridProfileCreator =
+    new CardGridProfileCreator(user, newInput, existingData.id, existingData.config.id)
 
 }

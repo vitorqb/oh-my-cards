@@ -72,5 +72,35 @@ class CardGridProfileResourceHandler @Inject()(
   def read(name: String, user: User): Future[Option[CardGridProfileResource]] =
     repository.readFromName(name, user).map(x => x.map(y => CardGridProfileResource.fromData(y)))
 
+  /**
+    * Updates a card grid profile, if found. If not found, returns None.
+    */
+  def update(
+    name: String,
+    user: User,
+    input: CardGridProfileInput
+  ): Future[Option[CardGridProfileResource]] = {
+
+    def checkNewNameDoesNotExist: Future[Unit] = {
+      val newName = input.name
+      if (name == newName) Future.successful(())
+      else for {
+        hasProfileWithName <- repository.userHasProfileWithName(user, newName)
+      } yield {
+        if (hasProfileWithName) throw new ProfileNameAlreadyExists
+        else ()
+      }
+    }
+
+    repository.readFromName(name, user).flatMap {
+      case None => Future.successful(None)
+      case Some(existingData) => for {
+        _ <- checkNewNameDoesNotExist
+        updatedData <- repository.update(existingData, input, user)
+        updatedResource = CardGridProfileResource.fromData(updatedData)
+      } yield Some(updatedResource)
+    }
+  }
+
   def listNames(user: User): Future[List[String]] = repository.listNames(user)
 }
