@@ -10,6 +10,7 @@ class CardGridProfileRouter @Inject()(controller: CardGridProfileController) ext
   override def routes: Routes = {
     case GET(p"/$name") => controller.read(name)
     case POST(p"") => controller.create
+    case POST(p"/$name") => controller.update(name)
   }
 
 }
