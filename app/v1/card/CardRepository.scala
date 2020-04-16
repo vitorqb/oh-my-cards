@@ -11,19 +11,35 @@ import anorm.`package`.SqlStringInterpolation
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext
 import java.sql.Connection
+import anorm.SimpleSql
+import anorm.Row
+
+
+/**
+  * A trait for all known user exceptions.
+  */
+sealed trait CardRepositoryUserException { val message: String }
+
 
 /**
   * Custom exception signaling that a card does not exist.
   */
 final case class CardDoesNotExist(
-  private val message: String = "The required card does not exist.",
-  private val cause: Throwable = None.orNull
-) extends Exception(message, cause)
+  val message: String = "The required card does not exist.",
+  val cause: Throwable = None.orNull
+) extends Exception(message, cause) with CardRepositoryUserException
+
+final case class TagsFilterMiniLangSyntaxError(
+  val message: String,
+  val cause: Throwable = None.orNull
+) extends Exception(message, cause) with CardRepositoryUserException
+
 
 /**
   * The data for a Card.
   */
 final case class CardData(id: Option[String], title: String, body: String, tags: List[String])
+
 
 /**
   * An interface for a card repository.
@@ -32,7 +48,9 @@ trait CardRepository {
   def create(cardData: CardData, user: User): Try[String]
   def get(id: String, user: User): Option[CardData]
   def find(r: CardListRequest): Iterable[CardData]
+  def countItemsMatching(req: CardListRequest): Int
 }
+
 
 /**
   * An implementation for a card repository.
@@ -41,7 +59,8 @@ class CardRepositoryImpl @Inject()(
   db: Database,
   uuidGenerator: UUIDGenerator,
   tagsRepo: TagsRepository)(
-  implicit val ec: ExecutionContext) extends CardRepository {
+  implicit val ec: ExecutionContext
+) extends CardRepository {
 
   private val cardDataParser: RowParser[CardData] = {
     import anorm._
@@ -56,9 +75,14 @@ class CardRepositoryImpl @Inject()(
     } else {
       val id = uuidGenerator.generate
       db.withTransaction { implicit c =>
-        SQL(CardSqlBuilder.buildForInsert)
-          .on("id" -> id, "userId" -> user.id, "title" -> cardData.title, "body" -> cardData.body)
-          .executeInsert()
+        SQL(
+          "INSERT INTO cards(id, userId, title, body) VALUES ({id}, {userId}, {title}, {body})"
+        ).on(
+          "id" -> id,
+          "userId" -> user.id,
+          "title" -> cardData.title,
+          "body" -> cardData.body
+        ).executeInsert()
         tagsRepo.create(id, cardData.tags)
         Success(id)
       }
@@ -66,7 +90,7 @@ class CardRepositoryImpl @Inject()(
   }
 
   def get(id: String, user: User): Option[CardData] = db.withConnection { implicit c =>
-    SQL(CardSqlBuilder.buildForGet)
+    SQL(s"${SqlHelpers.sqlGetStatement} AND id = {id}")
       .on("id" -> id, "userId" -> user.id)
       .as(cardDataParser.*)
       .headOption
@@ -77,15 +101,9 @@ class CardRepositoryImpl @Inject()(
     * Finds a list of cards for a given user.
     */
   def find(request: CardListRequest): Iterable[CardData] = db.withConnection { implicit c =>
-    SQL(CardSqlBuilder.buildForFind(request))
-      .on("tagsFilterSqlSeq" -> tagsFilterSqlSeq(request.tags),
-          "userId" -> request.userId,
-          "pageSize" -> request.pageSize,
-          "offset" -> (request.page - 1) * request.pageSize,
-          "lowerTags" -> request.tags.map(_.toLowerCase),
-          "lowerTagsNot" -> request.tagsNot.map(_.toLowerCase))
-      .as(cardDataParser.*)
-      .map(cardData => cardData.copy(tags=tagsRepo.get(cardData.id.get)))
+    def assocTags(cardData: CardData) = cardData.copy(tags=tagsRepo.get(cardData.id.get))
+
+    new CardFinder(request).execute().as(cardDataParser.*).map(assocTags)
   }
 
   /**
@@ -93,26 +111,7 @@ class CardRepositoryImpl @Inject()(
     */
   def countItemsMatching(request: CardListRequest): Int = db.withConnection { implicit c =>
     val parser = (anorm.SqlParser.get[Int]("count").*)
-    SQL(CardSqlBuilder.buildForCount(request))
-      .on("tagsFilterSqlSeq" -> tagsFilterSqlSeq(request.tags),
-          "userId" -> request.userId,
-          "lowerTags" -> request.tags.map(_.toLowerCase),
-          "lowerTagsNot" -> request.tagsNot.map(_.toLowerCase))
-      .as(parser)
-      .headOption
-      .getOrElse(0)
-  }
-
-  /**
-    * Returns a SeqParameter for the filter of including tags.
-    */
-  def tagsFilterSqlSeq(tags: List[String]): SeqParameter[String] = {
-    SeqParameter(
-      seq=tags.map(_.toLowerCase),
-      sep=" AND ",
-      pre="id IN (SELECT cardId FROM cardsTags WHERE LOWER(tag) = ",
-      post=")"
-    )
+    new CardCounter(request).execute().as(parser).headOption.getOrElse(0)
   }
 
   /**
@@ -122,7 +121,9 @@ class CardRepositoryImpl @Inject()(
     get(id, user) match {
       case None => Failure(new CardDoesNotExist)
       case Some(_) => db.withConnection { implicit c =>
-        SQL(CardSqlBuilder.buildForDelete).on("id" -> id, "userId" -> user.id).executeUpdate
+        SQL(s"DELETE ${SqlHelpers.sqlFromWhereStatement} AND id = {id}")
+          .on("id" -> id, "userId" -> user.id)
+          .executeUpdate()
         tagsRepo.delete(id)
         Success(())
       }
@@ -134,7 +135,7 @@ class CardRepositoryImpl @Inject()(
     */
   def update(data: CardData, user: User): Future[Try[Unit]] = Future { Try { db.withTransaction {
     implicit c =>
-    SQL(CardSqlBuilder.buildForUpdate)
+    SQL("UPDATE cards SET title={title}, body={body} WHERE id={id} AND userId={userId}")
       .on("title" -> data.title, "body" -> data.body, "id" -> data.id, "userId" -> user.id)
       .executeUpdate()
     tagsRepo.delete(data.id.get)
@@ -172,62 +173,150 @@ private class TagsRepository {
   }
 }
 
-/**
-  * Helper object to build an sql query for cards.
+
+/** 
+  * Class responsible for querying the db for a list of cards.
   */
-private object CardSqlBuilder {
+private class CardFinder(val request: CardListRequest) extends CardSqlFilterOperations {
 
   /**
-    * Represents the Query Types that can be produced.
+    * Executes the query.
     */
-  sealed trait QueryType
-  case class List() extends QueryType
-  case class Count() extends QueryType
-  case class Get() extends QueryType
-
-  /**
-    * Returns a sql string for listing cards.
-    */
-  def buildForFind(req: CardListRequest): String =
-    s"""SELECT ${select(List())} ${fromWhere} ${tagsFilter(req)} ${tagsNotFilter(req)}
-        ORDER BY id DESC LIMIT {pageSize} OFFSET {offset}"""
-
-  /**
-    * Returns a sql string for counting cards.
-    */
-  def buildForCount(req: CardListRequest): String =
-    s"SELECT ${select(Count())} ${fromWhere} ${tagsFilter(req)} ${tagsNotFilter(req)}"
-
-  /**
-    * Returns a sql string for getting cards.
-    */
-  def buildForGet: String = s"SELECT ${select(Get())} ${fromWhere} AND id = {id}"
-
-  /**
-    * Returns a sql string for inserting cards.
-    */
-  def buildForInsert: String =
-    "INSERT INTO cards(id, userId, title, body) VALUES ({id}, {userId}, {title}, {body});"
-
-  /**
-    * Returns a sql string for deleting cards.
-    */
-  def buildForDelete: String = s"DELETE ${fromWhere} AND id = {id}"
-
-  /**
-    * Returns a sql string for updating a card.
-    */
-  def buildForUpdate: String =
-    "UPDATE cards SET title={title}, body={body} WHERE id={id} AND userId={userId}"
-
-  private def fromWhere = "FROM cards WHERE userId = {userId}"
-  private def select(queryType: QueryType) = queryType match {
-    case List() | Get() => "id, title, body"
-    case Count() => "COUNT(*) as count"
+  def execute()(implicit c: Connection): SimpleSql[Row] = {
+    val sql = SQL(
+      s"""${SqlHelpers.sqlGetStatement}
+          ${tagsFilter}
+          ${tagsNotFilter}
+          ${tagsMiniLangFilter}
+          ORDER BY id DESC LIMIT {pageSize} OFFSET {offset}"""
+    )
+    withParams(sql)
   }
-  private def tagsFilter(request: CardListRequest) =
-    if (request.tags.isEmpty) "" else "AND {tagsFilterSqlSeq}"
-  private def tagsNotFilter(request: CardListRequest) =
+}
+
+
+/**
+  * Class responseible for counting the number of cards matching a list query.
+  */
+private class CardCounter(val request: CardListRequest) extends CardSqlFilterOperations {
+
+  /**
+    * Executes the query.
+    */
+  def execute()(implicit c: Connection): SimpleSql[Row] = {
+    val sql = SQL(
+      s"""SELECT COUNT(*) AS count
+          ${SqlHelpers.sqlFromWhereStatement}
+          ${tagsFilter}
+          ${tagsNotFilter}
+          ${tagsMiniLangFilter}"""
+    )
+    withParams(sql)
+  }
+
+}
+
+
+
+/**
+  * A common trait for filtering operations for cards.
+  */
+private trait CardSqlFilterOperations {
+  import services.TagsFilterMiniLang.{TagsFilterMiniLang,Result=>MiniLangResult,ParsingError}
+
+  /**
+    * The list request. Must be implemented by subclasses.
+    */
+  val request: CardListRequest
+
+  /**
+    * The filter for the `include` tags.
+    */
+  val tagsFilter = if (request.tags.isEmpty) "" else "AND {tagsFilterSqlSeq}"
+
+  /**
+    * The filter for the `exclude` tags.
+    */
+  val tagsNotFilter =
     if (request.tagsNot.isEmpty) ""
     else " AND id NOT IN (SELECT cardId FROM cardsTags WHERE LOWER(tag) IN ({lowerTagsNot}))"
+
+  /**
+    * Fills an sql statement with all known parameters.
+    */
+  def withParams(sql: SimpleSql[Row]): SimpleSql[Row] = {
+
+    var result = sql;
+    def addToResult(key: String, value: String) = { result = result.on(key -> value) }
+
+    result = result.on(
+      "tagsFilterSqlSeq" -> SqlHelpers.tagsFilterSqlSeq(request.tags),
+      "userId" -> request.userId,
+      "pageSize" -> request.pageSize,
+      "offset" -> (request.page - 1) * request.pageSize,
+      "lowerTags" -> request.tags.map(_.toLowerCase),
+      "lowerTagsNot" -> request.tagsNot.map(_.toLowerCase),
+    )
+    tagsMiniLangParams.foreach { case (key, value) => addToResult(key, value) }
+    result
+  }
+
+  /**
+    * The result for the TagsMiniLang parsing, if a query is defined.
+    */
+  lazy val tagsMiniLangResult = request.query.map { tagsMiniLangQuery =>
+    TagsFilterMiniLang.parse(tagsMiniLangQuery) match {
+      case Success(r) => r
+      case Failure(e: ParsingError) => throw new TagsFilterMiniLangSyntaxError(e.message, e)
+      case Failure(e) => throw e
+    }
+  }
+
+  /**
+    * An sql filter statement for the tags MiniLang query, if any.
+    */
+  lazy val tagsMiniLangFilter = tagsMiniLangResult match {
+    case None => ""
+    case Some(result) => s" AND id IN (${result.sql}) "
+  }
+
+  /**
+    * The params to bind for the tagsMiniLangFilter
+    */
+  lazy val tagsMiniLangParams: Map[String, String] = tagsMiniLangResult match {
+    case None => Map()
+    case Some(result) => result.params
+  }
+
+}
+
+
+
+/**
+  * Some helper functions for generating sql.
+  */
+private object SqlHelpers {
+
+  /**
+    * A base from where statement.
+    */
+  val sqlFromWhereStatement: String = "FROM cards WHERE userId = {userId} "
+
+  /**
+    * A base get statement.
+    */
+  val sqlGetStatement: String = s"SELECT id, title, body ${sqlFromWhereStatement}"
+
+  /**
+    * Returns a SeqParameter for the filter of including tags.
+    */
+  def tagsFilterSqlSeq(tags: List[String]): SeqParameter[String] = {
+    SeqParameter(
+      seq=tags.map(_.toLowerCase),
+      sep=" AND ",
+      pre="id IN (SELECT cardId FROM cardsTags WHERE LOWER(tag) = ",
+      post=")"
+    )
+  }
+
 }
