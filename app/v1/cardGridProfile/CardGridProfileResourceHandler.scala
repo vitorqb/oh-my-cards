@@ -37,13 +37,16 @@ object CardGridProfileResource {
       (JsPath \ "config" \ "page").write[Option[Int]] and
       (JsPath \ "config" \ "pageSize").write[Option[Int]] and
       (JsPath \ "config" \ "includeTags").writeNullable[List[String]] and
-      (JsPath \ "config" \ "excludeTags").writeNullable[List[String]]
+      (JsPath \ "config" \ "excludeTags").writeNullable[List[String]] and
+      (JsPath \ "config" \ "query").writeNullable[String]
+
     )(r => (
       r.profile.name,
       r.profile.config.page,
       r.profile.config.pageSize,
       r.profile.config.includeTags,
-      r.profile.config.excludeTags
+      r.profile.config.excludeTags,
+      r.profile.config.query
     ))
   }
 
