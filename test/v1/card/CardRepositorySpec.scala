@@ -17,11 +17,9 @@ import scala.util.Failure
 import play.api.db.Database
 import test.utils.StringUtils
 
-
 class CardRepositorySpec extends PlaySpec
     with MockitoSugar
-    with ScalaFutures
-    with BeforeAndAfterEach {
+    with ScalaFutures {
 
   implicit val ec: ExecutionContext = ExecutionContext.global
 
@@ -81,6 +79,7 @@ class CardRepositorySpec extends PlaySpec
     val cardData1 = CardData(Some("id1"), "ONE", "one", List("B"))
     val cardData2 = CardData(Some("id2"), "TWO", "two", List("ANOTHER_TAG", "A_TAG"))
     val cardData3 = CardData(Some("id3"), "THREE", "three", List("A", "C"))
+    val cardListRequest = CardListRequest(1, 20, userId, List(), List(), None)
 
     /**
       * Saves all cards fixtures to the db using uuidGenerator and repository.
@@ -92,88 +91,108 @@ class CardRepositorySpec extends PlaySpec
       }
     }
 
-    "find two out of tree cards for an user" in {
-      test.utils.TestUtils.testDB { db =>
-        val uuidGenerator = mock[UUIDGenerator]
-        val repository = new CardRepositoryImpl(db, uuidGenerator, new TagsRepository)
-        saveCardsFixtures(uuidGenerator, repository)
-
-        //Create for other user
-        val otherUser = User("bar", "b@b.b@")
-        val cardDataOtherUser1 = CardData(Some("id4"), "FOUR", "four", List())
-        when(uuidGenerator.generate).thenReturn(cardDataOtherUser1.id.value)
-        repository.create(cardDataOtherUser1.copy(id=None), otherUser)
-
-        (repository.find(CardListRequest(1, 2, userId, List(), List()))
-          mustEqual
-          List(cardData3, cardData2))
-      }
-    }
-
-    "Filters wanted tags only(simple)" in {
-      test.utils.TestUtils.testDB { db =>
-        val uuidGenerator = mock[UUIDGenerator]
-        val repository = new CardRepositoryImpl(db, uuidGenerator, new TagsRepository)
-        saveCardsFixtures(uuidGenerator, repository)
-
-        (repository.find(CardListRequest(1, 2, userId, List("A_TAG"), List()))
-          mustEqual
-          List(cardData2))
-      }
-    }
-
-    "Filters wanted tags only (complex)" in {
-      test.utils.TestUtils.testDB { db =>
-        val uuidGenerator = mock[UUIDGenerator]
-        val repository = new CardRepositoryImpl(db, uuidGenerator, new TagsRepository)
-        saveCardsFixtures(uuidGenerator, repository)
-
-        //Extra cards
-        val extraCard1 = CardData(Some("extraId1"), "_", "-", List("A", "B", "C"))
-        when(uuidGenerator.generate).thenReturn(extraCard1.id.value)
-        repository.create(extraCard1.copy(id=None), user)
-
-        val extraCard2 = CardData(Some("extraId2"), "_", "-", List("A"))
-        when(uuidGenerator.generate).thenReturn(extraCard2.id.value)
-        repository.create(extraCard2.copy(id=None), user)
-
-        val extraCard3 = CardData(Some("extraId3"), "_", "-", List("B", "C"))
-        when(uuidGenerator.generate).thenReturn(extraCard3.id.value)
-        repository.create(extraCard3.copy(id=None), user)
-
-        (repository.find(CardListRequest(1, 2, userId, List("c", "B"), List()))
-          mustEqual
-          List(extraCard3, extraCard1))
-      }
-    }
-
-    "Filters wanted tags (CASE INSENSITIVE)" in {
-      test.utils.TestUtils.testDB { db =>
-        val uuidGenerator = mock[UUIDGenerator]
-        val repository = new CardRepositoryImpl(db, uuidGenerator, new TagsRepository)
-        saveCardsFixtures(uuidGenerator, repository)
-
-        (repository.find(CardListRequest(1, 2, userId, List("a_tag"), List()))
-          mustEqual
-          List(cardData2))
-      }
-    }
-
-    "Removes unwanted tags" in {
+    def doTest(block: (Database, UUIDGenerator, CardRepository) => Any): Any = {
       test.utils.TestUtils.testDB { implicit db =>
         val uuidGenerator = mock[UUIDGenerator]
         val repository = new CardRepositoryImpl(db, uuidGenerator, new TagsRepository)
         saveCardsFixtures(uuidGenerator, repository)
-
-        //Adds another card
-        val cardData4 = CardData(Some("id4"), "FOUR", "four", List("A_TAG"))
-        when(uuidGenerator.generate).thenReturn(cardData4.id.value)
-        repository.create(cardData4.copy(id=None), user)
-
-        (repository.find(CardListRequest(1, 2, userId, List(), List("b", "c")))
-          mustEqual
-          List(cardData4, cardData2))
+        block(db, uuidGenerator, repository)
       }
+    }
+
+    "find two out of tree cards for an user" in doTest { (db, uuidGenerator, repository) =>
+      //Create for other user
+      val otherUser = User("bar", "b@b.b@")
+      val cardDataOtherUser1 = CardData(Some("id4"), "FOUR", "four", List())
+      when(uuidGenerator.generate).thenReturn(cardDataOtherUser1.id.value)
+      repository.create(cardDataOtherUser1.copy(id=None), otherUser)
+
+      repository.find(cardListRequest.copy(pageSize=2)) mustEqual List(cardData3, cardData2)
+    }
+
+    "Filters wanted tags only(simple)" in doTest { (db, uuidGenerator, repository) =>
+      repository.find(cardListRequest.copy(tags=List("A_TAG"))) mustEqual List(cardData2)
+    }
+
+    "Filters wanted tags only (complex)" in doTest { (db, uuidGenerator, repository) =>
+      //Extra cards
+      val extraCard1 = CardData(Some("extraId1"), "_", "-", List("A", "B", "C"))
+      when(uuidGenerator.generate).thenReturn(extraCard1.id.value)
+      repository.create(extraCard1.copy(id=None), user)
+
+      val extraCard2 = CardData(Some("extraId2"), "_", "-", List("A"))
+      when(uuidGenerator.generate).thenReturn(extraCard2.id.value)
+      repository.create(extraCard2.copy(id=None), user)
+
+      val extraCard3 = CardData(Some("extraId3"), "_", "-", List("B", "C"))
+      when(uuidGenerator.generate).thenReturn(extraCard3.id.value)
+      repository.create(extraCard3.copy(id=None), user)
+
+      (repository.find(cardListRequest.copy(tags=List("c", "B")))
+        mustEqual
+        List(extraCard3, extraCard1))
+    }
+
+    "Filters wanted tags (CASE INSENSITIVE)" in doTest { (db, uuidGenerator, repository) =>
+      repository.find(cardListRequest.copy(tags=List("a_tag"))) mustEqual List(cardData2)
+    }
+
+    "Removes unwanted tags" in doTest { (db, uuidGenerator, repository) =>
+      //Adds another card
+      val cardData4 = CardData(Some("id4"), "FOUR", "four", List("A_TAG"))
+      when(uuidGenerator.generate).thenReturn(cardData4.id.value)
+      repository.create(cardData4.copy(id=None), user)
+
+      (repository.find(cardListRequest.copy(tagsNot=List("b", "c")))
+        mustEqual
+        List(cardData4, cardData2))
+    }
+
+    "with tags query" should {
+
+      "select all tags" in doTest { (db, uuidGenerator, repository) =>
+        val query = """
+            ((tags CONTAINS 'b') 
+             OR 
+             (tags CONTAINS 'another_tag')
+             OR
+             (tags CONTAINS 'a_tag')
+             OR
+             (tags CONTAINS 'a')
+             OR
+             (tags CONTAINS 'c'))"""
+        val result = repository.find(cardListRequest.copy(query=Some(query)))
+        result mustEqual List(cardData3, cardData2, cardData1)
+      }
+
+      "select only a single tag" in doTest { (db, uuidGenerator, repository) =>
+        val query = "((tags CONTAINS 'a') AND (tags CONTAINS 'c'))"
+        val result = repository.find(cardListRequest.copy(query=Some(query)))
+        result mustEqual List(cardData3)
+      }
+
+      "select no tags" in doTest { (db, uuidGenerator, repository) =>
+        val query = """
+          (((tags CONTAINS 'a') AND (tags CONTAINS 'b'))
+           OR
+           ((tags CONTAINS 'a') AND (tags CONTAINS 'd')))
+        """
+        val result = repository.find(cardListRequest.copy(query=Some(query)))
+        result mustEqual List()
+      }
+
+      "complex crazy query" in doTest { (db, uuidGenerator, repository) =>
+        val query = """
+          ((((tags CONTAINS 'fooo') OR (tags CONTAINS 'baaar'))
+            OR
+            ((tags NOT CONTAINS 'a') AND (tags NOT CONTAINS 'c') AND (tags CONTAINS 'b')))
+           AND
+           ((tags NOT CONTAINS 'basket') OR (tags NOT CONTAINS 'football')))
+        """
+        val result = repository.find(cardListRequest.copy(query=Some(query)))
+        result mustEqual List(cardData1)
+      }
+
     }
   }
 
@@ -218,6 +237,7 @@ class CardRepositorySpec extends PlaySpec
     val cardData1 = CardData(Some("id1"), "ONE", "TWO", List("a", "b"))
     val cardData2 = CardData(Some("id2"), "one", "two", List("A", "B", "D"))
     val cardData3 = CardData(Some("id3"), "THREE", "three", List("C"))
+    val cardListRequest = CardListRequest(0, 0, user.id, List(), List(), None)
 
     /**
       * Stores the cards data in the db.
@@ -228,48 +248,90 @@ class CardRepositorySpec extends PlaySpec
         repository.create(cardData.copy(id=None), user)
       }
     }
+
+    def doTest(block: (Database, UUIDGenerator, CardRepository) => Any): Any = {
+      test.utils.TestUtils.testDB { implicit db =>
+        val uuidGenerator = mock[UUIDGenerator]
+        val repository = new CardRepositoryImpl(db, uuidGenerator, new TagsRepository)
+        saveCardsFixtures(uuidGenerator, repository)
+        block(db, uuidGenerator, repository)
+      }
+    }
     
-    "count the number of items for an user and not for other users." in {
-      test.utils.TestUtils.testDB { db =>
-        val uuidGenerator = mock[UUIDGenerator]
-        val repository =  new CardRepositoryImpl(db, uuidGenerator, new TagsRepository)
-        saveCardsFixtures(uuidGenerator, repository)
+    "count the number of items for an user and not for other users." in doTest {
+      (db, uuidGenerator, repository) =>
 
-        //Creates for other user
-        when(uuidGenerator.generate()).thenReturn("otherUserCardId")
-        repository.create(CardData(None, "four", "four", List("b")), User("other", "other"))
+      //Creates for other user
+      when(uuidGenerator.generate()).thenReturn("otherUserCardId")
+      repository.create(CardData(None, "four", "four", List("b")), User("other", "other"))
 
-        (repository.countItemsMatching(CardListRequest(0, 0, user.id, List("b"), List()))
-          mustEqual
-          2)
-      }
+      repository.countItemsMatching(cardListRequest.copy(tags=List("b"))) mustEqual 2
     }
 
-    "filters by tag" in {
-      test.utils.TestUtils.testDB { db =>
-        val uuidGenerator = mock[UUIDGenerator]
-        val repository =  new CardRepositoryImpl(db, uuidGenerator, new TagsRepository)
-        saveCardsFixtures(uuidGenerator, repository)
-
-        (repository.countItemsMatching(CardListRequest(0, 0, user.id, List(), List()))
-          mustEqual
-          3)
-      }
+    "filters by tag" in doTest { (db, uuidGenerator, repository) =>
+      repository.countItemsMatching(cardListRequest) mustEqual 3
     }
 
-    "removes by tag" in {
-      test.utils.TestUtils.testDB { db =>
-        val uuidGenerator = mock[UUIDGenerator]
-        val repository =  new CardRepositoryImpl(db, uuidGenerator, new TagsRepository)
-        saveCardsFixtures(uuidGenerator, repository)
+    "removes by tag" in doTest { (db, uuidGenerator, repository) =>
+      val req1 = cardListRequest.copy(tags=List("a", "b"), tagsNot=List("d"))
+      repository.countItemsMatching(req1) mustEqual 1
 
-        (repository.countItemsMatching(CardListRequest(0, 0, user.id, List("a", "b"), List("d")))
-          mustEqual
-          1)
-        (repository.countItemsMatching(CardListRequest(0, 0, user.id, List("a", "b"), List("c")))
-          mustEqual
-          2)
+      val req2 = cardListRequest.copy(tags=List("a", "b"), tagsNot=List("c"))
+      repository.countItemsMatching(req2) mustEqual 2
+    }
+
+    "with tags query" should {
+
+      "all tags" in doTest { (db, uuidGenerator, repository) =>
+        val query = """
+            ((tags CONTAINS 'b') 
+             OR 
+             (tags CONTAINS 'another_tag')
+             OR
+             (tags CONTAINS 'a_tag')
+             OR
+             (tags CONTAINS 'a')
+             OR
+             (tags CONTAINS 'c'))
+        """
+        repository.countItemsMatching(cardListRequest.copy(query=Some(query))) mustEqual 3
       }
+
+      "select only a single tag" in doTest { (db, uuidGenerator, repository) =>
+        val query = "((tags CONTAINS 'a') AND (tags CONTAINS 'd'))"
+        repository.countItemsMatching(cardListRequest.copy(query=Some(query))) mustEqual 1
+      }
+
+      "select only two tags" in doTest { (db, uuidGenerator, repository) =>
+        val query = "((tags CONTAINS 'a') OR (tags CONTAINS 'd'))"
+        repository.countItemsMatching(cardListRequest.copy(query=Some(query))) mustEqual 2
+      }
+
+      "select no tags" in doTest { (db, uuidGenerator, repository) =>
+        val query = "((tags CONTAINS 'a') AND (tags NOT CONTAINS 'b'))"
+        repository.countItemsMatching(cardListRequest.copy(query=Some(query))) mustEqual 0
+      }      
+
+      "select no tags (complex)" in doTest { (db, uuidGenerator, repository) =>
+        val query = """
+          (((tags CONTAINS 'a') AND (tags CONTAINS 'b'))
+           AND
+           ((tags CONTAINS 'c') OR (tags CONTAINS 'f')))
+        """
+        repository.countItemsMatching(cardListRequest.copy(query=Some(query))) mustEqual 0
+      }
+
+      "complex crazy query" in doTest { (db, uuidGenerator, repository) =>
+        val query = """
+          ((((tags CONTAINS 'fooo') OR (tags CONTAINS 'baaar'))
+            OR
+            ((tags CONTAINS 'a') AND (tags NOT CONTAINS 'c')))
+           AND
+           ((tags NOT CONTAINS 'basket') OR (tags NOT CONTAINS 'football')))
+        """
+        repository.countItemsMatching(cardListRequest.copy(query=Some(query))) mustEqual 2
+      }
+
     }
   }
 
@@ -345,65 +407,6 @@ class CardRepositorySpec extends PlaySpec
         repository.update(newCardData, user).futureValue
         repository.get("id", user).get mustEqual newCardData
       }
-    }
-
-  }
-
-}
-
-class CardSqlBuilderSpec extends PlaySpec with StringUtils {
-
-  "CardSqlBuilderSpec.build" should {
-
-    val request: CardListRequest = new CardListRequest(1, 2, "id", List(), List())
-
-    "produce the query for a list query" should {
-
-      "generate sql without any tags" in {
-        (CardSqlBuilder.buildForFind(request).cleanForComparison
-          mustEqual
-          """SELECT id, title, body FROM cards WHERE userId = {userId}
-             ORDER BY id DESC LIMIT {pageSize} OFFSET {offset}""".cleanForComparison)
-      }
-
-      "generate sql with tags and tagsNot" in {
-        val request_ = request.copy(tags=List("A"), tagsNot=List("B"))
-        (CardSqlBuilder.buildForFind(request_).cleanForComparison
-          mustEqual
-          """SELECT id, title, body FROM cards WHERE userId = {userId}
-             AND {tagsFilterSqlSeq}
-             AND id NOT IN (SELECT cardId FROM cardsTags WHERE LOWER(tag) IN ({lowerTagsNot}))
-             ORDER BY id DESC LIMIT {pageSize} OFFSET {offset}""".cleanForComparison)
-      }
-
-    }
-    "produce the query for a count query" should {
-
-      "generate sql without any tags" in {
-        (CardSqlBuilder.buildForCount(request).cleanForComparison
-          mustEqual
-          """SELECT COUNT(*) as count FROM cards WHERE userId = {userId}""")
-      }
-
-      "generate sql with tags and tagsNot" in {
-        val request_ = request.copy(tags=List("A"), tagsNot=List("B"))
-        (CardSqlBuilder.buildForCount(request_).cleanForComparison
-          mustEqual
-          """SELECT COUNT(*) as count FROM cards WHERE userId = {userId}
-             AND {tagsFilterSqlSeq}
-             AND id NOT IN (SELECT cardId FROM cardsTags WHERE LOWER(tag) IN ({lowerTagsNot}))
-          """.cleanForComparison)
-      }
-    }
-
-    "procuce the query for a get query" should {
-
-      "" in {
-        (CardSqlBuilder.buildForGet
-          mustEqual
-          "SELECT id, title, body FROM cards WHERE userId = {userId} AND id = {id}")
-      }
-
     }
 
   }

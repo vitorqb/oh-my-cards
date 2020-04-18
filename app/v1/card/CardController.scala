@@ -52,12 +52,13 @@ case class CardListRequestInput(
   page: Int,
   pageSize: Int,
   tags: Option[String],
-  tagsNot: Option[String]) {
+  tagsNot: Option[String],
+  query: Option[String]) {
 
   def tagsList: List[String] = tags.map(StringUtils.splitByComma).getOrElse(List())
   def tagsNotList: List[String] = tagsNot.map(StringUtils.splitByComma).getOrElse(List())
   def toCardListRequest(u: User): CardListRequest =
-    CardListRequest(page, pageSize, u.id, tagsList, tagsNotList)
+    CardListRequest(page, pageSize, u.id, tagsList, tagsNotList, query)
 
 }
 
@@ -83,11 +84,11 @@ class CardController @Inject()(
     logger.info(s"Getting cards for user ${request.identity}")
     CardListRequestParser.parse() match {
       case Right(js) => BadRequest(js)
-      case Left(input: CardListRequestInput) => {
+      case Left(input: CardListRequestInput) => Try {
         val user = request.identity
         val cards = resourceHandler.find(input.toCardListRequest(user))
         Ok(Json.toJson(cards))
-      }
+      }.fold(handleError,identity)
     }
   }
 
@@ -100,7 +101,7 @@ class CardController @Inject()(
       _ => BadRequest("Invalid post data!"),
       cardFormInput => resourceHandler.create(cardFormInput, request.identity) match {
         case Success(card) => Ok(Json.toJson(card))
-        case Failure(e) => handleCreateFailure(e)
+        case Failure(e) => handleError(e)
       }
     )
   }
@@ -116,8 +117,7 @@ class CardController @Inject()(
       case Good(id) => CardFormInput.form.bindFromRequest().fold(
         f => Future(BadRequest(f.errorsAsJson)),
         cardFormInput => resourceHandler.update(id, cardFormInput, request.identity).map {
-          case Failure(e: CardDoesNotExist) => NotFound
-          case Failure(e) => unknownError(e)
+          case Failure(e) => handleError(e)
           case Success(card) => Ok(Json.toJson(card))
         }
       )
@@ -134,20 +134,26 @@ class CardController @Inject()(
       case Bad(x) => Future(NotFound(x))
       case Good(x) => resourceHandler.delete(x, request.identity).map {
         case Success(_) => NoContent
-        case Failure(e: CardDoesNotExist) => NotFound
-        case Failure(e) => unknownError(e)
+        case Failure(e) => handleError(e)
       }
     }
   }
 
-  private def handleCreateFailure(e: Throwable): Result = {
-    logger.error("Card could not be created", e)
-    BadRequest("Unable to create the card")
-  }
-
-  private def unknownError(e: Throwable) = {
-    logger.error("Unexpected error during update", e)
-    InternalServerError("Unknown error!")
+  /**
+    * Handles errors.
+    */
+  private def handleError(error: Throwable): Result = error match {
+    case userErr: CardRepositoryUserException => {
+      logger.error("A card repository user error was thrown", userErr)
+      userErr match {
+        case CardDoesNotExist(_, _) => NotFound
+        case TagsFilterMiniLangSyntaxError(m, _) => BadRequest(Json.obj("message" -> m))
+      }
+    }
+    case _ => {
+      logger.error("Unexpected error!", error)
+      InternalServerError("Unknown error!")
+    }
   }
 
   def get(id: String) = silhouette.SecuredAction { implicit request =>
@@ -172,7 +178,8 @@ object CardListRequestParser {
         "page" -> number,
         "pageSize" -> number,
         "tags" -> optional(text),
-        "tagsNot" -> optional(text)
+        "tagsNot" -> optional(text),
+        "query" -> optional(text)
       )(CardListRequestInput.apply)(CardListRequestInput.unapply)
     )
   }

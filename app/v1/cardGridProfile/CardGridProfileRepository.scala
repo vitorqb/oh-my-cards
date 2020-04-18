@@ -27,7 +27,8 @@ case class CardGridConfigData(
   page: Option[Int],
   pageSize: Option[Int],
   includeTags: Option[List[String]],
-  excludeTags: Option[List[String]]
+  excludeTags: Option[List[String]],
+  query: Option[String]
 )
 
 /**
@@ -152,13 +153,16 @@ class CardGridProfileCreator(
 
   def createConfig(): Unit = {
     val config = input.config
-    SQL("""INSERT INTO cardGridConfigs(id, profileId, page, pageSize)
-           VALUES ({configId}, {profileId}, {page}, {pageSize})""")
-      .on("profileId" -> profileId,
-          "configId" -> configId,
-          "page" -> config.page,
-          "pageSize" -> config.pageSize)
-      .executeInsert()
+    SQL(
+      """INSERT INTO cardGridConfigs(id, profileId, page, pageSize, query)
+         VALUES ({configId}, {profileId}, {page}, {pageSize}, {query})"""
+    ).on(
+        "profileId" -> profileId,
+        "configId" -> configId,
+        "page" -> config.page,
+        "pageSize" -> config.pageSize,
+        "query" -> config.query
+      ).executeInsert()
   }
 
   def createIncludeTags(): Unit = input.config.includeTags.getOrElse(List()).foreach { tag =>
@@ -207,11 +211,18 @@ class CardGridProfileReader(profileId: String)(implicit val c: Connection) {
     includeTags: Option[List[String]],
     excludeTags: Option[List[String]]
   ): CardGridConfigData = {
-    SQL("SELECT page, pageSize FROM cardGridConfigs WHERE id = {id}")
+
+    val parser = (
+      get[Option[Int]]("page") ~
+        get[Option[Int]]("pageSize") ~
+        get[Option[String]]("query")
+    )
+
+    SQL("SELECT page, pageSize, query FROM cardGridConfigs WHERE id = {id}")
       .on("id" -> configId)
-      .as((get[Option[Int]]("page") ~ get[Option[Int]]("pageSize")).single) match {
-        case page ~ pageSize =>
-          CardGridConfigData(configId, page, pageSize, includeTags, excludeTags)
+      .as(parser.single) match {
+        case page ~ pageSize ~ query =>
+          CardGridConfigData(configId, page, pageSize, includeTags, excludeTags, query)
       }
   }
 
@@ -260,11 +271,16 @@ class CardGridProfileUpdater(
   }
 
   def updateConfig(): Unit = {
-    SQL("""UPDATE cardGridConfigs SET page={page}, pageSize={pageSize} WHERE id={id}""")
-      .on("id" -> existingData.config.id,
-          "page" -> newInput.config.page,
-          "pageSize" -> newInput.config.pageSize)
-    .execute()
+    SQL(
+      """UPDATE cardGridConfigs
+         SET page={page}, pageSize={pageSize}, query={query}
+         WHERE id={id}"""
+    ).on(
+      "id" -> existingData.config.id,
+      "page" -> newInput.config.page,
+      "pageSize" -> newInput.config.pageSize,
+      "query" -> newInput.config.query
+    ).execute()
   }
 
   def updateIncludeTags(): Unit = {

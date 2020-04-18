@@ -62,7 +62,8 @@ class CardGridProfileResourceHandlerSpec extends PlaySpec with MockitoSugar with
           Some(1),
           Some(2),
           Some(List("A")),
-          Some(List("B"))
+          Some(List("B")),
+          Some("()")
         )
       )
       val readData = Some(
@@ -72,6 +73,7 @@ class CardGridProfileResourceHandlerSpec extends PlaySpec with MockitoSugar with
           "ProfileName",
           CardGridConfigData(
             "configId",
+            None,
             None,
             None,
             None,
@@ -87,7 +89,8 @@ class CardGridProfileResourceHandlerSpec extends PlaySpec with MockitoSugar with
           Some(1),
           Some(2),
           Some(List("A")),
-          Some(List("B"))
+          Some(List("B")),
+          Some("()")
         )
       )
       val expectedResource = CardGridProfileResource(
@@ -96,7 +99,8 @@ class CardGridProfileResourceHandlerSpec extends PlaySpec with MockitoSugar with
             page=Some(1),
             pageSize=Some(2),
             includeTags=Some(List("A")),
-            excludeTags=Some(List("B"))
+            excludeTags=Some(List("B")),
+            query=Some("()")
           )
         )
       )

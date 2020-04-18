@@ -24,5 +24,6 @@ libraryDependencies ++= Seq(
   "net.codingwell" %% "scala-guice" % "4.2.6",
   "joda-time" % "joda-time" % "2.10.5",
   "org.mockito" %% "mockito-scala" % "1.11.2",
-  "com.lihaoyi" %% "requests" % "0.5.1"
+  "com.lihaoyi" %% "requests" % "0.5.1",
+  "org.parboiled" %% "parboiled-scala" % "1.3.1"
 )

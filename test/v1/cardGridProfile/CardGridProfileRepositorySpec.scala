@@ -28,7 +28,8 @@ class CardGridProfileRepositorySpec extends PlaySpec with MockitoSugar with Scal
       page=Some(1),
       pageSize=None,
       includeTags=Some(List("IncludeTag1")),
-      excludeTags=None
+      excludeTags=None,
+      query=Some("()")
     )
   )
 
@@ -52,7 +53,8 @@ class CardGridProfileRepositorySpec extends PlaySpec with MockitoSugar with Scal
             Some(1),
             None,
             Some(List("IncludeTag1")),
-            None
+            None,
+            Some("()")
           )
         )
         result mustEqual expected
@@ -72,20 +74,20 @@ class CardGridProfileRepositorySpec extends PlaySpec with MockitoSugar with Scal
     }
   }
 
-  "updae" should {
+  "update" should {
 
     "update a card grid profile" in {
       TestUtils.testDB { db =>
         val repository = new CardGridProfileRepository(db, uuidGenerator)
         val oldInput = CardGridProfileInput(
           "name",
-          CardGridConfigInput(Some(1), Some(2), None, Some(List("B")))
+          CardGridConfigInput(Some(1), Some(2), None, Some(List("B")), Some("(a)"))
         )
         val oldData = repository.create(oldInput, user).futureValue
 
         val newInput = CardGridProfileInput(
           "newName",
-          CardGridConfigInput(None, Some(3), Some(List("A")), None)
+          CardGridConfigInput(None, Some(3), Some(List("A")), None, Some("(b)"))
         )
         val expectedNewData = CardGridProfileData(
           oldData.id,
@@ -96,7 +98,8 @@ class CardGridProfileRepositorySpec extends PlaySpec with MockitoSugar with Scal
             newInput.config.page,
             newInput.config.pageSize,
             newInput.config.includeTags,
-            newInput.config.excludeTags
+            newInput.config.excludeTags,
+            newInput.config.query
           )
         )
 
@@ -192,7 +195,7 @@ class CardGridProfileRepositorySpec extends PlaySpec with MockitoSugar with Scal
 
 class CardGridProfileCreatorSpec extends PlaySpec {
 
-  val input = CardGridProfileInput("", CardGridConfigInput(None, None, None, None))
+  val input = CardGridProfileInput("", CardGridConfigInput(None, None, None, None, None))
   val user = User("userId", "user@email")
 
   "createConfig" should {
@@ -300,7 +303,7 @@ class CardGridProfileReaderSpec extends PlaySpec with ScalaFutures {
         SQL("""INSERT INTO cardGridProfiles(id, userId, name)
                VALUES ('a', 'b', 'c')""")
           .executeInsert()
-        val config = CardGridConfigData("", None, None, None, None)
+        val config = CardGridConfigData("", None, None, None, None, None)
         val reader = new CardGridProfileReader("a")
         reader.readProfile(config) mustEqual CardGridProfileData("a", "b", "c", config)
       }
@@ -359,8 +362,9 @@ class CardGridProfileReaderSpec extends PlaySpec with ScalaFutures {
           val configId = "configId"
           val includeTags = Some(List("A"))
           val excludeTags = Some(List("B"))
-          SQL("""INSERT INTO cardGridConfigs(id, profileId, page, pageSize)
-             VALUES ('configId', 'profileId', 1, 2), ('configId2', 'profileId2', 3, 4)""")
+          SQL("""INSERT INTO cardGridConfigs(id, profileId, page, pageSize, query)
+             VALUES ('configId', 'profileId', 1, 2, '(foo)'),
+                    ('configId2', 'profileId2', 3, 4, '')""")
             .executeInsert()
           val reader = new CardGridProfileReader("profileId")
           val result = reader.readConfig(configId, includeTags, excludeTags)
@@ -369,7 +373,8 @@ class CardGridProfileReaderSpec extends PlaySpec with ScalaFutures {
             Some(1),
             Some(2),
             includeTags,
-            excludeTags
+            excludeTags,
+            Some("(foo)")
           )
           result mustEqual expected
         }
@@ -381,8 +386,8 @@ class CardGridProfileReaderSpec extends PlaySpec with ScalaFutures {
 class CardGridProfileUpdaterSpec extends PlaySpec with MockitoSugar {
 
   val configId = "configId"
-  val emptyConfigData = CardGridConfigData(configId, None, None, None, None)
-  val emptyConfigInput = CardGridConfigInput(None, None, None, None)
+  val emptyConfigData = CardGridConfigData(configId, None, None, None, None, None)
+  val emptyConfigInput = CardGridConfigInput(None, None, None, None, None)
   val user = User("userId", "user@email")
   val profileId = "profileId"
 
@@ -415,7 +420,8 @@ class CardGridProfileUpdaterSpec extends PlaySpec with MockitoSugar {
             Some(1),
             Some(2),
             Some(List("A")),
-            Some(List("B"))
+            Some(List("B")),
+            None
           )
           val oldConfigInput = CardGridConfigInput.fromData(oldConfigData)
           val oldData = CardGridProfileData(profileId, "userId", "OldName", oldConfigData)

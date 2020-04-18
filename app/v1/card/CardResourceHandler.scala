@@ -53,7 +53,8 @@ case class CardListRequest(
   pageSize: Int,
   userId: String,
   tags: List[String],
-  tagsNot: List[String])
+  tagsNot: List[String],
+  query: Option[String])
 
 
 /**

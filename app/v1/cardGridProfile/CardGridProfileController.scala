@@ -122,9 +122,10 @@ case class CardGridProfileInput(name: String, config: CardGridConfigInput) {
     page: Option[Int] = config.page,
     pageSize: Option[Int] = config.pageSize,
     includeTags: Option[List[String]] = config.includeTags,
-    excludeTags: Option[List[String]] = config.excludeTags
+    excludeTags: Option[List[String]] = config.excludeTags,
+    query: Option[String] = config.query
   ): CardGridProfileInput =
-    this.copy(config=config.copy(page, pageSize, includeTags, excludeTags))
+    this.copy(config=config.copy(page, pageSize, includeTags, excludeTags, query))
 
 }
 
@@ -140,7 +141,8 @@ object CardGridProfileInput {
           "page" -> optional(number),
           "pageSize" -> optional(number),
           "includeTags" -> optional(tags),
-          "excludeTags" -> optional(tags)
+          "excludeTags" -> optional(tags),
+          "query" -> optional(text)
         )(CardGridConfigInput.apply)(CardGridConfigInput.unapply)
       )(CardGridProfileInput.apply)(CardGridProfileInput.unapply)
     )
@@ -159,7 +161,8 @@ case class CardGridConfigInput(
   page: Option[Int],
   pageSize: Option[Int],
   includeTags: Option[List[String]],
-  excludeTags: Option[List[String]])
+  excludeTags: Option[List[String]],
+  query: Option[String])
 
 object CardGridConfigInput {
 
@@ -167,7 +170,8 @@ object CardGridConfigInput {
     d.page,
     d.pageSize,
     d.includeTags,
-    d.excludeTags
+    d.excludeTags,
+    d.query
   )
 
 }
