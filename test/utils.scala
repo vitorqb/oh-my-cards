@@ -29,6 +29,16 @@ object TestUtils {
 
   private var dbInitialized = false
 
+  val dbDriver = "org.sqlite.JDBC"
+  val dbUrl = "jdbc:sqlite:test.sqlite"
+
+  def getDb(): Database = {
+    val out = Databases(dbDriver, dbUrl)
+    Evolutions.cleanupEvolutions(out)
+    Evolutions.applyEvolutions(out)
+    out
+  }
+
   /**
     * Cleans all tables from db.
     */
@@ -50,7 +60,7 @@ object TestUtils {
     * Used as a context manager for tests with db.
     */
   def testDB[T](block: Database => T) = {
-    Databases.withDatabase("org.sqlite.JDBC", "jdbc:sqlite:test.sqlite") { db =>
+    Databases.withDatabase(dbDriver, dbUrl) { db =>
       if (! dbInitialized) {
         Evolutions.cleanupEvolutions(db)
         Evolutions.applyEvolutions(db)
