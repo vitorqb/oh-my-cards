@@ -42,26 +42,14 @@ final case class CardData(id: Option[String], title: String, body: String, tags:
 
 
 /**
-  * An interface for a card repository.
-  */
-trait CardRepository {
-  def create(cardData: CardData, user: User): Try[String]
-  def get(id: String, user: User): Option[CardData]
-  def find(r: CardListRequest): Iterable[CardData]
-  def countItemsMatching(req: CardListRequest): Int
-  def getAllTags(user: User): Future[List[String]]
-}
-
-
-/**
   * An implementation for a card repository.
   */
-class CardRepositoryImpl @Inject()(
+class CardRepository @Inject()(
   db: Database,
   uuidGenerator: UUIDGenerator,
   tagsRepo: TagsRepository)(
   implicit val ec: ExecutionContext
-) extends CardRepository {
+) {
 
   private val cardDataParser: RowParser[CardData] = {
     import anorm._
