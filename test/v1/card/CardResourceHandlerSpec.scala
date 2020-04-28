@@ -178,4 +178,20 @@ class CardResourceHandlerSpec
 
   }
 
+  "CardResourceHandler.getMetadata" should {
+
+    "get the tags from the repository and transforms to a resource" in {
+      val tags = List("FOO", "BAR")
+      val user = mock[User]
+
+      val repository = mock[CardRepositoryImpl]
+      when(repository.getAllTags(user)).thenReturn(Future.successful(tags))
+
+      val exp = CardMetadataResource(tags)
+      val res = new CardResourceHandler(repository).getMetadata(user).futureValue
+      exp mustEqual res
+    }
+
+  }
+
 }

@@ -44,6 +44,16 @@ object CardResource {
 
 }
 
+/**
+  * Data transfer object for card metadata.
+  */
+case class CardMetadataResource(tags: List[String]) //!!!! TODO
+
+object CardMetadataResource {
+
+  implicit val format: Format[CardMetadataResource] = Json.format
+
+}
 
 /**
   * Represents a request for a list of CardResource.
@@ -120,5 +130,9 @@ class CardResourceHandler @Inject()(
       }
       case None => Future(Failure(new CardDoesNotExist))
     }
+  }
+
+  def getMetadata(user: User): Future[CardMetadataResource] = {
+    repository.getAllTags(user).map(CardMetadataResource(_))
   }
 }
