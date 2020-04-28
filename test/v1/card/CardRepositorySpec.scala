@@ -32,7 +32,7 @@ class CardRepositorySpec extends PlaySpec
 
         val user = User("foo", "bar")
         val cardData = CardData(None, "Title", "", List())
-        val repository = new CardRepositoryImpl(db, uuidGenerator, new TagsRepository)
+        val repository = new CardRepository(db, uuidGenerator, new TagsRepository)
 
         repository.create(cardData, user).get mustEqual "id"
         repository.get("id", user) mustEqual Some(cardData.copy(id=Some("id")))
@@ -46,7 +46,7 @@ class CardRepositorySpec extends PlaySpec
 
         val user = User("foo", "bar")
         val cardData = CardData(None, "Title", "Body", List("Tag1", "TagTwo"))
-        val repository = new CardRepositoryImpl(db, uuidGenerator, new TagsRepository)
+        val repository = new CardRepository(db, uuidGenerator, new TagsRepository)
 
         repository.create(cardData, user).get mustEqual "id"
         repository.get("id", user) mustEqual Some(cardData.copy(id=Some("id")))
@@ -57,7 +57,7 @@ class CardRepositorySpec extends PlaySpec
       test.utils.TestUtils.testDB { db =>
         val uuidGenerator = mock[UUIDGenerator]
         val user = User("foo", "bar")
-        val repository = new CardRepositoryImpl(db, uuidGenerator, new TagsRepository)
+        val repository = new CardRepository(db, uuidGenerator, new TagsRepository)
 
         for (cardData <- Seq(CardData(Some("1"), "t", "b", List()),
                              CardData(Some("2"), "t", "b", List()),
@@ -94,7 +94,7 @@ class CardRepositorySpec extends PlaySpec
     def doTest(block: (Database, UUIDGenerator, CardRepository) => Any): Any = {
       test.utils.TestUtils.testDB { implicit db =>
         val uuidGenerator = mock[UUIDGenerator]
-        val repository = new CardRepositoryImpl(db, uuidGenerator, new TagsRepository)
+        val repository = new CardRepository(db, uuidGenerator, new TagsRepository)
         saveCardsFixtures(uuidGenerator, repository)
         block(db, uuidGenerator, repository)
       }
@@ -252,7 +252,7 @@ class CardRepositorySpec extends PlaySpec
     def doTest(block: (Database, UUIDGenerator, CardRepository) => Any): Any = {
       test.utils.TestUtils.testDB { implicit db =>
         val uuidGenerator = mock[UUIDGenerator]
-        val repository = new CardRepositoryImpl(db, uuidGenerator, new TagsRepository)
+        val repository = new CardRepository(db, uuidGenerator, new TagsRepository)
         saveCardsFixtures(uuidGenerator, repository)
         block(db, uuidGenerator, repository)
       }
@@ -342,7 +342,7 @@ class CardRepositorySpec extends PlaySpec
         db.withConnection { implicit c =>
           val user = User("E", "F")
           val tagsRepo = new TagsRepository
-          val repository = new CardRepositoryImpl(db, new UUIDGenerator, tagsRepo)
+          val repository = new CardRepository(db, new UUIDGenerator, tagsRepo)
           val id = repository.create(CardData(None, "A", "B", List("C", "D")), user).get
           tagsRepo.get(id) mustEqual List("C", "D")
           repository.delete(id, user).futureValue
@@ -353,7 +353,7 @@ class CardRepositorySpec extends PlaySpec
 
     "fail if the card does not exist" in {
       test.utils.TestUtils.testDB { db =>
-        val repository = new CardRepositoryImpl(db, mock[UUIDGenerator], new TagsRepository)
+        val repository = new CardRepository(db, mock[UUIDGenerator], new TagsRepository)
         repository.delete("FOO", mock[User]).futureValue mustEqual Failure(new CardDoesNotExist)
       }
     }
@@ -361,7 +361,7 @@ class CardRepositorySpec extends PlaySpec
     "fail if the card does not exist for a specific user" in {
       test.utils.TestUtils.testDB { db =>
         val uuidGenerator = mock[UUIDGenerator]
-        val repository =  new CardRepositoryImpl(db, uuidGenerator, new TagsRepository)
+        val repository =  new CardRepository(db, uuidGenerator, new TagsRepository)
 
         val user = User("foo", "a@a.a")
         val cardData = CardData(Some("id"), "foo", "bar", List())
@@ -377,7 +377,7 @@ class CardRepositorySpec extends PlaySpec
     "find and delete card that exists" in {
       test.utils.TestUtils.testDB { db =>
         val uuidGenerator = mock[UUIDGenerator]
-        val repository =  new CardRepositoryImpl(db, uuidGenerator, new TagsRepository)
+        val repository =  new CardRepository(db, uuidGenerator, new TagsRepository)
 
         val user = User("foo", "a@a.a")
         val cardData = CardData(Some("id"), "foo", "bar", List())
@@ -400,7 +400,7 @@ class CardRepositorySpec extends PlaySpec
         val cardData = CardData(None, "A", "B", List("C"))
         val uuidGenerator = mock[UUIDGenerator]
         when(uuidGenerator.generate()).thenReturn("id")
-        val repository = new CardRepositoryImpl(db, uuidGenerator, new TagsRepository)
+        val repository = new CardRepository(db, uuidGenerator, new TagsRepository)
         repository.create(cardData, user).get
 
         val newCardData = cardData.copy(id=Some("id"), tags=List("D"))
@@ -429,7 +429,7 @@ class CardRepositorySpec extends PlaySpec
     def doTest(block: (Database, UUIDGenerator, CardRepository) => Any): Any = {
       test.utils.TestUtils.testDB { implicit db =>
         val uuidGenerator = mock[UUIDGenerator]
-        val repository = new CardRepositoryImpl(db, uuidGenerator, new TagsRepository)
+        val repository = new CardRepository(db, uuidGenerator, new TagsRepository)
         saveCardsFixtures(uuidGenerator, repository)
         block(db, uuidGenerator, repository)
       }

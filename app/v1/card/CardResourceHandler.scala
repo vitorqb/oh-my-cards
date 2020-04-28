@@ -93,7 +93,7 @@ object CardListResponse {
   * A resource handler for Cards.
   */
 class CardResourceHandler @Inject()(
-  val repository: CardRepositoryImpl)(
+  val repository: CardRepository)(
   implicit val ec: ExecutionContext){
 
   def find(cardListReq: CardListRequest): CardListResponse = {

@@ -81,7 +81,7 @@ class CardResourceHandlerSpec
       val createdCardData = cardData.copy(id=Some(createdCardDataId))
       val user = mock[User]
 
-      val repository = mock[CardRepositoryImpl]
+      val repository = mock[CardRepository]
       when(repository.create(cardData, user)).thenReturn(Try{ createdCardDataId })
       when(repository.get(createdCardDataId, user)).thenReturn(Some(createdCardData))
 
@@ -104,7 +104,7 @@ class CardResourceHandlerSpec
 
       val cardListReq = CardListRequest(1, 2, "userid", List(), List(), None)
 
-      val repository = mock[CardRepositoryImpl]
+      val repository = mock[CardRepository]
       when(repository.find(cardListReq)).thenReturn(Array(cardData1, cardData2))
       when(repository.countItemsMatching(cardListReq)).thenReturn(10)
 
@@ -130,7 +130,7 @@ class CardResourceHandlerSpec
       val id = "FOO"
       val input = CardFormInput("title2", Some("body2"), None)
       val user = mock[User]
-      val repository = mock[CardRepositoryImpl]
+      val repository = mock[CardRepository]
       val handler = new CardResourceHandler(repository)
       val cardData = CardData(Some(id), "title1", "body1", List())
       
@@ -161,7 +161,7 @@ class CardResourceHandlerSpec
           //Creates a card
           val user = User("userId", "userEmail")
           val input = CardFormInput("title", Some("body"), None)
-          val repository = new CardRepositoryImpl(db, new UUIDGenerator, new TagsRepository)
+          val repository = new CardRepository(db, new UUIDGenerator, new TagsRepository)
           val handler = new CardResourceHandler(repository)
           val created = handler.create(input, user).get
 
@@ -184,7 +184,7 @@ class CardResourceHandlerSpec
       val tags = List("FOO", "BAR")
       val user = mock[User]
 
-      val repository = mock[CardRepositoryImpl]
+      val repository = mock[CardRepository]
       when(repository.getAllTags(user)).thenReturn(Future.successful(tags))
 
       val exp = CardMetadataResource(tags)
