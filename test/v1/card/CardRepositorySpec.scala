@@ -411,4 +411,39 @@ class CardRepositorySpec extends PlaySpec
 
   }
 
+  "CardRepository.getAllTags" should {
+
+    val user = User("foo", "a@a.a")
+    val cardData1 = CardData(Some("id1"), "ONE", "TWO", List("a", "b"))
+    val cardData2 = CardData(Some("id2"), "one", "two", List("A", "B", "D"))
+    val cardData3 = CardData(Some("id3"), "THREE", "three", List("C"))
+    val cardListRequest = CardListRequest(0, 0, user.id, List(), List(), None)
+
+    def saveCardsFixtures(uuidGenerator: UUIDGenerator, repository: CardRepository) = {
+      for (cardData <- Array[CardData](cardData1, cardData2, cardData3)) yield {
+        when(uuidGenerator.generate).thenReturn(cardData.id.value)
+        repository.create(cardData.copy(id=None), user)
+      }
+    }
+
+    def doTest(block: (Database, UUIDGenerator, CardRepository) => Any): Any = {
+      test.utils.TestUtils.testDB { implicit db =>
+        val uuidGenerator = mock[UUIDGenerator]
+        val repository = new CardRepositoryImpl(db, uuidGenerator, new TagsRepository)
+        saveCardsFixtures(uuidGenerator, repository)
+        block(db, uuidGenerator, repository)
+      }
+    }
+
+    "Return all tags for an user" in doTest { (_, _, repository) =>
+      repository.getAllTags(user).futureValue must contain allOf ("a", "A", "b", "B", "C", "D")
+    }
+
+    "Do not return tags for other users" in doTest { (_, _, repository) =>
+      val otherUser = User("other", "other@user")
+      repository.getAllTags(otherUser).futureValue mustEqual List()
+    }
+
+  }
+
 }

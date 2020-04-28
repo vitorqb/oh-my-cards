@@ -49,6 +49,7 @@ trait CardRepository {
   def get(id: String, user: User): Option[CardData]
   def find(r: CardListRequest): Iterable[CardData]
   def countItemsMatching(req: CardListRequest): Int
+  def getAllTags(user: User): Future[List[String]]
 }
 
 
@@ -141,6 +142,19 @@ class CardRepositoryImpl @Inject()(
     tagsRepo.delete(data.id.get)
     tagsRepo.create(data.id.get, data.tags)
   }}}
+
+  /**
+    * Returns all tags for a given user.
+    */
+  def getAllTags(user: User): Future[List[String]] = Future { db.withTransaction { implicit c =>
+    import anorm.SqlParser._
+    SQL"""
+       SELECT tag
+       FROM cardsTags
+       JOIN cards ON cards.id = cardId
+       WHERE cards.userId = ${user.id}
+    """.as(str(1).*)
+  }}
 }
 
 /**

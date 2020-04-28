@@ -54,14 +54,15 @@ class CardControllerSpec
 
   after { TestUtils.cleanupDb(db) }
 
-  "list" should {
 
-    def createCard(): Unit = {
-      val body = Json.obj("title" -> "Title", "body" -> "Body", "tags" -> List("Tag1", "Tag2"))
-      val request = FakeRequest().withJsonBody(body)
-      val response = controller.create()(request)
-      Await.ready(response, 1000 millis)
-    }
+  def createCard(): Unit = {
+    val body = Json.obj("title" -> "Title", "body" -> "Body", "tags" -> List("Tag1", "Tag2"))
+    val request = FakeRequest().withJsonBody(body)
+    val response = controller.create()(request)
+    Await.ready(response, 1000 millis)
+  }
+
+  "list" should {
 
     def runQuery(tagsQuery: String): Future[Result] = {
       val body = Json.obj("page" -> "1", "pageSize" -> "2", "query" -> tagsQuery)
@@ -105,6 +106,28 @@ class CardControllerSpec
       status(response) mustEqual 400
       val responseMsg = (contentAsJson(response) \ "message").as[String]
       responseMsg.contains("FOO")
+    }
+
+  }
+
+  "getMetadata" should {
+
+    def runGetMetadata() = {
+      val request = FakeRequest()
+      controller.getMetadata()(request)
+    }
+
+    "returns the metadata for cards" in {
+
+      //Creates a card with a couple of tags
+      createCard()
+
+      //Runs the request
+      val response = runGetMetadata()
+
+      //Expects the two tags to be on the response
+      status(response) mustEqual 200
+      contentAsJson(response) mustEqual Json.obj("tags" -> Seq("Tag1", "Tag2"))
     }
 
   }

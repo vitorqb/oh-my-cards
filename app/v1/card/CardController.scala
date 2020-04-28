@@ -140,6 +140,17 @@ class CardController @Inject()(
   }
 
   /**
+    * Returns the metadata for the cards.
+    */
+  def getMetadata() = silhouette.SecuredAction.async { implicit request =>
+    logger.info(s"Getting metadata for cards...")
+
+    def serialize(m: CardMetadataResource) = Ok(Json.toJson(m))
+
+    resourceHandler.getMetadata(request.identity).map(serialize _).recover(handleError _)
+  }
+
+  /**
     * Handles errors.
     */
   private def handleError(error: Throwable): Result = error match {
