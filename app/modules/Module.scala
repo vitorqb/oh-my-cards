@@ -23,17 +23,23 @@ class Module extends AbstractModule with ScalaModule {
     bind[Clock].toInstance(new Clock)
   }
 
+  /**
+    * Provider for the MailService.
+    */
   @Provides
   def provideMailService(
     implicit ec: ExecutionContext,
     ws: WSClient,
     conf: Configuration): MailService = {
-    if (conf.get[String]("test") == "1") {
+    if (conf.get[String]("test") == "1")
       new MailServiceFakeImpl(conf)
-    }
-    new MailServiceImpl(ws, conf)
+    else
+      new MailServiceImpl(ws, conf)
   }
 
+  /**
+    * Provider for the TokenEncrypter.
+    */
   @Provides
   def provideTokenEncrypter(conf: Configuration): TokenEncrypter = {
     new TokenEncrypter(conf.get[String]("play.http.secret.key"))
