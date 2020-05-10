@@ -47,7 +47,8 @@ final case class CardData(id: Option[String], title: String, body: String, tags:
 class CardRepository @Inject()(
   db: Database,
   uuidGenerator: UUIDGenerator,
-  tagsRepo: TagsRepository)(
+  tagsRepo: TagsRepository,
+  cardElasticClient: CardElasticClient)(
   implicit val ec: ExecutionContext
 ) {
 
@@ -73,6 +74,7 @@ class CardRepository @Inject()(
           "body" -> cardData.body
         ).executeInsert()
         tagsRepo.create(id, cardData.tags)
+        cardElasticClient.create(cardData, id)
         Success(id)
       }
     }

@@ -60,13 +60,16 @@ class CardRepositorySpec extends PlaySpec
   /**
     * Initializes and provides context for the tests.
     */
-  def testContext(block: (Database, UUIDGenerator, CardRepository, TagsRepository) => Any): Any = {
+  def testContext(
+    block: (Database, UUIDGenerator, CardRepository, TagsRepository, CardElasticClient) => Any
+  ): Any = {
     val uuidGenerator = mock[UUIDGenerator]
     val tagsRepo = new TagsRepository
-    val repository = new CardRepository(db, uuidGenerator, tagsRepo)
+    val cardElasticClient = mock[CardElasticClient]
+    val repository = new CardRepository(db, uuidGenerator, tagsRepo, cardElasticClient)
     saveCardsFixtures(uuidGenerator, repository)
     try {
-      block(db, uuidGenerator, repository, tagsRepo)
+      block(db, uuidGenerator, repository, tagsRepo, cardElasticClient)
     } finally {
       TestUtils.cleanupDb(db)
     }
@@ -78,7 +81,7 @@ class CardRepositorySpec extends PlaySpec
   "CardRepository create and get" should {
 
     "Allow user to create and get a card without tags nor body" in testContext {
-      (db, uuidGenerator, repository, _) =>
+      (db, uuidGenerator, repository, _, _) =>
 
       val cardData = CardData(None, "Title", "", List())
       when(uuidGenerator.generate).thenReturn("id")
@@ -88,7 +91,7 @@ class CardRepositorySpec extends PlaySpec
     }
 
     "Allow user to create and get a card with tags and body" in testContext {
-      (db, uuidGenerator, repository, _) =>
+      (db, uuidGenerator, repository, _, _) =>
 
       val cardData = CardData(None, "Title", "Body", List("Tag1", "TagTwo"))
       when(uuidGenerator.generate).thenReturn("id")
@@ -98,7 +101,7 @@ class CardRepositorySpec extends PlaySpec
     }
 
     "User creates three cards and get one" in testContext {
-      (db, uuidGenerator, repository, _) =>
+      (db, uuidGenerator, repository, _, _) =>
 
       for (cardData <- Seq(CardData(Some("1"), "t", "b", List()),
         CardData(Some("2"), "t", "b", List()),
@@ -109,11 +112,17 @@ class CardRepositorySpec extends PlaySpec
         repository.get(cardData.id.get, user) mustEqual Some(cardData)
       }
     }
+
+    "elasticSearchClient is called for each card" in testContext { (_, _, _, _, cardElastic) =>
+      verify(cardElastic).create(cardData1.copy(id=None), "id1")
+      verify(cardElastic).create(cardData2.copy(id=None), "id2")
+      verify(cardElastic).create(cardData3.copy(id=None), "id3")
+    }
   }
 
   "CardRepository.find" should {
 
-    "find two out of tree cards for an user" in testContext { (db, uuidGenerator, repository, _) =>
+    "find two out of tree cards for an user" in testContext { (db, uuidGenerator, repository, _, _) =>
       //Create for other user
       val otherUser = User("bar", "b@b.b@")
       val cardDataOtherUser1 = CardData(Some("id4"), "FOUR", "four", List())
@@ -123,11 +132,11 @@ class CardRepositorySpec extends PlaySpec
       repository.find(cardListRequest.copy(pageSize=2)) mustEqual List(cardData3, cardData2)
     }
 
-    "Filters wanted tags only(simple)" in testContext { (db, uuidGenerator, repository, _) =>
+    "Filters wanted tags only(simple)" in testContext { (db, uuidGenerator, repository, _, _) =>
       repository.find(cardListRequest.copy(tags=List("C"))) mustEqual List(cardData3)
     }
 
-    "Filters wanted tags only (complex)" in testContext { (db, uuidGenerator, repository, _) =>
+    "Filters wanted tags only (complex)" in testContext { (db, uuidGenerator, repository, _, _) =>
       //Extra cards
       //!!!! TODO Move to def
       val extraCard1 = CardData(Some("extraId1"), "_", "-", List("A", "B", "C"))
@@ -147,11 +156,11 @@ class CardRepositorySpec extends PlaySpec
         List(extraCard3, extraCard1))
     }
 
-    "Filters wanted tags (CASE INSENSITIVE)" in testContext { (db, uuidGenerator, repository, _) =>
+    "Filters wanted tags (CASE INSENSITIVE)" in testContext { (db, uuidGenerator, repository, _, _) =>
       repository.find(cardListRequest.copy(tags=List("d"))) mustEqual List(cardData2)
     }
 
-    "Removes unwanted tags" in testContext { (db, uuidGenerator, repository, _) =>
+    "Removes unwanted tags" in testContext { (db, uuidGenerator, repository, _, _) =>
       //Adds another card
       val cardData4 = CardData(Some("id4"), "FOUR", "four", List("A_TAG"))
       when(uuidGenerator.generate).thenReturn(cardData4.id.value)
@@ -164,7 +173,7 @@ class CardRepositorySpec extends PlaySpec
 
     "with tags query" should {
 
-      "select all tags" in testContext { (db, uuidGenerator, repository, _) =>
+      "select all tags" in testContext { (db, uuidGenerator, repository, _, _) =>
         val query = """
             ((tags CONTAINS 'b') 
              OR 
@@ -179,13 +188,13 @@ class CardRepositorySpec extends PlaySpec
         result mustEqual List(cardData3, cardData2, cardData1)
       }
 
-      "select only a single tag" in testContext { (db, uuidGenerator, repository, _) =>
+      "select only a single tag" in testContext { (db, uuidGenerator, repository, _, _) =>
         val query = "((tags CONTAINS 'a') AND (tags CONTAINS 'd'))"
         val result = repository.find(cardListRequest.copy(query=Some(query)))
         result mustEqual List(cardData2)
       }
 
-      "select no tags" in testContext { (db, uuidGenerator, repository, _) =>
+      "select no tags" in testContext { (db, uuidGenerator, repository, _, _) =>
         val query = """
           (((tags CONTAINS 'a') AND (tags CONTAINS 'C'))
            OR
@@ -195,7 +204,7 @@ class CardRepositorySpec extends PlaySpec
         result mustEqual List()
       }
 
-      "complex crazy query" in testContext { (db, uuidGenerator, repository, _) =>
+      "complex crazy query" in testContext { (db, uuidGenerator, repository, _, _) =>
         val query = """
           ((((tags CONTAINS 'fooo') OR (tags CONTAINS 'baaar'))
             OR
@@ -212,7 +221,7 @@ class CardRepositorySpec extends PlaySpec
 
   "TagsRepository" should {
 
-    "create and get tags for cards" in testContext { (_, _, _, tagsRepo) =>
+    "create and get tags for cards" in testContext { (_, _, _, tagsRepo, _) =>
       db.withTransaction { implicit c =>
         tagsRepo.get("id") mustEqual List()
         tagsRepo.create("id", List("A", "B")) mustEqual ()
@@ -220,7 +229,7 @@ class CardRepositorySpec extends PlaySpec
       }
     }
 
-    "create and delete tags for a card" in testContext { (_, _, _, tagsRepo) =>
+    "create and delete tags for a card" in testContext { (_, _, _, tagsRepo, _) =>
       db.withConnection { implicit c =>
         tagsRepo.delete("id1")
         tagsRepo.delete("id2")
@@ -245,7 +254,7 @@ class CardRepositorySpec extends PlaySpec
   "CardRepository.countItemsMatching" should {
     
     "count the number of items for an user and not for other users." in testContext {
-      (db, uuidGenerator, repository, _) =>
+      (db, uuidGenerator, repository, _, _) =>
 
       //Creates for other user
       when(uuidGenerator.generate()).thenReturn("otherUserCardId")
@@ -254,11 +263,11 @@ class CardRepositorySpec extends PlaySpec
       repository.countItemsMatching(cardListRequest.copy(tags=List("b"))) mustEqual 2
     }
 
-    "filters by tag" in testContext { (db, uuidGenerator, repository, _) =>
+    "filters by tag" in testContext { (db, uuidGenerator, repository, _, _) =>
       repository.countItemsMatching(cardListRequest) mustEqual 3
     }
 
-    "removes by tag" in testContext { (db, uuidGenerator, repository, _) =>
+    "removes by tag" in testContext { (db, uuidGenerator, repository, _, _) =>
       val req1 = cardListRequest.copy(tags=List("a", "b"), tagsNot=List("d"))
       repository.countItemsMatching(req1) mustEqual 1
 
@@ -268,7 +277,7 @@ class CardRepositorySpec extends PlaySpec
 
     "with tags query" should {
 
-      "all tags" in testContext { (db, uuidGenerator, repository, _) =>
+      "all tags" in testContext { (db, uuidGenerator, repository, _, _) =>
         val query = """
             ((tags CONTAINS 'b') 
              OR 
@@ -283,22 +292,22 @@ class CardRepositorySpec extends PlaySpec
         repository.countItemsMatching(cardListRequest.copy(query=Some(query))) mustEqual 3
       }
 
-      "select only a single tag" in testContext { (db, uuidGenerator, repository, _) =>
+      "select only a single tag" in testContext { (db, uuidGenerator, repository, _, _) =>
         val query = "((tags CONTAINS 'a') AND (tags CONTAINS 'd'))"
         repository.countItemsMatching(cardListRequest.copy(query=Some(query))) mustEqual 1
       }
 
-      "select only two tags" in testContext { (db, uuidGenerator, repository, _) =>
+      "select only two tags" in testContext { (db, uuidGenerator, repository, _, _) =>
         val query = "((tags CONTAINS 'a') OR (tags CONTAINS 'd'))"
         repository.countItemsMatching(cardListRequest.copy(query=Some(query))) mustEqual 2
       }
 
-      "select no tags" in testContext { (db, uuidGenerator, repository, _) =>
+      "select no tags" in testContext { (db, uuidGenerator, repository, _, _) =>
         val query = "((tags CONTAINS 'a') AND (tags NOT CONTAINS 'b'))"
         repository.countItemsMatching(cardListRequest.copy(query=Some(query))) mustEqual 0
       }      
 
-      "select no tags (complex)" in testContext { (db, uuidGenerator, repository, _) =>
+      "select no tags (complex)" in testContext { (db, uuidGenerator, repository, _, _) =>
         val query = """
           (((tags CONTAINS 'a') AND (tags CONTAINS 'b'))
            AND
@@ -307,7 +316,7 @@ class CardRepositorySpec extends PlaySpec
         repository.countItemsMatching(cardListRequest.copy(query=Some(query))) mustEqual 0
       }
 
-      "complex crazy query" in testContext { (db, uuidGenerator, repository, _) =>
+      "complex crazy query" in testContext { (db, uuidGenerator, repository, _, _) =>
         val query = """
           ((((tags CONTAINS 'fooo') OR (tags CONTAINS 'baaar'))
             OR
@@ -323,7 +332,7 @@ class CardRepositorySpec extends PlaySpec
 
   "CardRepository.delete" should {
 
-    "deletes related tags" in testContext { (db, uuidGenerator, repository, tagsRepo) =>
+    "deletes related tags" in testContext { (db, uuidGenerator, repository, tagsRepo, _) =>
       db.withConnection { implicit c =>
         val id = "SDAJKSJDNA"
         when(uuidGenerator.generate()).thenReturn(id)
@@ -335,12 +344,12 @@ class CardRepositorySpec extends PlaySpec
       }
     }
 
-    "fail if the card does not exist" in testContext { (db, uuidGenerator, repository, tagsRepo) =>
+    "fail if the card does not exist" in testContext { (db, uuidGenerator, repository, tagsRepo, _) =>
       repository.delete("FOO", mock[User]).futureValue mustEqual Failure(new CardDoesNotExist)
     }
 
     "fail if the card does not exist for a specific user" in testContext {
-      (db, uuidGenerator, repository, tagsRepo) =>
+      (db, uuidGenerator, repository, tagsRepo, _) =>
 
       val cardData = CardData(Some("id"), "foo", "bar", List())
       when(uuidGenerator.generate).thenReturn(cardData.id.value)
@@ -352,7 +361,7 @@ class CardRepositorySpec extends PlaySpec
     }
 
     "find and delete card that exists" in testContext {
-      (db, uuidGenerator, repository, tagsRepo) =>
+      (db, uuidGenerator, repository, tagsRepo, _) =>
 
       val cardData = CardData(Some("id"), "foo", "bar", List())
       when(uuidGenerator.generate).thenReturn(cardData.id.value)
@@ -368,7 +377,7 @@ class CardRepositorySpec extends PlaySpec
   "CardRepository.update" should {
 
     "Update a card including the tags" in testContext {
-      (db, uuidGenerator, repository, tagsRepo) =>
+      (db, uuidGenerator, repository, tagsRepo, _) =>
 
       val cardData = CardData(None, "A", "B", List("C"))
       when(uuidGenerator.generate()).thenReturn("id")
@@ -383,11 +392,11 @@ class CardRepositorySpec extends PlaySpec
 
   "CardRepository.getAllTags" should {
 
-    "Return all tags for an user" in testContext { (_, _, repository, _) =>
+    "Return all tags for an user" in testContext { (_, _, repository, _, _) =>
       repository.getAllTags(user).futureValue must contain allOf ("a", "A", "b", "B", "C", "D")
     }
 
-    "Do not return tags for other users" in testContext { (_, _, repository, _) =>
+    "Do not return tags for other users" in testContext { (_, _, repository, _, _) =>
       val otherUser = User("other", "other@user")
       repository.getAllTags(otherUser).futureValue mustEqual List()
     }

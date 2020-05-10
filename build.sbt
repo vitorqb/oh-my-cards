@@ -27,3 +27,9 @@ libraryDependencies ++= Seq(
   "com.lihaoyi" %% "requests" % "0.5.1",
   "org.parboiled" %% "parboiled-scala" % "1.3.1"
 )
+
+//ElasticSearch setup
+val elastic4sVersion = "7.6.1"
+libraryDependencies ++= Seq(
+  "com.sksamuel.elastic4s" %% "elastic4s-client-esjava" % elastic4sVersion
+)

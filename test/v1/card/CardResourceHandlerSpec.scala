@@ -159,9 +159,12 @@ class CardResourceHandlerSpec
       "Created and update a card" in {
         test.utils.TestUtils.testDB { implicit db =>
           //Creates a card
+          val uuidGenerator = new UUIDGenerator
+          val tagsRepo = new TagsRepository
+          val elasticClient = mock[CardElasticClient]
           val user = User("userId", "userEmail")
           val input = CardFormInput("title", Some("body"), None)
-          val repository = new CardRepository(db, new UUIDGenerator, new TagsRepository)
+          val repository = new CardRepository(db, uuidGenerator, tagsRepo, elasticClient)
           val handler = new CardResourceHandler(repository)
           val created = handler.create(input, user).get
 
