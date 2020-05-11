@@ -13,6 +13,9 @@ import scala.concurrent.ExecutionContext
 import java.sql.Connection
 import anorm.SimpleSql
 import anorm.Row
+import services.Clock
+import org.joda.time.DateTime
+import anorm.JodaParameterMetaData._
 
 
 /**
@@ -35,10 +38,20 @@ final case class TagsFilterMiniLangSyntaxError(
 ) extends Exception(message, cause) with CardRepositoryUserException
 
 
+//!!!! TODO We should not be using CardData as parameter for the functions. We should
+//          only *return* CardData. The input must be a CardInput, without id, 
+//          or createdAt, updatedAt.
 /**
   * The data for a Card.
   */
-final case class CardData(id: Option[String], title: String, body: String, tags: List[String])
+final case class CardData(
+  id: Option[String],
+  title: String,
+  body: String,
+  tags: List[String],
+  createdAt: Option[DateTime] = None,
+  updatedAt: Option[DateTime] = None
+)
 
 
 /**
@@ -48,14 +61,22 @@ class CardRepository @Inject()(
   db: Database,
   uuidGenerator: UUIDGenerator,
   tagsRepo: TagsRepository,
-  cardElasticClient: CardElasticClient)(
+  cardElasticClient: CardElasticClient,
+  clock: Clock)(
   implicit val ec: ExecutionContext
 ) {
 
   private val cardDataParser: RowParser[CardData] = {
     import anorm._
-    SqlParser.str("id") ~ SqlParser.str("title") ~ SqlParser.str("body") map {
-      case id ~ title ~ body => CardData(Some(id), title, body, List())
+    (
+      SqlParser.str("id") ~
+        SqlParser.str("title") ~
+        SqlParser.str("body") ~
+        SqlParser.get[Option[DateTime]]("createdAt") ~
+        SqlParser.get[Option[DateTime]]("updatedAt")
+    ) map {
+      case id ~ title ~ body ~ createdAt ~ updatedAt =>
+        CardData(Some(id), title, body, List(), createdAt, updatedAt)
     }
   }
 
@@ -66,12 +87,14 @@ class CardRepository @Inject()(
       val id = uuidGenerator.generate
       db.withTransaction { implicit c =>
         SQL(
-          "INSERT INTO cards(id, userId, title, body) VALUES ({id}, {userId}, {title}, {body})"
+          """INSERT INTO cards(id, userId, title, body, createdAt, updatedAt)
+             VALUES ({id}, {userId}, {title}, {body}, {now}, {now})"""
         ).on(
           "id" -> id,
           "userId" -> user.id,
           "title" -> cardData.title,
-          "body" -> cardData.body
+          "body" -> cardData.body,
+          "now" -> clock.now()
         ).executeInsert()
         tagsRepo.create(id, cardData.tags)
         cardElasticClient.create(cardData, id)
@@ -126,8 +149,17 @@ class CardRepository @Inject()(
     */
   def update(data: CardData, user: User): Future[Try[Unit]] = Future { Try { db.withTransaction {
     implicit c =>
-    SQL("UPDATE cards SET title={title}, body={body} WHERE id={id} AND userId={userId}")
-      .on("title" -> data.title, "body" -> data.body, "id" -> data.id, "userId" -> user.id)
+    SQL("""
+        UPDATE cards SET title={title}, body={body}, updatedAt={now}
+        WHERE id={id} AND userId={userId}
+       """)
+      .on(
+        "title" -> data.title,
+        "body" -> data.body,
+        "id" -> data.id,
+        "userId" -> user.id,
+        "now" -> clock.now()
+      )
       .executeUpdate()
     tagsRepo.delete(data.id.get)
     tagsRepo.create(data.id.get, data.tags)
@@ -309,7 +341,7 @@ private object SqlHelpers {
   /**
     * A base get statement.
     */
-  val sqlGetStatement: String = s"SELECT id, title, body ${sqlFromWhereStatement}"
+  val sqlGetStatement: String = s"SELECT id, title, body, updatedAt, createdAt ${sqlFromWhereStatement}"
 
   /**
     * Returns a SeqParameter for the filter of including tags.

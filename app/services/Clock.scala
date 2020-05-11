@@ -8,6 +8,6 @@ import org.joda.time.DateTime
   */
 class Clock extends com.mohiva.play.silhouette.api.util.Clock {
 
-  def now: DateTime = DateTime.now
+  def now(): DateTime = DateTime.now
 
 }

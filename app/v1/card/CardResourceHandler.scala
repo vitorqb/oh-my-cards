@@ -6,6 +6,8 @@ import play.api.libs.json.{Json,Format}
 import v1.auth.User
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext
+import org.joda.time.DateTime
+import utils.JodaToJsonUtils._
 
 /**
   * Custom exceptions.
@@ -20,10 +22,19 @@ object InvalidCardData {
 }
 
 
+//!!!! TODO Remove link
 /**
   * Data transfer object for a card.
   */
-case class CardResource(id: String, link: String, title: String, body: String, tags: List[String]) {
+case class CardResource(
+  id: String,
+  link: String,
+  title: String,
+  body: String,
+  tags: List[String],
+  createdAt: Option[DateTime],
+  updatedAt: Option[DateTime],
+) {
 
   def asCardData: CardData = CardData(Some(id), title, body, tags)
 
@@ -39,7 +50,7 @@ object CardResource {
   implicit val format: Format[CardResource] = Json.format
 
   def fromCardData(cardData: CardData) = {
-    CardResource(cardData.id.fold("")(x => x), "", cardData.title, cardData.body, cardData.tags)
+    CardResource(cardData.id.fold("")(x => x), "", cardData.title, cardData.body, cardData.tags, cardData.createdAt, cardData.updatedAt)
   }
 
 }
