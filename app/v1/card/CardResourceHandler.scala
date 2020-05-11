@@ -131,10 +131,11 @@ class CardResourceHandler @Inject()(
   }
 
   def update(id: String, input: CardFormInput, user: User): Future[Try[CardResource]] = {
-    repository.get(id, user) match {
-      case Some(cardData) => CardResource.fromCardData(cardData).updateWith(input) match {
+
+    get(id, user) match {
+      case Some(cardResource) => cardResource.updateWith(input) match {
         case Success(cardResource) => repository.update(cardResource.asCardData, user).map {
-          case Success(_) => Success(cardResource)
+          case Success(_) => Success(get(id, user).get)
           case Failure(e) => Failure(e)
         }
         case Failure(e) => Future(Failure(e))

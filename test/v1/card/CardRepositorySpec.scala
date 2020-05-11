@@ -127,10 +127,15 @@ class CardRepositorySpec extends PlaySpec
       }
     }
 
-    "elasticSearchClient is called for each card" in testContext { (_, _, _, _, cardElastic, _) =>
-      verify(cardElastic).create(cardData1.copy(id=None), "id1")
-      verify(cardElastic).create(cardData2.copy(id=None), "id2")
-      verify(cardElastic).create(cardData3.copy(id=None), "id3")
+    "elasticSearchClient is called for each card" in testContext {
+      (_, uuidGenerator, repository, _, cardElastic, clock) =>
+
+      when(clock.now()).thenReturn(date1)
+      when(uuidGenerator.generate()).thenReturn("id4")
+
+      repository.create(cardData3.copy(id=None), user)
+
+      verify(cardElastic).create(cardData3.copy(id=None), "id4", date1)
     }
 
     "the createdAt is recorded properly" in testContext {
@@ -399,6 +404,12 @@ class CardRepositorySpec extends PlaySpec
       repository.delete("id", user).futureValue
 
       repository.get("id", user) mustEqual None
+    }
+
+    "calls elastic client to delete the entry" in testContext {
+      (_, _, repository, _, elasticClient, _) =>
+      Await.ready(repository.delete(cardData1.id.get, user), 5000 millis)
+      verify(elasticClient).delete(cardData1.id.get)
     }
 
   }

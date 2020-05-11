@@ -81,6 +81,7 @@ class CardRepository @Inject()(
   }
 
   def create(cardData: CardData, user: User): Try[String] = {
+    val now = clock.now()
     if (cardData.id.isDefined) {
       Failure(new Exception("Id for create should be null!"))
     } else {
@@ -94,10 +95,10 @@ class CardRepository @Inject()(
           "userId" -> user.id,
           "title" -> cardData.title,
           "body" -> cardData.body,
-          "now" -> clock.now()
+          "now" -> now
         ).executeInsert()
         tagsRepo.create(id, cardData.tags)
-        cardElasticClient.create(cardData, id)
+        cardElasticClient.create(cardData, id, now)
         Success(id)
       }
     }
@@ -134,11 +135,12 @@ class CardRepository @Inject()(
   def delete(id: String, user: User): Future[Try[Unit]] = Future {
     get(id, user) match {
       case None => Failure(new CardDoesNotExist)
-      case Some(_) => db.withConnection { implicit c =>
+      case Some(_) => db.withTransaction { implicit c =>
         SQL(s"DELETE ${SqlHelpers.sqlFromWhereStatement} AND id = {id}")
           .on("id" -> id, "userId" -> user.id)
           .executeUpdate()
         tagsRepo.delete(id)
+        cardElasticClient.delete(id)
         Success(())
       }
     }
@@ -149,6 +151,7 @@ class CardRepository @Inject()(
     */
   def update(data: CardData, user: User): Future[Try[Unit]] = Future { Try { db.withTransaction {
     implicit c =>
+    val now = clock.now()
     SQL("""
         UPDATE cards SET title={title}, body={body}, updatedAt={now}
         WHERE id={id} AND userId={userId}
@@ -158,11 +161,12 @@ class CardRepository @Inject()(
         "body" -> data.body,
         "id" -> data.id,
         "userId" -> user.id,
-        "now" -> clock.now()
+        "now" -> now
       )
       .executeUpdate()
     tagsRepo.delete(data.id.get)
     tagsRepo.create(data.id.get, data.tags)
+    cardElasticClient.update(data, now)
   }}}
 
   /**
