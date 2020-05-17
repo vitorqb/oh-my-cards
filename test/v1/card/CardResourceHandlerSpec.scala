@@ -110,15 +110,15 @@ class CardResourceHandlerSpec
       val cardListReq = CardListRequest(1, 2, "userid", List(), List(), None)
 
       val repository = mock[CardRepository]
-      when(repository.find(cardListReq)).thenReturn(Array(cardData1, cardData2))
-      when(repository.countItemsMatching(cardListReq)).thenReturn(10)
+      when(repository.find(cardListReq)).thenReturn(Future.successful(Array(cardData1, cardData2)))
+      when(repository.countItemsMatching(cardListReq)).thenReturn(Future.successful(10))
 
       val handler = new CardResourceHandler(repository)
 
       val user = mock[User]
       when(user.id).thenReturn("userid")
 
-      val result = handler.find(cardListReq)
+      val result = handler.find(cardListReq).futureValue
 
       result.items mustEqual Array(cardResource1, cardResource2)
       result.page mustEqual 1

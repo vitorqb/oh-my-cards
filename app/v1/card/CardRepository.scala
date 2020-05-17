@@ -115,19 +115,26 @@ class CardRepository @Inject()(
   /**
     * Finds a list of cards for a given user.
     */
-  def find(request: CardListRequest): Iterable[CardData] = db.withConnection { implicit c =>
-    def assocTags(cardData: CardData) = cardData.copy(tags=tagsRepo.get(cardData.id.get))
-
-    new CardFinder(request).execute().as(cardDataParser.*).map(assocTags)
-  }
+  def find(request: CardListRequest): Future[Iterable[CardData]] = Future {
+    new CardFinder(request, cardElasticClient).prepareSql().map { simpleSql =>
+      db.withConnection { implicit c =>
+        def assocTags(cardData: CardData) = cardData.copy(tags=tagsRepo.get(cardData.id.get))
+        simpleSql.as(cardDataParser.*).map(assocTags)
+      }
+    }
+  }.flatten
 
   /**
     * Returns the total number of items matching a request for a list of cards.
     */
-  def countItemsMatching(request: CardListRequest): Int = db.withConnection { implicit c =>
-    val parser = (anorm.SqlParser.get[Int]("count").*)
-    new CardCounter(request).execute().as(parser).headOption.getOrElse(0)
-  }
+  def countItemsMatching(request: CardListRequest): Future[Int] = Future {
+    new CardCounter(request, cardElasticClient).prepareSql().map { simpleSql =>
+      db.withConnection { implicit c =>
+        val parser = (anorm.SqlParser.get[Int]("count").*)
+        simpleSql.as(parser).headOption.getOrElse(0)
+      }
+    }
+  }.flatten
 
   /**
     * Deletes a card by it's id.
@@ -217,14 +224,19 @@ private class TagsRepository {
 /** 
   * Class responsible for querying the db for a list of cards.
   */
-private class CardFinder(val request: CardListRequest) extends CardSqlFilterOperations {
+private class CardFinder(
+  val request: CardListRequest,
+  val cardElasticClient: CardElasticClient)(
+  implicit val ec: ExecutionContext
+) extends CardSqlFilterOperations {
 
   //!!!! TODO -> create sqlWithParams that does withParams SQL
   /**
-    * Executes the query.
+    * Prepares the query.
     */
-  def execute()(implicit c: Connection): SimpleSql[Row] = withParams { SQL {
+  def prepareSql(): Future[SimpleSql[Row]] = withParams { SQL {
     s"""${SqlHelpers.sqlGetStatement}
+        ${searchTermFilter}
         ${tagsFilter}
         ${tagsNotFilter}
         ${tagsMiniLangFilter}
@@ -236,15 +248,20 @@ private class CardFinder(val request: CardListRequest) extends CardSqlFilterOper
 /**
   * Class responseible for counting the number of cards matching a list query.
   */
-private class CardCounter(val request: CardListRequest) extends CardSqlFilterOperations {
+private class CardCounter(
+  val request: CardListRequest,
+  val cardElasticClient: CardElasticClient)(
+  implicit val ec: ExecutionContext
+) extends CardSqlFilterOperations {
 
   /**
-    * Executes the query.
+    * Prepares the query.
     */
-  def execute()(implicit c: Connection): SimpleSql[Row] = {
+  def prepareSql(): Future[SimpleSql[Row]] = {
     val sql = SQL(
       s"""SELECT COUNT(*) AS count
           ${SqlHelpers.sqlFromWhereStatement}
+          ${searchTermFilter}
           ${tagsFilter}
           ${tagsNotFilter}
           ${tagsMiniLangFilter}"""
@@ -262,10 +279,17 @@ private class CardCounter(val request: CardListRequest) extends CardSqlFilterOpe
 private trait CardSqlFilterOperations {
   import services.TagsFilterMiniLang.{TagsFilterMiniLang,Result=>MiniLangResult,ParsingError}
 
+  implicit  val ec: ExecutionContext
+
   /**
     * The list request. Must be implemented by subclasses.
     */
   val request: CardListRequest
+
+  /**
+    * The CardElasticClient to use. Must be implemented by subclasses.
+    */
+  val cardElasticClient: CardElasticClient
 
   /**
     * The filter for the `include` tags.
@@ -280,23 +304,36 @@ private trait CardSqlFilterOperations {
     else " AND id NOT IN (SELECT cardId FROM cardsTags WHERE LOWER(tag) IN ({lowerTagsNot}))"
 
   /**
+    * The filter for the `searchTerm`.
+    */
+  val searchTermFilter = if (request.searchTerm.isEmpty) "" else " AND id IN ({searchTermIds}) "
+
+  /**
     * Fills an sql statement with all known parameters.
     */
-  def withParams(sql: SimpleSql[Row]): SimpleSql[Row] = {
+  def withParams(sql: SimpleSql[Row]): Future[SimpleSql[Row]] = {
 
     var result = sql;
     def addToResult(key: String, value: String) = { result = result.on(key -> value) }
 
+    // Normal sql parameters from request
     result = result.on(
       "tagsFilterSqlSeq" -> SqlHelpers.tagsFilterSqlSeq(request.tags),
       "userId" -> request.userId,
       "pageSize" -> request.pageSize,
       "offset" -> (request.page - 1) * request.pageSize,
       "lowerTags" -> request.tags.map(_.toLowerCase),
-      "lowerTagsNot" -> request.tagsNot.map(_.toLowerCase),
+      "lowerTagsNot" -> request.tagsNot.map(_.toLowerCase)
     )
+
+    // Parameters from tags mini language
     tagsMiniLangParams.foreach { case (key, value) => addToResult(key, value) }
-    result
+
+    // Parameters from ElasticSearch
+    request.searchTerm match {
+      case None => Future.successful(result)
+      case Some(s) => cardElasticClient.findIds(s).map(ids => result.on("searchTermIds" -> ids))
+    }
   }
 
   /**

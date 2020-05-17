@@ -45,9 +45,15 @@ trait CardElasticClient {
   def findIds(searchTerm: String): Future[Seq[String]]
 }
 
-class CardElasticClientMock extends CardElasticClient {
+/**
+  * A mocked implementation of the CardElasticClient for tests.
+  *  @pram idsFound the ids to return when findIds is called.
+  */
+class CardElasticClientMock() extends CardElasticClient {
 
   val logger = Logger(getClass)
+
+  def idsFound = CardElasticClientMock.idsFound
 
   def create(cardData: CardData, id: String, createdAt: DateTime): Unit = {
     logger.info(s"Mocked create for $cardData and $id at $createdAt")
@@ -63,10 +69,28 @@ class CardElasticClientMock extends CardElasticClient {
 
   def findIds(searchTerm: String): Future[Seq[String]] = {
     logger.info(s"Mocked findIds for $searchTerm")
-    Future.successful(Seq())
+    Future.successful(idsFound)
   }
   
 }
+
+/**
+  * Companion object of the mock, usefull for testing
+  */
+object CardElasticClientMock {
+  var idsFound: Seq[String] = Seq()
+
+  def withIdsFound(x: Seq[String])(block: => Any) = {
+    val valueBefore = idsFound
+    idsFound = x
+    try {
+      block
+    } finally {
+      idsFound = valueBefore
+    }
+  }
+}
+
 
 class CardElasticClientImpl @Inject()(
   elasticClient: ElasticClient)(
@@ -127,8 +151,10 @@ class CardElasticIdFinder(
   import com.sksamuel.elastic4s.ElasticDsl._  
   val logger = Logger(getClass)
 
-  def onSuccess(response: RequestSuccess[SearchResponse]): Future[Seq[String]] =
+  def onSuccess(response: RequestSuccess[SearchResponse]): Future[Seq[String]] = {
+    logger.info("Response: " + response)
     Future.successful(response.result.hits.hits.map(x => x.id).toIndexedSeq)
+  }
 
   def onFailure[T](response: RequestFailure): Future[T] = {
     val exception = CardElasticClientException(response.body.getOrElse("Unknown Exception"))
@@ -138,7 +164,7 @@ class CardElasticIdFinder(
 
   def findIds(searchTerm: String): Future[Seq[String]] = {
     logger.info(s"Getting ids for $searchTerm")
-    val query = multiMatchQuery(searchTerm).fields("text", "body")
+    val query = multiMatchQuery(searchTerm).fields("title", "body").operator("or")
     val request = search(index).query(query)
     logger.info(s"Sending request $request")
     elasticClient.execute(request).flatMap {

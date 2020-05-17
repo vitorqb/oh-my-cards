@@ -23,6 +23,7 @@ import org.joda.time.DateTime
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import scala.concurrent.Future
 
 class CardRepositorySpec extends PlaySpec
     with MockitoSugar
@@ -51,7 +52,7 @@ class CardRepositorySpec extends PlaySpec
   val cardData1 = CardData(Some("id1"), "ONE", "TWO", List("a", "b"))
   val cardData2 = CardData(Some("id2"), "one", "two", List("A", "B", "D"))
   val cardData3 = CardData(Some("id3"), "THREE", "three", List("C"))
-  val cardListRequest = CardListRequest(0, 10, user.id, List(), List(), None)
+  val cardListRequest: CardListRequest = CardListRequest(0, 10, user.id, List(), List(), None)
 
   /**
     * Stores the cards fixtures in the db...
@@ -163,11 +164,11 @@ class CardRepositorySpec extends PlaySpec
       when(uuidGenerator.generate).thenReturn(cardDataOtherUser1.id.value)
       repository.create(cardDataOtherUser1.copy(id=None), otherUser)
 
-      repository.find(cardListRequest.copy(pageSize=2)) mustEqual List(cardData3, cardData2)
+      repository.find(cardListRequest.copy(pageSize=2)).futureValue mustEqual List(cardData3, cardData2)
     }
 
     "Filters wanted tags only(simple)" in testContext { (db, uuidGenerator, repository, _, _, _) =>
-      repository.find(cardListRequest.copy(tags=List("C"))) mustEqual List(cardData3)
+      repository.find(cardListRequest.copy(tags=List("C"))).futureValue mustEqual List(cardData3)
     }
 
     "Filters wanted tags only (complex)" in testContext { (db, uuidGenerator, repository, _, _, _) =>
@@ -185,13 +186,14 @@ class CardRepositorySpec extends PlaySpec
       when(uuidGenerator.generate).thenReturn(extraCard3.id.value)
       repository.create(extraCard3.copy(id=None), user)
 
-      (repository.find(cardListRequest.copy(tags=List("c", "B")))
+      (repository.find(cardListRequest.copy(tags=List("c", "B"))).futureValue
         mustEqual
         List(extraCard3, extraCard1))
     }
 
-    "Filters wanted tags (CASE INSENSITIVE)" in testContext { (db, uuidGenerator, repository, _, _, _) =>
-      repository.find(cardListRequest.copy(tags=List("d"))) mustEqual List(cardData2)
+    "Filters wanted tags (CASE INSENSITIVE)" in testContext {
+      (db, uuidGenerator, repository, _, _, _) =>
+      repository.find(cardListRequest.copy(tags=List("d"))).futureValue mustEqual List(cardData2)
     }
 
     "Removes unwanted tags" in testContext { (db, uuidGenerator, repository, _, _, _) =>
@@ -200,9 +202,25 @@ class CardRepositorySpec extends PlaySpec
       when(uuidGenerator.generate).thenReturn(cardData4.id.value)
       repository.create(cardData4.copy(id=None), user)
 
-      (repository.find(cardListRequest.copy(tagsNot=List("b")))
+      (repository.find(cardListRequest.copy(tagsNot=List("b"))).futureValue
         mustEqual
         List(cardData4, cardData3))
+    }
+
+    "with search term" should {
+
+      "only return objects matched by elastic client findIds" in testContext {
+        (_, _, repository, _, cardElasticClient, _) =>
+
+        val searchTerm = "foo"
+        val matchedIds = Seq(cardData1.id.get)
+        when(cardElasticClient.findIds(searchTerm)).thenReturn(Future.successful(matchedIds))
+
+        val request = cardListRequest.copy(searchTerm=Some(searchTerm))
+        val result = repository.find(request).futureValue
+        result mustEqual List(cardData1)
+      }
+
     }
 
     "with tags query" should {
@@ -218,13 +236,13 @@ class CardRepositorySpec extends PlaySpec
              (tags CONTAINS 'a')
              OR
              (tags CONTAINS 'c'))"""
-        val result = repository.find(cardListRequest.copy(query=Some(query)))
+        val result = repository.find(cardListRequest.copy(query=Some(query))).futureValue
         result mustEqual List(cardData3, cardData2, cardData1)
       }
 
       "select only a single tag" in testContext { (db, uuidGenerator, repository, _, _, _) =>
         val query = "((tags CONTAINS 'a') AND (tags CONTAINS 'd'))"
-        val result = repository.find(cardListRequest.copy(query=Some(query)))
+        val result = repository.find(cardListRequest.copy(query=Some(query))).futureValue
         result mustEqual List(cardData2)
       }
 
@@ -234,7 +252,7 @@ class CardRepositorySpec extends PlaySpec
            OR
            ((tags CONTAINS 'D') AND (tags CONTAINS 'e')))
         """
-        val result = repository.find(cardListRequest.copy(query=Some(query)))
+        val result = repository.find(cardListRequest.copy(query=Some(query))).futureValue
         result mustEqual List()
       }
 
@@ -246,7 +264,7 @@ class CardRepositorySpec extends PlaySpec
            AND
            ((tags NOT CONTAINS 'basket') OR (tags NOT CONTAINS 'football')))
         """
-        val result = repository.find(cardListRequest.copy(query=Some(query)))
+        val result = repository.find(cardListRequest.copy(query=Some(query))).futureValue
         result mustEqual List(cardData1)
       }
 
@@ -294,19 +312,35 @@ class CardRepositorySpec extends PlaySpec
       when(uuidGenerator.generate()).thenReturn("otherUserCardId")
       repository.create(CardData(None, "four", "four", List("b")), User("other", "other"))
 
-      repository.countItemsMatching(cardListRequest.copy(tags=List("b"))) mustEqual 2
+      repository.countItemsMatching(cardListRequest.copy(tags=List("b"))).futureValue mustEqual 2
     }
 
     "filters by tag" in testContext { (db, uuidGenerator, repository, _, _, _) =>
-      repository.countItemsMatching(cardListRequest) mustEqual 3
+      repository.countItemsMatching(cardListRequest).futureValue mustEqual 3
     }
 
     "removes by tag" in testContext { (db, uuidGenerator, repository, _, _, _) =>
       val req1 = cardListRequest.copy(tags=List("a", "b"), tagsNot=List("d"))
-      repository.countItemsMatching(req1) mustEqual 1
+      repository.countItemsMatching(req1).futureValue mustEqual 1
 
       val req2 = cardListRequest.copy(tags=List("a", "b"), tagsNot=List("c"))
-      repository.countItemsMatching(req2) mustEqual 2
+      repository.countItemsMatching(req2).futureValue mustEqual 2
+    }
+
+    "with search term" should {
+
+      "only count objects matched by elastic client findIds" in testContext {
+        (_, _, repository, _, cardElasticClient, _) =>
+
+        val searchTerm = "foo"
+        val matchedIds = Seq(cardData1.id.get)
+        when(cardElasticClient.findIds(searchTerm)).thenReturn(Future.successful(matchedIds))
+
+        val request = cardListRequest.copy(searchTerm=Some(searchTerm))
+        val result = repository.countItemsMatching(request).futureValue
+        result mustEqual 1
+      }
+
     }
 
     "with tags query" should {
@@ -323,22 +357,22 @@ class CardRepositorySpec extends PlaySpec
              OR
              (tags CONTAINS 'c'))
         """
-        repository.countItemsMatching(cardListRequest.copy(query=Some(query))) mustEqual 3
+        repository.countItemsMatching(cardListRequest.copy(query=Some(query))).futureValue mustEqual 3
       }
 
       "select only a single tag" in testContext { (db, uuidGenerator, repository, _, _, _) =>
         val query = "((tags CONTAINS 'a') AND (tags CONTAINS 'd'))"
-        repository.countItemsMatching(cardListRequest.copy(query=Some(query))) mustEqual 1
+        repository.countItemsMatching(cardListRequest.copy(query=Some(query))).futureValue mustEqual 1
       }
 
       "select only two tags" in testContext { (db, uuidGenerator, repository, _, _, _) =>
         val query = "((tags CONTAINS 'a') OR (tags CONTAINS 'd'))"
-        repository.countItemsMatching(cardListRequest.copy(query=Some(query))) mustEqual 2
+        repository.countItemsMatching(cardListRequest.copy(query=Some(query))).futureValue mustEqual 2
       }
 
       "select no tags" in testContext { (db, uuidGenerator, repository, _, _, _) =>
         val query = "((tags CONTAINS 'a') AND (tags NOT CONTAINS 'b'))"
-        repository.countItemsMatching(cardListRequest.copy(query=Some(query))) mustEqual 0
+        repository.countItemsMatching(cardListRequest.copy(query=Some(query))).futureValue mustEqual 0
       }      
 
       "select no tags (complex)" in testContext { (db, uuidGenerator, repository, _, _, _) =>
@@ -347,7 +381,7 @@ class CardRepositorySpec extends PlaySpec
            AND
            ((tags CONTAINS 'c') OR (tags CONTAINS 'f')))
         """
-        repository.countItemsMatching(cardListRequest.copy(query=Some(query))) mustEqual 0
+        repository.countItemsMatching(cardListRequest.copy(query=Some(query))).futureValue mustEqual 0
       }
 
       "complex crazy query" in testContext { (db, uuidGenerator, repository, _, _, _) =>
@@ -358,7 +392,7 @@ class CardRepositorySpec extends PlaySpec
            AND
            ((tags NOT CONTAINS 'basket') OR (tags NOT CONTAINS 'football')))
         """
-        repository.countItemsMatching(cardListRequest.copy(query=Some(query))) mustEqual 2
+        repository.countItemsMatching(cardListRequest.copy(query=Some(query))).futureValue mustEqual 2
       }
 
     }

@@ -75,7 +75,9 @@ case class CardListRequest(
   userId: String,
   tags: List[String],
   tagsNot: List[String],
-  query: Option[String])
+  query: Option[String],
+  searchTerm: Option[String] = None
+)
 
 
 /**
@@ -107,10 +109,13 @@ class CardResourceHandler @Inject()(
   val repository: CardRepository)(
   implicit val ec: ExecutionContext){
 
-  def find(cardListReq: CardListRequest): CardListResponse = {
-    val cards = repository.find(cardListReq).map(CardResource.fromCardData(_))
-    val countOfCards = repository.countItemsMatching(cardListReq)
-    CardListResponse.fromRequest(cardListReq, cards, countOfCards)
+  def find(cardListReq: CardListRequest): Future[CardListResponse] = {
+    for {
+      countOfCards     <- repository.countItemsMatching(cardListReq)
+      cardDataList     <- repository.find(cardListReq)
+      cardResourceList = cardDataList.map(CardResource.fromCardData(_))
+      cardListResponse = CardListResponse.fromRequest(cardListReq, cardResourceList, countOfCards)
+    } yield cardListResponse
   }
 
   def create(input: CardFormInput, user: User): Try[CardResource] = {

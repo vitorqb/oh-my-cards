@@ -53,12 +53,13 @@ case class CardListRequestInput(
   pageSize: Int,
   tags: Option[String],
   tagsNot: Option[String],
-  query: Option[String]) {
+  query: Option[String],
+  searchTerm: Option[String] = None) {
 
   def tagsList: List[String] = tags.map(StringUtils.splitByComma).getOrElse(List())
   def tagsNotList: List[String] = tagsNot.map(StringUtils.splitByComma).getOrElse(List())
   def toCardListRequest(u: User): CardListRequest =
-    CardListRequest(page, pageSize, u.id, tagsList, tagsNotList, query)
+    CardListRequest(page, pageSize, u.id, tagsList, tagsNotList, query, searchTerm)
 
 }
 
@@ -77,18 +78,17 @@ class CardController @Inject()(
   /**
     * Endpoint used to query for a list of pages.
     */
-  def list() = silhouette.SecuredAction {
+  def list() = silhouette.SecuredAction.async {
     implicit request =>
     import CardListRequestParser._
 
     logger.info(s"Getting cards for user ${request.identity}")
     CardListRequestParser.parse() match {
-      case Right(js) => BadRequest(js)
-      case Left(input: CardListRequestInput) => Try {
+      case Right(js) => Future.successful(BadRequest(js))
+      case Left(input: CardListRequestInput) => {
         val user = request.identity
-        val cards = resourceHandler.find(input.toCardListRequest(user))
-        Ok(Json.toJson(cards))
-      }.fold(handleError,identity)
+        resourceHandler.find(input.toCardListRequest(user)).map(cards => Ok(Json.toJson(cards)))
+      }.recover(handleError _)
     }
   }
 
@@ -190,7 +190,8 @@ object CardListRequestParser {
         "pageSize" -> number,
         "tags" -> optional(text),
         "tagsNot" -> optional(text),
-        "query" -> optional(text)
+        "query" -> optional(text),
+        "searchTerm" -> optional(text)
       )(CardListRequestInput.apply)(CardListRequestInput.unapply)
     )
   }
