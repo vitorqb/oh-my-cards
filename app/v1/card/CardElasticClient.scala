@@ -10,7 +10,16 @@ import scala.util.Success
 import org.joda.time.DateTime
 import scala.util.Try
 import com.sksamuel.elastic4s.Response
-import com.sksamuel.elastic4s.requests.indexes.IndexResponse
+import com.sksamuel.elastic4s.RequestSuccess
+import com.sksamuel.elastic4s.RequestFailure
+import com.sksamuel.elastic4s.requests.searches.SearchResponse
+import com.sksamuel.elastic4s.requests.searches.queries.matches.MultiMatchQuery
+
+final case class CardElasticClientException(
+  val message: String = "Something went wrong on ElasticSearch",
+  val cause: Throwable = None.orNull
+) extends Exception(message, cause)
+
 
 trait CardElasticClient {
 
@@ -29,6 +38,11 @@ trait CardElasticClient {
     * Deletes an entry from ElasticSearch for an existing cardData.
     */
   def delete(id: String): Unit
+
+  /**
+    * Returns a seq of ids from ElasticSearch that fuzzy matches on title or body.
+    */
+  def findIds(searchTerm: String): Future[Seq[String]]
 }
 
 class CardElasticClientMock extends CardElasticClient {
@@ -46,6 +60,11 @@ class CardElasticClientMock extends CardElasticClient {
   def delete(id: String): Unit = {
     logger.info(s"Mocked delete for $id")
   }
+
+  def findIds(searchTerm: String): Future[Seq[String]] = {
+    logger.info(s"Mocked findIds for $searchTerm")
+    Future.successful(Seq())
+  }
   
 }
 
@@ -58,6 +77,8 @@ class CardElasticClientImpl @Inject()(
 
   val index = "cards"
   val logger = Logger(getClass)
+
+  def idFinder = new CardElasticIdFinder(elasticClient, index)
   
   def handleResponse[T](response: Try[Response[T]]) = response match {
     case Failure(exception) => logger.error("Elastic Search failed!", exception)
@@ -91,4 +112,40 @@ class CardElasticClientImpl @Inject()(
     logger.info(s"Deleting elastic search entry for $id")
     elasticClient.execute(deleteById(index, id)).onComplete(handleResponse)
   }
+
+  def findIds(searchTerm: String): Future[Seq[String]] = idFinder.findIds(searchTerm)
+
+}
+
+class CardElasticIdFinder(
+  elasticClient: ElasticClient,
+  val index: String
+)(
+  implicit val ec: ExecutionContext
+) {
+
+  import com.sksamuel.elastic4s.ElasticDsl._  
+  val logger = Logger(getClass)
+
+  def onSuccess(response: RequestSuccess[SearchResponse]): Future[Seq[String]] =
+    Future.successful(response.result.hits.hits.map(x => x.id).toIndexedSeq)
+
+  def onFailure[T](response: RequestFailure): Future[T] = {
+    val exception = CardElasticClientException(response.body.getOrElse("Unknown Exception"))
+    logger.error("Error when querying ElasticSearch", exception)
+    Future.failed(exception)
+  }
+
+  def findIds(searchTerm: String): Future[Seq[String]] = {
+    logger.info(s"Getting ids for $searchTerm")
+    val query = multiMatchQuery(searchTerm).fields("text", "body")
+    val request = search(index).query(query)
+    logger.info(s"Sending request $request")
+    elasticClient.execute(request).flatMap {
+      case success: RequestSuccess[SearchResponse] => onSuccess(success)
+      case failure: RequestFailure => onFailure(failure)
+    }
+
+  }
+
 }

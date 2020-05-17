@@ -219,19 +219,17 @@ private class TagsRepository {
   */
 private class CardFinder(val request: CardListRequest) extends CardSqlFilterOperations {
 
+  //!!!! TODO -> create sqlWithParams that does withParams SQL
   /**
     * Executes the query.
     */
-  def execute()(implicit c: Connection): SimpleSql[Row] = {
-    val sql = SQL(
-      s"""${SqlHelpers.sqlGetStatement}
-          ${tagsFilter}
-          ${tagsNotFilter}
-          ${tagsMiniLangFilter}
-          ORDER BY id DESC LIMIT {pageSize} OFFSET {offset}"""
-    )
-    withParams(sql)
-  }
+  def execute()(implicit c: Connection): SimpleSql[Row] = withParams { SQL {
+    s"""${SqlHelpers.sqlGetStatement}
+        ${tagsFilter}
+        ${tagsNotFilter}
+        ${tagsMiniLangFilter}
+        ORDER BY id DESC LIMIT {pageSize} OFFSET {offset}"""
+  }}
 }
 
 
