@@ -230,7 +230,6 @@ private class CardFinder(
   implicit val ec: ExecutionContext
 ) extends CardSqlFilterOperations {
 
-  //!!!! TODO -> create sqlWithParams that does withParams SQL
   /**
     * Prepares the query.
     */
@@ -257,17 +256,14 @@ private class CardCounter(
   /**
     * Prepares the query.
     */
-  def prepareSql(): Future[SimpleSql[Row]] = {
-    val sql = SQL(
-      s"""SELECT COUNT(*) AS count
-          ${SqlHelpers.sqlFromWhereStatement}
-          ${searchTermFilter}
-          ${tagsFilter}
-          ${tagsNotFilter}
-          ${tagsMiniLangFilter}"""
-    )
-    withParams(sql)
-  }
+  def prepareSql(): Future[SimpleSql[Row]] = withParams { SQL {
+    s"""SELECT COUNT(*) AS count
+        ${SqlHelpers.sqlFromWhereStatement}
+        ${searchTermFilter}
+        ${tagsFilter}
+        ${tagsNotFilter}
+        ${tagsMiniLangFilter}"""
+  }}
 
 }
 
