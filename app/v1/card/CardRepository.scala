@@ -13,6 +13,9 @@ import scala.concurrent.ExecutionContext
 import java.sql.Connection
 import anorm.SimpleSql
 import anorm.Row
+import services.Clock
+import org.joda.time.DateTime
+import anorm.JodaParameterMetaData._
 
 
 /**
@@ -35,10 +38,20 @@ final case class TagsFilterMiniLangSyntaxError(
 ) extends Exception(message, cause) with CardRepositoryUserException
 
 
+//!!!! TODO We should not be using CardData as parameter for the functions. We should
+//          only *return* CardData. The input must be a CardInput, without id, 
+//          or createdAt, updatedAt.
 /**
   * The data for a Card.
   */
-final case class CardData(id: Option[String], title: String, body: String, tags: List[String])
+final case class CardData(
+  id: Option[String],
+  title: String,
+  body: String,
+  tags: List[String],
+  createdAt: Option[DateTime] = None,
+  updatedAt: Option[DateTime] = None
+)
 
 
 /**
@@ -47,32 +60,45 @@ final case class CardData(id: Option[String], title: String, body: String, tags:
 class CardRepository @Inject()(
   db: Database,
   uuidGenerator: UUIDGenerator,
-  tagsRepo: TagsRepository)(
+  tagsRepo: TagsRepository,
+  cardElasticClient: CardElasticClient,
+  clock: Clock)(
   implicit val ec: ExecutionContext
 ) {
 
   private val cardDataParser: RowParser[CardData] = {
     import anorm._
-    SqlParser.str("id") ~ SqlParser.str("title") ~ SqlParser.str("body") map {
-      case id ~ title ~ body => CardData(Some(id), title, body, List())
+    (
+      SqlParser.str("id") ~
+        SqlParser.str("title") ~
+        SqlParser.str("body") ~
+        SqlParser.get[Option[DateTime]]("createdAt") ~
+        SqlParser.get[Option[DateTime]]("updatedAt")
+    ) map {
+      case id ~ title ~ body ~ createdAt ~ updatedAt =>
+        CardData(Some(id), title, body, List(), createdAt, updatedAt)
     }
   }
 
   def create(cardData: CardData, user: User): Try[String] = {
+    val now = clock.now()
     if (cardData.id.isDefined) {
       Failure(new Exception("Id for create should be null!"))
     } else {
       val id = uuidGenerator.generate
       db.withTransaction { implicit c =>
         SQL(
-          "INSERT INTO cards(id, userId, title, body) VALUES ({id}, {userId}, {title}, {body})"
+          """INSERT INTO cards(id, userId, title, body, createdAt, updatedAt)
+             VALUES ({id}, {userId}, {title}, {body}, {now}, {now})"""
         ).on(
           "id" -> id,
           "userId" -> user.id,
           "title" -> cardData.title,
-          "body" -> cardData.body
+          "body" -> cardData.body,
+          "now" -> now
         ).executeInsert()
         tagsRepo.create(id, cardData.tags)
+        cardElasticClient.create(cardData, id, now)
         Success(id)
       }
     }
@@ -89,19 +115,26 @@ class CardRepository @Inject()(
   /**
     * Finds a list of cards for a given user.
     */
-  def find(request: CardListRequest): Iterable[CardData] = db.withConnection { implicit c =>
-    def assocTags(cardData: CardData) = cardData.copy(tags=tagsRepo.get(cardData.id.get))
-
-    new CardFinder(request).execute().as(cardDataParser.*).map(assocTags)
-  }
+  def find(request: CardListRequest): Future[Iterable[CardData]] = Future {
+    new CardFinder(request, cardElasticClient).prepareSql().map { simpleSql =>
+      db.withConnection { implicit c =>
+        def assocTags(cardData: CardData) = cardData.copy(tags=tagsRepo.get(cardData.id.get))
+        simpleSql.as(cardDataParser.*).map(assocTags)
+      }
+    }
+  }.flatten
 
   /**
     * Returns the total number of items matching a request for a list of cards.
     */
-  def countItemsMatching(request: CardListRequest): Int = db.withConnection { implicit c =>
-    val parser = (anorm.SqlParser.get[Int]("count").*)
-    new CardCounter(request).execute().as(parser).headOption.getOrElse(0)
-  }
+  def countItemsMatching(request: CardListRequest): Future[Int] = Future {
+    new CardCounter(request, cardElasticClient).prepareSql().map { simpleSql =>
+      db.withConnection { implicit c =>
+        val parser = (anorm.SqlParser.get[Int]("count").*)
+        simpleSql.as(parser).headOption.getOrElse(0)
+      }
+    }
+  }.flatten
 
   /**
     * Deletes a card by it's id.
@@ -109,11 +142,12 @@ class CardRepository @Inject()(
   def delete(id: String, user: User): Future[Try[Unit]] = Future {
     get(id, user) match {
       case None => Failure(new CardDoesNotExist)
-      case Some(_) => db.withConnection { implicit c =>
+      case Some(_) => db.withTransaction { implicit c =>
         SQL(s"DELETE ${SqlHelpers.sqlFromWhereStatement} AND id = {id}")
           .on("id" -> id, "userId" -> user.id)
           .executeUpdate()
         tagsRepo.delete(id)
+        cardElasticClient.delete(id)
         Success(())
       }
     }
@@ -124,11 +158,22 @@ class CardRepository @Inject()(
     */
   def update(data: CardData, user: User): Future[Try[Unit]] = Future { Try { db.withTransaction {
     implicit c =>
-    SQL("UPDATE cards SET title={title}, body={body} WHERE id={id} AND userId={userId}")
-      .on("title" -> data.title, "body" -> data.body, "id" -> data.id, "userId" -> user.id)
+    val now = clock.now()
+    SQL("""
+        UPDATE cards SET title={title}, body={body}, updatedAt={now}
+        WHERE id={id} AND userId={userId}
+       """)
+      .on(
+        "title" -> data.title,
+        "body" -> data.body,
+        "id" -> data.id,
+        "userId" -> user.id,
+        "now" -> now
+      )
       .executeUpdate()
     tagsRepo.delete(data.id.get)
     tagsRepo.create(data.id.get, data.tags)
+    cardElasticClient.update(data, now)
   }}}
 
   /**
@@ -179,42 +224,46 @@ private class TagsRepository {
 /** 
   * Class responsible for querying the db for a list of cards.
   */
-private class CardFinder(val request: CardListRequest) extends CardSqlFilterOperations {
+private class CardFinder(
+  val request: CardListRequest,
+  val cardElasticClient: CardElasticClient)(
+  implicit val ec: ExecutionContext
+) extends CardSqlFilterOperations {
 
   /**
-    * Executes the query.
+    * Prepares the query.
     */
-  def execute()(implicit c: Connection): SimpleSql[Row] = {
-    val sql = SQL(
-      s"""${SqlHelpers.sqlGetStatement}
-          ${tagsFilter}
-          ${tagsNotFilter}
-          ${tagsMiniLangFilter}
-          ORDER BY id DESC LIMIT {pageSize} OFFSET {offset}"""
-    )
-    withParams(sql)
-  }
+  def prepareSql(): Future[SimpleSql[Row]] = withParams { SQL {
+    s"""${SqlHelpers.sqlGetStatement}
+        ${searchTermFilter}
+        ${tagsFilter}
+        ${tagsNotFilter}
+        ${tagsMiniLangFilter}
+        ORDER BY id DESC LIMIT {pageSize} OFFSET {offset}"""
+  }}
 }
 
 
 /**
   * Class responseible for counting the number of cards matching a list query.
   */
-private class CardCounter(val request: CardListRequest) extends CardSqlFilterOperations {
+private class CardCounter(
+  val request: CardListRequest,
+  val cardElasticClient: CardElasticClient)(
+  implicit val ec: ExecutionContext
+) extends CardSqlFilterOperations {
 
   /**
-    * Executes the query.
+    * Prepares the query.
     */
-  def execute()(implicit c: Connection): SimpleSql[Row] = {
-    val sql = SQL(
-      s"""SELECT COUNT(*) AS count
-          ${SqlHelpers.sqlFromWhereStatement}
-          ${tagsFilter}
-          ${tagsNotFilter}
-          ${tagsMiniLangFilter}"""
-    )
-    withParams(sql)
-  }
+  def prepareSql(): Future[SimpleSql[Row]] = withParams { SQL {
+    s"""SELECT COUNT(*) AS count
+        ${SqlHelpers.sqlFromWhereStatement}
+        ${searchTermFilter}
+        ${tagsFilter}
+        ${tagsNotFilter}
+        ${tagsMiniLangFilter}"""
+  }}
 
 }
 
@@ -226,10 +275,17 @@ private class CardCounter(val request: CardListRequest) extends CardSqlFilterOpe
 private trait CardSqlFilterOperations {
   import services.TagsFilterMiniLang.{TagsFilterMiniLang,Result=>MiniLangResult,ParsingError}
 
+  implicit  val ec: ExecutionContext
+
   /**
     * The list request. Must be implemented by subclasses.
     */
   val request: CardListRequest
+
+  /**
+    * The CardElasticClient to use. Must be implemented by subclasses.
+    */
+  val cardElasticClient: CardElasticClient
 
   /**
     * The filter for the `include` tags.
@@ -244,23 +300,36 @@ private trait CardSqlFilterOperations {
     else " AND id NOT IN (SELECT cardId FROM cardsTags WHERE LOWER(tag) IN ({lowerTagsNot}))"
 
   /**
+    * The filter for the `searchTerm`.
+    */
+  val searchTermFilter = if (request.searchTerm.isEmpty) "" else " AND id IN ({searchTermIds}) "
+
+  /**
     * Fills an sql statement with all known parameters.
     */
-  def withParams(sql: SimpleSql[Row]): SimpleSql[Row] = {
+  def withParams(sql: SimpleSql[Row]): Future[SimpleSql[Row]] = {
 
     var result = sql;
     def addToResult(key: String, value: String) = { result = result.on(key -> value) }
 
+    // Normal sql parameters from request
     result = result.on(
       "tagsFilterSqlSeq" -> SqlHelpers.tagsFilterSqlSeq(request.tags),
       "userId" -> request.userId,
       "pageSize" -> request.pageSize,
       "offset" -> (request.page - 1) * request.pageSize,
       "lowerTags" -> request.tags.map(_.toLowerCase),
-      "lowerTagsNot" -> request.tagsNot.map(_.toLowerCase),
+      "lowerTagsNot" -> request.tagsNot.map(_.toLowerCase)
     )
+
+    // Parameters from tags mini language
     tagsMiniLangParams.foreach { case (key, value) => addToResult(key, value) }
-    result
+
+    // Parameters from ElasticSearch
+    request.searchTerm match {
+      case None => Future.successful(result)
+      case Some(s) => cardElasticClient.findIds(s).map(ids => result.on("searchTermIds" -> ids))
+    }
   }
 
   /**
@@ -307,7 +376,7 @@ private object SqlHelpers {
   /**
     * A base get statement.
     */
-  val sqlGetStatement: String = s"SELECT id, title, body ${sqlFromWhereStatement}"
+  val sqlGetStatement: String = s"SELECT id, title, body, updatedAt, createdAt ${sqlFromWhereStatement}"
 
   /**
     * Returns a SeqParameter for the filter of including tags.

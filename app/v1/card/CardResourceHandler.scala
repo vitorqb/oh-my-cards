@@ -6,6 +6,8 @@ import play.api.libs.json.{Json,Format}
 import v1.auth.User
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext
+import org.joda.time.DateTime
+import utils.JodaToJsonUtils._
 
 /**
   * Custom exceptions.
@@ -20,10 +22,19 @@ object InvalidCardData {
 }
 
 
+//!!!! TODO Remove link
 /**
   * Data transfer object for a card.
   */
-case class CardResource(id: String, link: String, title: String, body: String, tags: List[String]) {
+case class CardResource(
+  id: String,
+  link: String,
+  title: String,
+  body: String,
+  tags: List[String],
+  createdAt: Option[DateTime],
+  updatedAt: Option[DateTime],
+) {
 
   def asCardData: CardData = CardData(Some(id), title, body, tags)
 
@@ -39,7 +50,7 @@ object CardResource {
   implicit val format: Format[CardResource] = Json.format
 
   def fromCardData(cardData: CardData) = {
-    CardResource(cardData.id.fold("")(x => x), "", cardData.title, cardData.body, cardData.tags)
+    CardResource(cardData.id.fold("")(x => x), "", cardData.title, cardData.body, cardData.tags, cardData.createdAt, cardData.updatedAt)
   }
 
 }
@@ -64,7 +75,9 @@ case class CardListRequest(
   userId: String,
   tags: List[String],
   tagsNot: List[String],
-  query: Option[String])
+  query: Option[String],
+  searchTerm: Option[String] = None
+)
 
 
 /**
@@ -96,10 +109,13 @@ class CardResourceHandler @Inject()(
   val repository: CardRepository)(
   implicit val ec: ExecutionContext){
 
-  def find(cardListReq: CardListRequest): CardListResponse = {
-    val cards = repository.find(cardListReq).map(CardResource.fromCardData(_))
-    val countOfCards = repository.countItemsMatching(cardListReq)
-    CardListResponse.fromRequest(cardListReq, cards, countOfCards)
+  def find(cardListReq: CardListRequest): Future[CardListResponse] = {
+    for {
+      countOfCards     <- repository.countItemsMatching(cardListReq)
+      cardDataList     <- repository.find(cardListReq)
+      cardResourceList = cardDataList.map(CardResource.fromCardData(_))
+      cardListResponse = CardListResponse.fromRequest(cardListReq, cardResourceList, countOfCards)
+    } yield cardListResponse
   }
 
   def create(input: CardFormInput, user: User): Try[CardResource] = {
@@ -120,10 +136,11 @@ class CardResourceHandler @Inject()(
   }
 
   def update(id: String, input: CardFormInput, user: User): Future[Try[CardResource]] = {
-    repository.get(id, user) match {
-      case Some(cardData) => CardResource.fromCardData(cardData).updateWith(input) match {
+
+    get(id, user) match {
+      case Some(cardResource) => cardResource.updateWith(input) match {
         case Success(cardResource) => repository.update(cardResource.asCardData, user).map {
-          case Success(_) => Success(cardResource)
+          case Success(_) => Success(get(id, user).get)
           case Failure(e) => Failure(e)
         }
         case Failure(e) => Future(Failure(e))

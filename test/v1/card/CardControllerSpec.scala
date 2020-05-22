@@ -64,10 +64,11 @@ class CardControllerSpec
 
   "list" should {
 
-    def runQuery(tagsQuery: String): Future[Result] = {
-      val body = Json.obj("page" -> "1", "pageSize" -> "2", "query" -> tagsQuery)
-      val request = FakeRequest("GET", s"/foo?page=1&pageSize=2&query=${tagsQuery}")
-      controller.list()(request)
+    def runQuery(tagsQuery: String, searchTerm: Option[String] = None): Future[Result] = {
+      var query = s"/foo?page=1&pageSize=2"
+      if (!tagsQuery.isEmpty()) { query += s"&query=${tagsQuery}" }
+      if (!searchTerm.isEmpty) { query += s"&searchTerm=${searchTerm.get}" }
+      controller.list()(FakeRequest("GET", query))
     }
 
     "use `query` and check that the created card is returned" in {
@@ -106,6 +107,31 @@ class CardControllerSpec
       status(response) mustEqual 400
       val responseMsg = (contentAsJson(response) \ "message").as[String]
       responseMsg.contains("FOO")
+    }
+
+    "use elastic search for extra filtering" should {
+
+      "Filter out if there is no match" in  {
+        createCard()
+        CardElasticClientMock.withIdsFound(Seq()) {
+          val responseObj = contentAsJson(runQuery("", Some("FOME VERY CRAZY THING")))
+          (responseObj \ "page").as[Int] mustEqual 1
+          (responseObj \ "pageSize").as[Int] mustEqual 2
+          (responseObj \ "countOfItems" ).as[Int] mustEqual 0
+        }
+      }
+
+      "bring cards with match" in {
+        createCard()
+        val id = (contentAsJson(runQuery("")) \ "items" \ 0 \ "id").as[String]
+        CardElasticClientMock.withIdsFound(Seq(id)) {
+          val responseObj = contentAsJson(runQuery(""))
+          (responseObj \ "page").as[Int] mustEqual 1
+          (responseObj \ "pageSize").as[Int] mustEqual 2
+          (responseObj \ "countOfItems" ).as[Int] mustEqual 1
+          (contentAsJson(runQuery("")) \ "items" \ 0 \ "id").as[String] mustEqual id
+        }
+      }
     }
 
   }

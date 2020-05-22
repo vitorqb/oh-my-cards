@@ -43,7 +43,7 @@ class MailServiceImpl @Inject()(
 /**
   * Fake service for testing purposes.
   */
-class MailServiceFakeImpl @Inject()(conf: Configuration) {
+class MailServiceFakeImpl @Inject()(conf: Configuration) extends MailService {
 
   private val logger = Logger(getClass)
 
