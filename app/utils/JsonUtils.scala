@@ -11,6 +11,7 @@ import play.api.libs.json.JsSuccess
 import play.api.libs.json.JsError
 import org.joda.time.format.DateTimeFormatterBuilder
 import org.joda.time.format.DateTimeFormat
+import org.joda.time.DateTimeZone
 
 object JodaToJsonUtils {
 
@@ -18,11 +19,12 @@ object JodaToJsonUtils {
     val parsers = Array(
       ISODateTimeFormat.dateTime().getParser(),
       ISODateTimeFormat.dateTimeNoMillis().getParser(),
-      DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ss.SSS").getParser(),
-      DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ss").getParser(),
-      DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:MMZ").getParser()
     )
-    new DateTimeFormatterBuilder().append(null, parsers).toFormatter().parseDateTime(s)
+    new DateTimeFormatterBuilder()
+      .append(null, parsers)
+      .toFormatter()
+      .parseDateTime(s)
+      .withZone(DateTimeZone.UTC)
   }
 
   def validateDateTime(s: String): Boolean = {
