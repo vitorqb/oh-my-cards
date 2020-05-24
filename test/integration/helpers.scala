@@ -16,7 +16,7 @@ class TestTokenProviderSvc(db: Database) extends ScalaFutures {
     case Some(x) => x
     case None => {
       db.withConnection { implicit c =>
-        SQL("""INSERT INTO users(id, email) VALUES(1, "test@test.com")""").executeInsert()
+        SQL("""INSERT INTO users(id, email, isAdmin) VALUES(1, "test@test.com", FALSE)""").executeInsert()
         SQL("""
             | INSERT INTO userTokens(userId, token, expirationDateTime, hasBeenInvalidated)
             | VALUES(1, "FOOBARBAZ", "4102444800000", false)

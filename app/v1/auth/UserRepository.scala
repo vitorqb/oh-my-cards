@@ -10,10 +10,12 @@ import utils.anorm.RelatedObjectDoesNotExist
 import scala.concurrent.duration.Duration
 import scala.concurrent.Await
 import anorm.TypeDoesNotMatch
+import utils.anorm.AnormUtils
 
 class UserRepository @Inject()(
   val db: Database)(
-  implicit ec: ExecutionContext) {
+  implicit ec: ExecutionContext
+) extends AnormUtils {
 
   private val logger: Logger = Logger(getClass)
 
@@ -23,7 +25,7 @@ class UserRepository @Inject()(
     logger.info("Finding user with id " + id)
     db.withConnection { implicit e =>
       SQL(
-        "SELECT id, email FROM users WHERE id={id}"
+        "SELECT id, email, isAdmin FROM users WHERE id={id}"
       ).on("id" -> id)
         .as(userParser.*)
         .headOption
@@ -38,7 +40,7 @@ class UserRepository @Inject()(
     logger.info("Finding user with email " + email)
     db.withConnection { implicit e =>
       SQL(
-        "SELECT id, email FROM users WHERE email={email}"
+        "SELECT id, email, isAdmin FROM users WHERE email={email}"
       ).on("email" -> email)
         .as(userParser.*)
         .headOption
@@ -53,7 +55,7 @@ class UserRepository @Inject()(
     logger.info("Adding user " + user)
     db.withConnection { implicit e =>
       SQL(
-        "INSERT INTO users(id, email) VALUES ({id}, {email})"
+        "INSERT INTO users(id, email, isAdmin) VALUES ({id}, {email}, FALSE)"
       ).on(
         "id" -> user.id,
         "email" -> user.email
