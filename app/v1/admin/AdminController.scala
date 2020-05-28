@@ -5,6 +5,7 @@ import com.google.inject.Inject
 import com.mohiva.play.silhouette.api.Silhouette
 import v1.auth.{DefaultEnv}
 import play.api.mvc.ControllerComponents
+import scala.concurrent.Future
 
 class AdminController @Inject()(
   val controllerComponents: AdminControllerComponents
@@ -15,7 +16,8 @@ class AdminController @Inject()(
   }
 
   def synchronizeElasticSearch() = Action.async { implicit request =>
-    ???
+    controllerComponents.elasticSearchSynchronizer.run()
+    Future.successful(Ok)
   }
 
 }

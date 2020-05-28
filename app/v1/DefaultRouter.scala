@@ -16,7 +16,7 @@ class DefaultRouter @Inject()(
 
   override def routes: Routes = {
     case POST(p"/$url/synchronize-ES") if url == customAdminUrl => {
-      controller.index()
+      controller.synchronizeElasticSearch()
     }
   }
 

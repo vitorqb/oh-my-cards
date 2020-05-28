@@ -33,3 +33,6 @@ val elastic4sVersion = "7.6.1"
 libraryDependencies ++= Seq(
   "com.sksamuel.elastic4s" %% "elastic4s-client-esjava" % elastic4sVersion
 )
+
+
+// Test / testOptions += Tests.Argument("-l", "tags.FunctionalTests")
