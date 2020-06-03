@@ -3,7 +3,23 @@ organization := "com.example"
 
 version := "0.6.0"
 
-lazy val root = (project in file(".")).enablePlugins(PlayScala)
+//Some globals
+lazy val shoudlRunFunctionalTests =
+  sys.env.getOrElse("OHMYCARDS_TEST_RUN_FUNCTIONAL_TESTS", 0) == 1
+
+//Project
+lazy val root = (project in file("."))
+  .enablePlugins(PlayScala)
+  .settings(
+    //Skip functional tests unless explicitly asked
+    Test / testOptions := {
+      val old = (Test / testOptions).value
+      if (shoudlRunFunctionalTests)
+        old
+      else
+        old ++ Seq(Tests.Argument("-l", "tags.FunctionalTests"))
+    }
+  )
 
 scalaVersion := "2.13.1"
 
@@ -33,6 +49,3 @@ val elastic4sVersion = "7.6.1"
 libraryDependencies ++= Seq(
   "com.sksamuel.elastic4s" %% "elastic4s-client-esjava" % elastic4sVersion
 )
-
-
-// Test / testOptions += Tests.Argument("-l", "tags.FunctionalTests")
