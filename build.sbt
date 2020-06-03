@@ -3,21 +3,19 @@ organization := "com.example"
 
 version := "0.6.0"
 
-//Some globals
-lazy val shoudlRunFunctionalTests =
-  sys.env.getOrElse("OHMYCARDS_TEST_RUN_FUNCTIONAL_TESTS", 0) == 1
+//Defines a custom config for functional tests
+lazy val functionalTests = taskKey[Unit]("Run functional tests")
+lazy val unitTests = taskKey[Unit]("Run unit tests")
 
 //Project
 lazy val root = (project in file("."))
   .enablePlugins(PlayScala)
   .settings(
-    //Skip functional tests unless explicitly asked
-    Test / testOptions := {
-      val old = (Test / testOptions).value
-      if (shoudlRunFunctionalTests)
-        old
-      else
-        old ++ Seq(Tests.Argument("-l", "tags.FunctionalTests"))
+    unitTests := {
+      (testOnly in Test).toTask(" -- -l tags.FunctionalTests").value
+    },
+    functionalTests := {
+      (testOnly in Test).toTask(" -- -n tags.FunctionalTests").value
     }
   )
 

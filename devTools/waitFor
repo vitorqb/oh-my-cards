@@ -1,0 +1,70 @@
+#!/bin/bash
+USAGE="$0"' STR FILE
+Streams from FILE until STR (a grep expression) is found.
+Returns 0 if the string is found, 1 otherwise.'
+
+# Max seconds to wait for
+MAX_WAIT_SECONDS=300
+
+# Arg parsing
+# getopt
+SHORT='h'
+LONG='help'
+OPTS="$(getopt --options $SHORT --long $LONG --name "$0" -- "$@")"
+! [ "$?" = 0 ] && echo "$USAGE" 1>&2 && exit 1
+eval set -- "$OPTS"
+
+# Parses params
+while [[ "$#" -gt 0 ]]
+do
+    key="$1"
+    case "$key" in
+        -h|--help)
+            echo "$USAGE"
+            exit 0
+            ;;
+        --)
+            STR="$2"
+            FILE="$3"
+            shift
+            shift
+            shift
+            ;;
+        *)
+            echo "$USAGE" 1>&2
+            exit 1
+    esac
+done
+
+# Validity check
+if [ -z "$STR" ]
+then
+    { echo "ERROR: Missing STR" ; echo "$USAGE" ; } >&2
+    exit 9
+fi
+
+if [ -z "$FILE" ]
+then
+    { echo "ERROR: Missing FILE" ; echo "$USAGE" ; } >&2
+    exit 9
+fi
+
+# Script
+
+# Creates tmp file used for comunication
+TMP_FILE=$(mktemp)
+trap "rm -rf $TMP_FILE" EXIT
+
+# Starts listening to file
+tail -f "$FILE" | grep -m1 "$STR" - | sed 's/.*/DONE/' >$TMP_FILE &
+
+# Keeps checking if we are done
+while [[ "$SECONDS" -lt "$MAX_WAIT_SECONDS" ]]
+do
+    if cat "$TMP_FILE" | grep 'DONE'
+    then
+        exit 0
+    fi
+    echo "Waiting for $STR in $FILE... [$SECONDS/$MAX_WAIT_SECONDS]"
+    sleep 5
+done
