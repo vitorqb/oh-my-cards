@@ -3,7 +3,21 @@ organization := "com.example"
 
 version := "0.6.0"
 
-lazy val root = (project in file(".")).enablePlugins(PlayScala)
+//Defines a custom config for functional tests
+lazy val functionalTests = taskKey[Unit]("Run functional tests")
+lazy val unitTests = taskKey[Unit]("Run unit tests")
+
+//Project
+lazy val root = (project in file("."))
+  .enablePlugins(PlayScala)
+  .settings(
+    unitTests := {
+      (testOnly in Test).toTask(" -- -l tags.FunctionalTests").value
+    },
+    functionalTests := {
+      (testOnly in Test).toTask(" -- -n tags.FunctionalTests").value
+    }
+  )
 
 scalaVersion := "2.13.1"
 

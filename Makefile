@@ -1,28 +1,43 @@
-.PHONY: run test ~test
+.PHONY: run test ~test tests unitTests functionalTests
 
-# Shortcuts methods to source `.env` files.
-SOURCE_ENV=touch ./.env && . ./.env
-SOURCE_ENV_TEST=touch ./test.env && . ./test.env
-
+# 
+# Arguments
+# 
+SBT_RUN_ARGS=''
+ENV_FILE="./.env"
+TEST_ENV_FILE="./.env.test"
 DOCKER ?= sudo -A docker
-export DOCKER
 
+# 
 # Recipts
-run:
-	$(SOURCE_ENV) && sbt 'run $(RUN_ARGS)'
+# 
+envfiles:
+	[ ! -f $(ENV_FILE) ] && touch $(ENV_FILE) || :
+	[ ! -f $(TEST_ENV_FILE) ] && touch $(TEST_ENV_FILE) || :
 
-test:
-	$(SOURCE_ENV) && $(SOURCE_ENV_TEST) && sbt 'test'
+run: envfiles
+	. $(ENV_FILE) && sbt 'run $(SBT_RUN_ARGS)'
 
-~test:
-	$(SOURCE_ENV) && $(SOURCE_ENV_TEST) && sbt '~test'
+unitTests: envfiles
+	. $(TEST_ENV_FILE) && sbt 'unitTests'
 
-sbt:
-	$(SOURCE_ENV) && $(SOURCE_ENV_TEST) && sbt
+functionalTests: envfiles
+	. $(TEST_ENV_FILE) && sbt 'functionalTests'
 
-elasticSearch:
-	$(SOURCE_ENV) && make -C ./devTools elasticSearch
+test: tests
+tests:
+	. $(TEST_ENV_FILE) && sbt 'test'
+
+~test: envfiles
+	. $(TEST_ENV_FILE) && sbt '~test'
+
+sbt: envfiles
+	. $(TEST_ENV_FILE) && sbt
+
+# Delegates to devTools
+devTools/%: envfiles
+	. $(TEST_ENV_FILE) && make -C devTools $(@:devTools/%=%)
 
 # Creates a .tgz artifact with all needed dependencies
-build:
+build: envfiles
 	sbt 'universal:packageZipTarball'

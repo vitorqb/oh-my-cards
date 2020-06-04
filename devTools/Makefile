@@ -1,19 +1,30 @@
+.PHONY: elasticSearch ci/elasticSearch
 
-
+# Docker command to run
 DOCKER ?= sudo -A docker
 
-DATA_DIR ?= ${HOME}/.ohmycards_devtools
+# ElasticSearch Configuration
+ES_DATA_DIR ?= ${HOME}/.ohmycards_devtools/elasticSearchData
+ES_DOCKER_IMAGE ?= docker.elastic.co/elasticsearch/elasticsearch:7.6.2
+ES_API_PORT ?= 9200
 
-ELASTIC_PORT1 ?= 9200
-ELASTIC_PORT2 ?= 9300
-
+# Runs ElasticSearch focused on development
 elasticSearch:
-	mkdir -p $(DATA_DIR)/elasticSearchData
+	mkdir -p $(ES_DATA_DIR)
 	$(DOCKER) run \
 	  --rm \
 	  --name ohmycards-elasticsearch \
-	  -v '$(DATA_DIR)/elasticSearchData:/usr/share/elasticsearch/data' \
-	  -p $(ELASTIC_PORT1):9200 \
-	  -p $(ELASTIC_PORT2):9300 \
+	  -v '$(ES_DATA_DIR):/usr/share/elasticsearch/data' \
+	  -p $(ES_API_PORT):9200 \
 	  -e "discovery.type=single-node" \
-	  docker.elastic.co/elasticsearch/elasticsearch:7.6.2
+          '$(ES_DOCKER_IMAGE)'
+
+# Runs ElasticSearch focused on CIs
+ci/elasticSearch:
+	$(DOCKER) run \
+          --rm \
+          -v 'elasticSearch:/usr/share/elasticsearch/data' \
+          -p $(ES_API_PORT):9200 \
+          -e "discovery.type=single-node" \
+          '$(ES_DOCKER_IMAGE)'
+

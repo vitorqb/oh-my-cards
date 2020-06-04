@@ -21,6 +21,7 @@ import play.api.i18n.MessagesImpl
 import play.api.i18n.Lang
 import play.api.i18n.DefaultMessagesApi
 import com.google.inject.Provider
+import org.scalatest.Tag
 
 /**
   * Utils for testing.
@@ -157,3 +158,8 @@ trait WithImplicitMessageProvider {
   implicit val messagesProvider: MessagesProvider =
     MessagesImpl(Lang("en"), new DefaultMessagesApi)
 }
+
+/**
+  * A tag for functional tests that depend on extra setup.
+  */
+object FunctionalTestsTag extends Tag("tags.FunctionalTests")

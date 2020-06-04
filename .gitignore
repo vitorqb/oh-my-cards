@@ -11,6 +11,7 @@ target
 /.metals
 /dev.sqlite
 .env
+.env.*
 test.sqlite
 /devops/build
 /.dir-locals.el
