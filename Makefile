@@ -39,5 +39,5 @@ devTools/%: envfiles
 	. $(TEST_ENV_FILE) && make -C devTools $(@:devTools/%=%)
 
 # Creates a .tgz artifact with all needed dependencies
-build: envfiles
+build:
 	sbt 'universal:packageZipTarball'

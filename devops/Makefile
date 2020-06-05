@@ -1,28 +1,28 @@
 .PHONY: images/ohmycards/prod images/ohmycards/dev images/scala-sbt clean build version
 
-# Versions to use (on scala-sbt image)
-SBT_VERSION ?= 1.3.4
-SCALA_VERSION ?= 2.13.1
-
 # User and group id to use on all images
 USER_ID ?= $(shell id -u)
 GROUP_ID ?= $(shell id -g)
 
-# The tag for the different images
-OHMYCARDS_SCALA_SBT_TAG ?= latest
-OHMYCARDS_DEV_TAG ?= latest
-
 # The tag for the prod image
 IMGTAG ?= ohmycards:latest
 
-# Regexp of files to ignore when copying source files to build directory.
-IGNORE_BUILD_FILES_REG ?= ^(devops|\.|\.\.|\.g8|\.bloop|\.metals|target|\.git)$$
-
 # The docker command to use
-DOCKER ?= sudo docker
+DOCKER ?= sudo -A docker
 
 # The build directory to use
 BUILD_DIR ?= ./build
+
+# The directory with the source files
+SOURCE_DIR ?= ..
+
+# The source files to use when building
+SOURCE_FILES = app build.sbt conf Makefile project test
+
+# Same as SOURCE_FILES, but prefixed by build/
+define BUILD_FILES
+	$(addprefix build/,$(SOURCE_FILES))
+endef
 
 # Get's the current version for the ohmycards source code in ./build/
 define version
@@ -37,7 +37,7 @@ endef
 # Builds the ohmycards prod image.
 images/ohmycards/prod: build
 	$(eval VERSION=$(call version))
-	@echo "INFO: version=$(VERSION)"
+	$(call "Version: $(VERSION)")
 
 	$(call echo,"Compiling the source code (generating .tgz artifact).") 
 	$(MAKE) -C $(BUILD_DIR) build
@@ -54,36 +54,19 @@ images/ohmycards/prod: build
 	  -t '$(IMGTAG)' \
 	  $(BUILD_DIR)
 
-# Builds the ohmycards dev image.
-images/ohmycards/dev: build images/scala-sbt
-	cp ./docker/ohmycards/dev/Dockerfile $(BUILD_DIR)/Dockerfile
-	$(DOCKER) \
-	  build\
-	  --build-arg OHMYCARDS_VERSION="$(VERSION)"\
-	  -t 'vitorqb23/ohmycards-dev:$(OHMYCARDS_DEV_TAG)' \
-	  $(BUILD_DIR)
-
-# Builds the base scala-sbt image. See https://hub.docker.com/r/hseeberger/scala-sbt/
-images/scala-sbt:
-	$(DOCKER) build \
-	  --build-arg BASE_IMAGE_TAG="8u212-b04-jdk-stretch" \
-	  --build-arg SBT_VERSION="$(SBT_VERSION)" \
-	  --build-arg SCALA_VERSION="$(SCALA_VERSION)" \
-	  --build-arg USER_ID="$(USER_ID)" \
-	  --build-arg GROUP_ID="$(GROUP_ID)" \
-	  -t "vitorqb23/ohmycards-scala-sbt:$(OHMYCARDS_SCALA_SBT_TAG)" \
-	  github.com/hseeberger/scala-sbt.git#:debian
-
 # Cleans the build dir
 clean:
 	$(call echo,"Cleaning build directory...")
 	rm -rf $(BUILD_DIR)
-	mkdir -p $(BUILD_DIR)
 
 # Prepares the build directory with the ohmycards contents
-build: clean
-	$(call echo,"Copying all source to build directory...")
-	ls -a .. | grep -vP '$(IGNORE_BUILD_FILES_REG)' | xargs -I {} cp -rv ../{} $(BUILD_DIR)/{}
+build/%:
+	cp -rv $(SOURCE_DIR)/$* $(BUILD_DIR)/$*
+
+build: builddir $(BUILD_FILES)
+
+builddir:
+	mkdir -p $(BUILD_DIR)
 
 # Simply echos the version
 version:
