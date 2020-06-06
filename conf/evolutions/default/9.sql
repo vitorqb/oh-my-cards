@@ -15,7 +15,7 @@ CREATE TABLE cards (
 );
 
 INSERT INTO cards(id, userId, title, body, createdAt, updatedAt)
-SELECT id, "defaultUser@ohmycards.com", title, body, NULL, NULL FROM _cards_old;
+SELECT id, userId, title, body, NULL, NULL FROM _cards_old;
 
 DROP TABLE _cards_old;
 
