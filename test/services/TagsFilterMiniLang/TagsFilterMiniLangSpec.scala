@@ -9,29 +9,29 @@ class TagsFilterMiniLangSped extends PlaySpec with StringUtils {
 
     "parse a simple sentence" in {
       val statement = """((tags CONTAINS 'FOO'))"""
-      val result = TagsFilterMiniLang.parse(statement)
+      val result = TagsFilterMiniLang.parseAsSql(statement)
       val expStatement = """
         SELECT * FROM (SELECT cardId FROM cardsTags WHERE LOWER(tag) = {__TAGSMINILANG_PARAM_0__})
       """.cleanForComparison
       val expParams = Map("__TAGSMINILANG_PARAM_0__" -> "foo")
-      result.get mustEqual Result(expStatement, expParams)
+      result.get mustEqual SqlResult(expStatement, expParams)
     }
 
     "parse a simple sentence with a negative" in {
       val statement = """((tags NOT CONTAINS 'foo'))"""
-      val result = TagsFilterMiniLang.parse(statement)
+      val result = TagsFilterMiniLang.parseAsSql(statement)
       val expStatement = """
         SELECT * FROM 
         (SELECT id FROM cards WHERE id NOT IN 
            (SELECT cardId FROM cardsTags WHERE LOWER(tag) = {__TAGSMINILANG_PARAM_0__}))
       """.cleanForComparison
       val expParams = Map("__TAGSMINILANG_PARAM_0__" -> "foo")
-      result.get mustEqual Result(expStatement, expParams)
+      result.get mustEqual SqlResult(expStatement, expParams)
     }
 
     "parse a simple sentence with and" in {
       val statement = """((tags NOT CONTAINS 'foo') AND (tags NOT CONTAINS 'bar'))"""
-      val result = TagsFilterMiniLang.parse(statement)
+      val result = TagsFilterMiniLang.parseAsSql(statement)
       val expectedStatement =
         """SELECT * FROM 
            (SELECT id FROM cards WHERE id NOT IN 
@@ -41,12 +41,12 @@ class TagsFilterMiniLangSped extends PlaySpec with StringUtils {
               (SELECT cardId FROM cardsTags WHERE LOWER(tag) = {__TAGSMINILANG_PARAM_1__}))
         """.cleanForComparison
       val expParams = Map("__TAGSMINILANG_PARAM_0__" -> "foo", "__TAGSMINILANG_PARAM_1__" -> "bar")
-      result.get mustEqual Result(expectedStatement, expParams)
+      result.get mustEqual SqlResult(expectedStatement, expParams)
     }
 
     "parse a simple sentence with or" in {
       val statement = """((tags NOT CONTAINS 'foo') OR (tags CONTAINS 'bar'))"""
-      val result = TagsFilterMiniLang.parse(statement)
+      val result = TagsFilterMiniLang.parseAsSql(statement)
       val expectedStatement =
         """SELECT * FROM
            (SELECT id FROM cards WHERE id NOT IN
@@ -55,7 +55,7 @@ class TagsFilterMiniLangSped extends PlaySpec with StringUtils {
             SELECT cardId FROM cardsTags WHERE LOWER(tag) = {__TAGSMINILANG_PARAM_1__})
         """.cleanForComparison
       val expParams = Map("__TAGSMINILANG_PARAM_0__" -> "foo", "__TAGSMINILANG_PARAM_1__" -> "bar")
-      result.get mustEqual Result(expectedStatement, expParams)
+      result.get mustEqual SqlResult(expectedStatement, expParams)
     }
 
     "parse a simple sentence with or and and" in {
@@ -65,7 +65,7 @@ class TagsFilterMiniLangSped extends PlaySpec with StringUtils {
             ((tags CONTAINS 'HighPriority') AND (tags NOT CONTAINS 'done'))
             OR
             (tags CONTAINS 'InProgress'))""".cleanForComparison
-      val result = TagsFilterMiniLang.parse(statement)
+      val result = TagsFilterMiniLang.parseAsSql(statement)
       val expectedStatement =
         """SELECT * FROM 
             (SELECT * FROM 
@@ -88,13 +88,13 @@ class TagsFilterMiniLangSped extends PlaySpec with StringUtils {
         "__TAGSMINILANG_PARAM_3__" -> "done",
         "__TAGSMINILANG_PARAM_4__" -> "inprogress"
       )
-      result.get mustEqual Result(expectedStatement, expParams)
+      result.get mustEqual SqlResult(expectedStatement, expParams)
     }
   }
 
   "fails with invalid input" in {
     val statement = "((foo CONTAINS 'bar'))"
-    val result = TagsFilterMiniLang.parse(statement)
+    val result = TagsFilterMiniLang.parseAsSql(statement)
     val experrmsg = """Invalid input 'f', expected WhiteSpace, Tags, FilterExpr,
                        Connector or ')' (line 1, pos 3)""".cleanForComparison
     val errmsg = result.failed.get.asInstanceOf[ParsingError].message

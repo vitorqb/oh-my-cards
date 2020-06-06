@@ -273,7 +273,7 @@ private class CardCounter(
   * A common trait for filtering operations for cards.
   */
 private trait CardSqlFilterOperations {
-  import services.TagsFilterMiniLang.{TagsFilterMiniLang,Result=>MiniLangResult,ParsingError}
+  import services.TagsFilterMiniLang.{TagsFilterMiniLang,SqlResult=>MiniLangResult,ParsingError}
 
   implicit  val ec: ExecutionContext
 
@@ -336,7 +336,7 @@ private trait CardSqlFilterOperations {
     * The result for the TagsMiniLang parsing, if a query is defined.
     */
   lazy val tagsMiniLangResult = request.query.map { tagsMiniLangQuery =>
-    TagsFilterMiniLang.parse(tagsMiniLangQuery) match {
+    TagsFilterMiniLang.parseAsSql(tagsMiniLangQuery) match {
       case Success(r) => r
       case Failure(e: ParsingError) => throw new TagsFilterMiniLangSyntaxError(e.message, e)
       case Failure(e) => throw e

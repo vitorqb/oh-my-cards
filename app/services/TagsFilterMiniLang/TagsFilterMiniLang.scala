@@ -8,6 +8,7 @@ import org.parboiled.errors.{ErrorUtils, ParsingException}
 import scala.util.Try
 import scala.util.Failure
 import scala.util.Success
+import com.sksamuel.elastic4s.requests.searches.SearchRequest
 
 /**
   * Custom exceptions
@@ -23,13 +24,17 @@ final case class ParsingError(
   * @param sql The sql-like string statement for filtering cardId.
   * @param params A map of ParamName -> ParamValue for the sql statement.
   */
-sealed case class Result(sql: String, params: Map[String, String])
-
+sealed case class SqlResult(sql: String, params: Map[String, String])
 
 /** Object providing the interface for clients.
   * 
   */
 object TagsFilterMiniLang {
+
+  def parseAsES(statement: String): Try[SearchRequest] = {
+    val nodeFactory = new ESNodeFactory()
+    ???
+  }
 
   /** Parses a statement in the tags mini language.
     * 
@@ -38,16 +43,17 @@ object TagsFilterMiniLang {
     * 
     * @param statement The statement in the tags query mini language.
     */
-  def parse(statement: String): Try[Result] = {
-    val parser = new TagsFilterParser() { override val buildParseTree = true }
+  def parseAsSql(statement: String): Try[SqlResult] = {
+    val paramsGen = new SqlParamNameGenerator()
+    val nodeFactory = new SqlNodeFactory(paramsGen)
+    val parser = new TagsFilterParser(nodeFactory) { override val buildParseTree = true }
     val result = ReportingParseRunner(parser.InputLine).run(statement)
     result.result match {
       case None => Failure(new ParsingError(ErrorUtils.printParseErrors(result)))
       case Some(node) => {
-        val paramsGen = new SqlParamNameGenerator()
-        val sqlStatement = node.serialize(paramsGen)
+        val sqlStatement = node.serialize()
         val params = (paramsGen.generated zip node.getParams()).toMap
-        Success(Result(sqlStatement, params))
+        Success(SqlResult(sqlStatement, params))
       }
     }
   }
@@ -58,18 +64,18 @@ object TagsFilterMiniLang {
   * This class implements all the logic to parse from the tags minilang to sql, using
   * parboiled.
   */
-class TagsFilterParser() extends Parser {
+class TagsFilterParser[A](nodeFactory: NodeFactory[A]) extends Parser {
 
-  def InputLine: Rule1[ConnectorNode] = rule { WhiteSpace ~ Connector ~ EOI }
+  def InputLine: Rule1[ConnectorNode[A]] = rule { WhiteSpace ~ Connector ~ EOI }
 
-  def Connector: Rule1[ConnectorNode] = rule { And | Or }
+  def Connector: Rule1[ConnectorNode[A]] = rule { And | Or }
 
   def And = rule {
     (
       WhiteSpace ~ "(" ~ WhiteSpace ~
         zeroOrMore( FilterExpr | Connector, separator=AndSeparator) ~
         WhiteSpace ~ ")" ~ WhiteSpace
-    ~~> AndNode
+    ~~> nodeFactory.genAndNode _
     )
   }
 
@@ -80,7 +86,7 @@ class TagsFilterParser() extends Parser {
       WhiteSpace ~ "(" ~ WhiteSpace ~
         zeroOrMore( FilterExpr | Connector, separator=OrSeparator) ~
         WhiteSpace ~ ")" ~ WhiteSpace
-    ~~> OrNode
+    ~~> nodeFactory.genOrNode _
     )
   }
 
@@ -91,7 +97,7 @@ class TagsFilterParser() extends Parser {
       "(" ~ WhiteSpace ~
       Tags ~ WhiteSpace ~ optional(Not) ~ WhiteSpace ~ Contains ~ WhiteSpace ~ String
       ~ WhiteSpace ~ ")"
-    ) ~~> FilterExprNode
+    ) ~~> nodeFactory.genFilterExprNode _
   }
 
   def Not = rule { ignoreCase("not") ~ push(NotNode()) }
