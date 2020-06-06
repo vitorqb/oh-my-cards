@@ -30,6 +30,8 @@ class ElasticSearchSynchronizerSpec
 
   import com.sksamuel.elastic4s.ElasticDsl._
 
+  val index = "cards"
+
   override def fakeApplication: Application =
     new GuiceApplicationBuilder()
       .overrides(new TestEsFakeModule)
@@ -38,10 +40,12 @@ class ElasticSearchSynchronizerSpec
 
   before {
     TestUtils.cleanupDb(app.injector.instanceOf[Database])
+    cleanIndex(index)
   }
 
   after {
     TestUtils.cleanupDb(app.injector.instanceOf[Database])
+    cleanIndex(index)
   }
 
   "run" should {
@@ -49,9 +53,9 @@ class ElasticSearchSynchronizerSpec
     lazy val datetime1 = new DateTime(2020, 1, 1, 0, 0, 0)
     lazy val datetime2 = new DateTime(2020, 1, 2, 0, 0, 0)
 
-    lazy val cardData1 = CardData(None, "t1", "b1", List(), Some(datetime1), Some(datetime1))
+    lazy val cardData1 = CardData(None, "t1", "b1", List("A"), Some(datetime1), Some(datetime1))
     lazy val cardData2 = CardData(None, "t2", "b2", List(), Some(datetime1), Some(datetime2))
-    lazy val cardData3 = CardData(None, "t3", "b3", List(), None, None)
+    lazy val cardData3 = CardData(None, "t3", "b3", List("A", "B"), None, None)
 
     lazy val user = User("a", "b")
 
@@ -64,44 +68,41 @@ class ElasticSearchSynchronizerSpec
     }
 
     "Send all items to es client" taggedAs(FunctionalTestsTag) in {
-      cleanIndex("cards")
-      refreshIdx("cards")
+      cleanIndex(index)
+      refreshIdx(index)
       val (idOne, idTwo, idThree) = createThreeCardsOnDb()
-      cleanIndex("cards")
-      refreshIdx("cards")
+      cleanIndex(index)
+      refreshIdx(index)
 
       val synchronizer = app.injector.instanceOf[ElasticSearchSynchornizer]
       synchronizer.deleteStaleEntries().await
       synchronizer.updateAllEntries().await
-      refreshIdx("cards")
+      refreshIdx(index)
 
-      val titles = client.execute {
-        search("cards").matchAllQuery()
-      }.await.result.hits.hits.map(_.sourceAsMap("title"))
+      val hits = client.execute {
+        search(index).matchAllQuery()
+      }.await.result.hits.hits
 
-      titles mustEqual List("t1", "t2", "t3")
-
-      val ids = client.execute {
-        search("cards").matchAllQuery()
-      }.await.result.hits.hits.map(_.id)
-      ids mustEqual List(idOne, idTwo, idThree)
+      hits.map(_.sourceAsMap("title")) mustEqual List("t1", "t2", "t3")
+      hits.map(_.id) mustEqual List(idOne, idTwo, idThree)
+      hits.map(_.sourceAsMap("tags")) mustEqual List(List("A"), List(), List("A", "B"))
     }
 
     "Erases stale items that do not exist in the db" taggedAs(FunctionalTestsTag) in {
-      cleanIndex("cards")
+      cleanIndex(index)
       client.execute {
-        indexInto("cards").id("FOO")
+        indexInto(index).id("FOO")
       }.await
-      refreshIdx("cards")
+      refreshIdx(index)
 
-      val getRequestBefore = client.execute(get("cards", "FOO")).await.result
+      val getRequestBefore = client.execute(get(index, "FOO")).await.result
       getRequestBefore.found mustEqual true
 
       val synchronizer = app.injector.instanceOf[ElasticSearchSynchornizer]
       synchronizer.run().await
-      refreshIdx("cards")
+      refreshIdx(index)
 
-      val getRequestAfter = client.execute(get("cards", "FOO")).await.result
+      val getRequestAfter = client.execute(get(index, "FOO")).await.result
       getRequestAfter.found mustEqual false
     }
   }

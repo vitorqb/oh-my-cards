@@ -15,6 +15,7 @@ import com.sksamuel.elastic4s.RequestSuccess
 import com.sksamuel.elastic4s.Response
 import com.sksamuel.elastic4s.requests.searches.SearchResponse
 
+import scala.language.postfixOps
 
 /**
   * A command-like class responsible of synchronizing Elastic Search with the db.
@@ -81,13 +82,32 @@ class ElasticSearchSynchornizer @Inject()(
 class DatabaseReader @Inject()(db: Database)(implicit val ec: ExecutionContext) {
   import anorm._
 
-  val row = Macro.namedParser[DatabaseRow]
+  val rowWithoutTagsParser = {
+    import anorm.SqlParser._
+    (str("id") ~ str("userId") ~ str("title") ~ str("body") ~ get[Option[DateTime]]("createdAt")
+      ~ get[Option[DateTime]]("createdAt"))
+  }
+
+  val tagRowParser = {
+    import anorm.SqlParser._
+    str("cardId") ~ str("tag") map (flatten) *
+  }
 
   /**
     * Reads all rows in the db.
     */
   def readAll(): Future[List[DatabaseRow]] = Future { db.withConnection { implicit c =>
-    SQL"""SELECT id, title, body, createdAt, updatedAt FROM cards""".as(row.*)
+    val rowsWithoutTag =
+      SQL"""SELECT id, title, body, createdAt, updatedAt, userId FROM cards"""
+        .as(rowWithoutTagsParser.*)
+    val tags = SQL"""SELECT cardId, tag FROM cardsTags"""
+      .as(tagRowParser)
+      .groupBy { case (id, _) => id }
+      .view
+      .mapValues { lstOfTags => lstOfTags.map { case (_, tag) => tag } }
+    rowsWithoutTag.map { case (id ~ userId ~ title ~ body ~ createdAt ~ updatedAt) =>
+      DatabaseRow(id, userId, title, body, createdAt, updatedAt, tags.getOrElse(id, List()))
+    }
   }}
 
   /**
@@ -105,10 +125,12 @@ class DatabaseReader @Inject()(db: Database)(implicit val ec: ExecutionContext) 
   */
 case class DatabaseRow(
   id: String,
+  userId: String,
   title: String,
   body: String,
   createdAt: Option[DateTime],
-  updatedAt: Option[DateTime]
+  updatedAt: Option[DateTime],
+  tags: List[String]
 )
 
 /**
@@ -150,7 +172,9 @@ class SyncronizerElasticClient @Inject()(
         "title" -> row.title,
         "body" -> row.body,
         "updatedAt" -> row.updatedAt.orNull,
-        "createdAt" -> row.createdAt.orNull
+        "createdAt" -> row.createdAt.orNull,
+        "userId" -> row.userId,
+        "tags" -> row.tags
       )
     } andThen {
       case Failure(exception) => logger.error("Future failed!", exception)
