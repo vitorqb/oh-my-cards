@@ -136,7 +136,7 @@ class CardRepositorySpec extends PlaySpec
 
       repository.create(cardData3.copy(id=None), user)
 
-      verify(cardElastic).create(cardData3.copy(id=None), "id4", date1)
+      verify(cardElastic).create(cardData3.copy(id=None), "id4", date1, user)
     }
 
     "the createdAt is recorded properly" in testContext {

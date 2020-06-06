@@ -8,6 +8,7 @@ import com.google.inject.AbstractModule
 import net.codingwell.scalaguice.ScalaModule
 
 
+//!!!! TODO -> Move to package v1.testUtils
 /**
   * Provides a ES client for testing purposes.
   */

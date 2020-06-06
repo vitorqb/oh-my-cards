@@ -14,6 +14,7 @@ import com.sksamuel.elastic4s.RequestSuccess
 import com.sksamuel.elastic4s.RequestFailure
 import com.sksamuel.elastic4s.requests.searches.SearchResponse
 import com.sksamuel.elastic4s.requests.searches.queries.matches.MultiMatchQuery
+import v1.auth.User
 
 final case class CardElasticClientException(
   val message: String = "Something went wrong on ElasticSearch",
@@ -27,12 +28,12 @@ trait CardElasticClient {
     * Creates a new entry on ElasticSearch for a new cardData, with a given id created at
     *  a specific time.
     */
-  def create(cardData: CardData, id: String, createdAt: DateTime): Unit
+  def create(cardData: CardData, id: String, createdAt: DateTime, user: User): Unit
 
   /**
     * Updates an entry on ElasticSearch for an existing cardData.
     */
-  def update(cardData: CardData, updatedAt: DateTime): Unit
+  def update(cardData: CardData, updatedAt: DateTime, user: User): Unit
 
   /**
     * Deletes an entry from ElasticSearch for an existing cardData.
@@ -55,12 +56,12 @@ class CardElasticClientMock() extends CardElasticClient {
 
   def idsFound = CardElasticClientMock.idsFound
 
-  def create(cardData: CardData, id: String, createdAt: DateTime): Unit = {
-    logger.info(s"Mocked create for $cardData and $id at $createdAt")
+  def create(cardData: CardData, id: String, createdAt: DateTime, user: User): Unit = {
+    logger.info(s"Mocked create for $cardData and $id at $createdAt for user $user")
   }
 
-  def update(cardData: CardData, updatedAt: DateTime): Unit = {
-    logger.info(s"Mocked update for $cardData at $updatedAt")
+  def update(cardData: CardData, updatedAt: DateTime, user: User): Unit = {
+    logger.info(s"Mocked update for $cardData at $updatedAt for $user")
   }
 
   def delete(id: String): Unit = {
@@ -109,25 +110,29 @@ class CardElasticClientImpl @Inject()(
     case Success(value) => logger.info(s"Success: $value")
   }
 
-  def create(cardData: CardData, id: String, createdAt: DateTime): Unit = {
-    logger.info(s"Creating elastic search entry for $cardData and $id at $createdAt")
+  def create(cardData: CardData, id: String, createdAt: DateTime, user: User): Unit = {
+    logger.info(s"Creating elastic search entry for $cardData and $id at $createdAt for $user")
     elasticClient.execute {
       indexInto(index).id(id).fields(
         "title" -> cardData.title,
         "body" -> cardData.body,
         "updatedAt" -> createdAt,
-        "createdAt" -> createdAt
+        "createdAt" -> createdAt,
+        "userId" -> user.id,
+        "tags" -> cardData.tags
       )
     }.onComplete(handleResponse)
   }
 
-  def update(cardData: CardData, updatedAt: DateTime): Unit = {
-    logger.info(s"Updating elastic search entry for $cardData at $updatedAt")
+  def update(cardData: CardData, updatedAt: DateTime, user: User): Unit = {
+    logger.info(s"Updating elastic search entry for $cardData at $updatedAt for $user")
     elasticClient.execute {
       updateById(index, cardData.id.get).doc(
         "title" -> cardData.title,
         "body" -> cardData.body,
-        "updatedAt" -> updatedAt
+        "updatedAt" -> updatedAt,
+        "userId" -> user.id,
+        "tags" -> cardData.tags
       )
     }.onComplete(handleResponse)
   }

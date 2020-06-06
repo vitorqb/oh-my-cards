@@ -98,7 +98,7 @@ class CardRepository @Inject()(
           "now" -> now
         ).executeInsert()
         tagsRepo.create(id, cardData.tags)
-        cardElasticClient.create(cardData, id, now)
+        cardElasticClient.create(cardData, id, now, user)
         Success(id)
       }
     }
@@ -173,7 +173,7 @@ class CardRepository @Inject()(
       .executeUpdate()
     tagsRepo.delete(data.id.get)
     tagsRepo.create(data.id.get, data.tags)
-    cardElasticClient.update(data, now)
+    cardElasticClient.update(data, now, user)
   }}}
 
   /**
