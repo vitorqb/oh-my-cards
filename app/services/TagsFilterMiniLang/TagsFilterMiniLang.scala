@@ -8,7 +8,7 @@ import org.parboiled.errors.{ErrorUtils, ParsingException}
 import scala.util.Try
 import scala.util.Failure
 import scala.util.Success
-import com.sksamuel.elastic4s.requests.searches.SearchRequest
+import com.sksamuel.elastic4s.requests.searches.queries.Query
 
 /**
   * Custom exceptions
@@ -31,9 +31,14 @@ sealed case class SqlResult(sql: String, params: Map[String, String])
   */
 object TagsFilterMiniLang {
 
-  def parseAsES(statement: String): Try[SearchRequest] = {
+  def parseAsES(statement: String): Try[Query] = {
     val nodeFactory = new ESNodeFactory()
-    ???
+    val parser = new TagsFilterParser(nodeFactory) { override val buildParseTree = true }
+    val result = ReportingParseRunner(parser.InputLine).run(statement)
+    result.result match {
+      case None => Failure(new ParsingError(ErrorUtils.printParseErrors(result)))
+      case Some(node) => Success(node.serialize())
+    }
   }
 
   /** Parses a statement in the tags mini language.

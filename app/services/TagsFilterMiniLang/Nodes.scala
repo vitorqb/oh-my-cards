@@ -26,7 +26,14 @@ abstract trait NodeFactory[A] {
   * A class for a Serializable AST node.
   */
 sealed abstract class SerializableNode[A] extends AstNode {
+
+  /**
+    * Serializes the node into something else.
+    */
   def serialize(): A
+
+  // TODO This should clearly not be here, since it is specific to sql nodes.
+  //      But it's not obvious how to abstract this so that only SQL nodes have it. 
   def getParams(): List[String]
 }
 
@@ -178,25 +185,35 @@ case class ESFilterExprNode(
   tags: TagsNode,
   not: Option[NotNode],
   contains: ContainsNode,
-  string: StringNode,
-  paramNameGen: SqlParamNameGenerator
+  string: StringNode
 ) extends FilterExprNode[Query](tags, not, contains, string) {
 
   import com.sksamuel.elastic4s.ElasticDsl._
 
-  override def serialize(): Query = termQuery("tags", string.text)
+  override def serialize(): Query = {
+    val q = termQuery("tags", string.text.toLowerCase())
+    not match {
+      case None => q
+      case Some(_) => boolQuery().not(q)
+    }
+  }
 
-  def getParams(): List[String] = throw new RuntimeException("ES nodes have no params.")
+  override def getParams(): List[String] = throw new RuntimeException("ES nodes have no params.")
 }
 
 
 class ESNodeFactory() extends NodeFactory[Query] {
 
-  def genOrNode(members: List[SerializableNode[Query]]): OrNode[Query] = ???
+  override def genOrNode(members: List[SerializableNode[Query]]): OrNode[Query] = ESOrNode(members)
 
-  def genAndNode(members: List[SerializableNode[Query]]): AndNode[Query] = ???
+  override def genAndNode(members: List[SerializableNode[Query]]): AndNode[Query] = ESAndNode(members)
 
-  def genFilterExprNode(tags: TagsNode, not: Option[NotNode], contains: ContainsNode, string: StringNode): FilterExprNode[Query] = ???
+  override def genFilterExprNode(
+    tags: TagsNode,
+    not: Option[NotNode],
+    contains: ContainsNode,
+    string: StringNode
+  ): FilterExprNode[Query] = ESFilterExprNode(tags,not,contains,string)
 
   
 }
