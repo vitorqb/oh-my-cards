@@ -1,7 +1,7 @@
 package services.TagsFilterMiniLang.Nodes
 
 import services.TagsFilterMiniLang.Helpers._
-import com.sksamuel.elastic4s.requests.searches.SearchRequest
+import com.sksamuel.elastic4s.requests.searches.queries.Query
 
 /**
   * The base class for AST nodes.
@@ -147,21 +147,56 @@ class SqlNodeFactory(paramsGen: SqlParamNameGenerator) extends NodeFactory[Strin
 /**
   * A node representing an `and` with many expressions for ES parsing.
   */
-case class ESAndNode(members: List[SerializableNode[SearchRequest]]) extends AndNode(members) {
+case class ESAndNode(members: List[SerializableNode[Query]]) extends AndNode(members) {
 
-  override def serialize(): SearchRequest = ???
+  import com.sksamuel.elastic4s.ElasticDsl._
+  
+  override def serialize(): Query = boolQuery().must(members.map(_.serialize()))
 
-  override def getParams(): List[String] = ???
+  override def getParams(): List[String] = throw new RuntimeException("ES nodes have no params.")
 
 }
 
-class ESNodeFactory() extends NodeFactory[SearchRequest] {
+/**
+  * A node representing an `or` with many expressions for ES parsing.
+  */
+case class ESOrNode(members: List[SerializableNode[Query]]) extends OrNode(members) {
 
-  def genOrNode(members: List[SerializableNode[SearchRequest]]): OrNode[SearchRequest] = ???
+  import com.sksamuel.elastic4s.ElasticDsl._
 
-  def genAndNode(members: List[SerializableNode[SearchRequest]]): AndNode[SearchRequest] = ???
+  override def serialize(): Query =
+    boolQuery().should(members.map(_.serialize())).minimumShouldMatch(1)
 
-  def genFilterExprNode(tags: TagsNode, not: Option[NotNode], contains: ContainsNode, string: StringNode): FilterExprNode[SearchRequest] = ???
+  override def getParams(): List[String] = throw new RuntimeException("ES nodes have no params.")
+
+}
+
+/**
+  * A node representing a filter expresion of the form (tags [NOT] CONTAINS "string") for ES parsing.
+  */
+case class ESFilterExprNode(
+  tags: TagsNode,
+  not: Option[NotNode],
+  contains: ContainsNode,
+  string: StringNode,
+  paramNameGen: SqlParamNameGenerator
+) extends FilterExprNode[Query](tags, not, contains, string) {
+
+  import com.sksamuel.elastic4s.ElasticDsl._
+
+  override def serialize(): Query = termQuery("tags", string.text)
+
+  def getParams(): List[String] = throw new RuntimeException("ES nodes have no params.")
+}
+
+
+class ESNodeFactory() extends NodeFactory[Query] {
+
+  def genOrNode(members: List[SerializableNode[Query]]): OrNode[Query] = ???
+
+  def genAndNode(members: List[SerializableNode[Query]]): AndNode[Query] = ???
+
+  def genFilterExprNode(tags: TagsNode, not: Option[NotNode], contains: ContainsNode, string: StringNode): FilterExprNode[Query] = ???
 
   
 }
