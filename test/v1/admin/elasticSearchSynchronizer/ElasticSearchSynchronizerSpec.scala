@@ -41,11 +41,13 @@ class ElasticSearchSynchronizerSpec
   before {
     TestUtils.cleanupDb(app.injector.instanceOf[Database])
     cleanIndex(index)
+    refreshIdx(index)
   }
 
   after {
     TestUtils.cleanupDb(app.injector.instanceOf[Database])
     cleanIndex(index)
+    refreshIdx(index)
   }
 
   "run" should {
@@ -55,7 +57,7 @@ class ElasticSearchSynchronizerSpec
 
     lazy val cardData1 = CardData(None, "t1", "b1", List("A"), Some(datetime1), Some(datetime1))
     lazy val cardData2 = CardData(None, "t2", "b2", List(), Some(datetime1), Some(datetime2))
-    lazy val cardData3 = CardData(None, "t3", "b3", List("A", "B"), None, None)
+    lazy val cardData3 = CardData(None, "t3", "b3", List("a", "B"), None, None)
 
     lazy val user = User("a", "b")
 
@@ -68,8 +70,6 @@ class ElasticSearchSynchronizerSpec
     }
 
     "Send all items to es client" taggedAs(FunctionalTestsTag) in {
-      cleanIndex(index)
-      refreshIdx(index)
       val (idOne, idTwo, idThree) = createThreeCardsOnDb()
       cleanIndex(index)
       refreshIdx(index)
@@ -85,7 +85,7 @@ class ElasticSearchSynchronizerSpec
 
       hits.map(_.sourceAsMap("title")) mustEqual List("t1", "t2", "t3")
       hits.map(_.id) mustEqual List(idOne, idTwo, idThree)
-      hits.map(_.sourceAsMap("tags")) mustEqual List(List("A"), List(), List("A", "B"))
+      hits.map(_.sourceAsMap("tags")) mustEqual List(List("a"), List(), List("a", "b"))
     }
 
     "Erases stale items that do not exist in the db" taggedAs(FunctionalTestsTag) in {

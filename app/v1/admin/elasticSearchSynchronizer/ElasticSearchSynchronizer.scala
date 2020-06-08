@@ -174,7 +174,7 @@ class SyncronizerElasticClient @Inject()(
         "updatedAt" -> row.updatedAt.orNull,
         "createdAt" -> row.createdAt.orNull,
         "userId" -> row.userId,
-        "tags" -> row.tags
+        "tags" -> row.tags.map(_.toLowerCase())
       )
     } andThen {
       case Failure(exception) => logger.error("Future failed!", exception)

@@ -191,7 +191,7 @@ case class ESFilterExprNode(
   import com.sksamuel.elastic4s.ElasticDsl._
 
   override def serialize(): Query = {
-    val q = termQuery("tags", string.text.toLowerCase())
+    val q = termQuery("tags.keyword", string.text.toLowerCase())
     not match {
       case None => q
       case Some(_) => boolQuery().not(q)

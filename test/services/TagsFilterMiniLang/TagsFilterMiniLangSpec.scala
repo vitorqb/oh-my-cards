@@ -116,7 +116,7 @@ class TagsFilterMiniLangSped extends PlaySpec with StringUtils {
     "simple query" in {
       val result = run(statement1)
       val expJson = Json.parse("""
-        {"query": {"bool": {"must": [{"term": {"tags": {"value": "foo"}}}]}}}
+        {"query": {"bool": {"must": [{"term": {"tags.keyword": {"value": "foo"}}}]}}}
       """)
       result mustEqual expJson
     }
@@ -124,7 +124,7 @@ class TagsFilterMiniLangSped extends PlaySpec with StringUtils {
     "simple sentence with negation" in {
       val result = run(statement2)
       val expJson = Json.parse("""
-        {"query": {"bool": {"must": [{"bool": {"must_not": [{"term": {"tags": {"value": "foo"}}}]}}]}}}
+        {"query": {"bool": {"must": [{"bool": {"must_not": [{"term": {"tags.keyword": {"value": "foo"}}}]}}]}}}
       """)
       result mustEqual expJson
     }
@@ -133,8 +133,8 @@ class TagsFilterMiniLangSped extends PlaySpec with StringUtils {
       val result = run(statement3)
       val expJson = Json.parse("""
         {"query": {"bool": {"must": 
-           [{"bool": {"must_not": [{"term": {"tags": {"value": "foo"}}}]}},
-            {"bool": {"must_not": [{"term": {"tags": {"value": "bar"}}}]}}]
+           [{"bool": {"must_not": [{"term": {"tags.keyword": {"value": "foo"}}}]}},
+            {"bool": {"must_not": [{"term": {"tags.keyword": {"value": "bar"}}}]}}]
         }}}
       """)
       result mustEqual expJson
@@ -146,8 +146,8 @@ class TagsFilterMiniLangSped extends PlaySpec with StringUtils {
         {"query": {
            "bool": {
              "should": [
-               {"bool": {"must_not": [{"term": {"tags": {"value": "foo"}}}]}},
-               {"term": {"tags": {"value": "bar"}}}
+               {"bool": {"must_not": [{"term": {"tags.keyword": {"value": "foo"}}}]}},
+               {"term": {"tags.keyword": {"value": "bar"}}}
              ],
              "minimum_should_match": "1"
            }
@@ -165,17 +165,17 @@ class TagsFilterMiniLangSped extends PlaySpec with StringUtils {
              "should": [
                {"bool": {
                  "must": [
-                   {"term": {"tags": {"value": "ohmycards"}}},
-                   {"bool": {"must_not": [{"term": {"tags": {"value": "done"}}}]}}
+                   {"term": {"tags.keyword": {"value": "ohmycards"}}},
+                   {"bool": {"must_not": [{"term": {"tags.keyword": {"value": "done"}}}]}}
                  ]
                }},
                {"bool": {
                  "must": [
-                   {"term": {"tags": {"value": "highpriority"}}},
-                   {"bool": {"must_not": [{"term": {"tags": {"value": "done"}}}]}}
+                   {"term": {"tags.keyword": {"value": "highpriority"}}},
+                   {"bool": {"must_not": [{"term": {"tags.keyword": {"value": "done"}}}]}}
                  ]
                }},
-               {"term": {"tags": {"value": "inprogress"}}}
+               {"term": {"tags.keyword": {"value": "inprogress"}}}
              ],
              "minimum_should_match": "1"
            }
