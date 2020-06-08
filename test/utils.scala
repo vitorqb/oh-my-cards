@@ -169,8 +169,8 @@ object FunctionalTestsTag extends Tag("tags.FunctionalTests")
   */
 trait WaitUntil {
 
-  val maxAttempts = 10
-  val waitFor = 500
+  val maxAttempts = 20
+  val waitFor = 250
 
   def waitUntil(block: () => Boolean): Unit = {
     var attempts = 0

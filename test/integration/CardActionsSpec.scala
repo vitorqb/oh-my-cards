@@ -2,7 +2,6 @@ package tests.integration
 
 import org.scalatestplus.play.PlaySpec
 
-import org.scalatestplus.play.guice.GuiceOneServerPerTest
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.Span
 import org.scalatest.time.Millis
@@ -11,6 +10,17 @@ import play.api.db.Database
 import play.api.libs.ws.WSClient
 import play.api.libs.json.{Json,JsObject}
 import play.api.libs.json.JsValue
+import v1.admin.testUtils.TestEsClient
+import play.api.Application
+import play.api.inject.guice.GuiceApplicationBuilder
+import play.api.inject.bind
+import v1.card.CardElasticClient
+import v1.card.CardElasticClientImpl
+import test.utils.FunctionalTestsTag
+import test.utils.TestUtils
+import org.scalatest.BeforeAndAfter
+import org.scalatestplus.play.guice.GuiceOneServerPerSuite
+import test.utils.WaitUntil
 
 
 /**
@@ -49,17 +59,38 @@ class CardActionsWsHelper(wsClient: WSClient, port: Int, token: String) extends 
 }
 
 
-class CardActionsSpec extends PlaySpec with GuiceOneServerPerTest with ScalaFutures {
+class CardActionsSpec
+    extends PlaySpec
+    with GuiceOneServerPerSuite
+    with BeforeAndAfter
+    with ScalaFutures
+    with TestEsClient {
+
+  after {
+    cleanIndex("cards")
+    TestUtils.cleanupDb(app.injector.instanceOf[Database])
+  }
+
+  /**
+    * Overrides the default application to provide the ES client.
+    */
+  override def fakeApplication: Application =
+    new GuiceApplicationBuilder()
+      .overrides(new TestEsFakeModule)
+      .overrides(bind[CardElasticClient].to[CardElasticClientImpl])
+      .build()
 
   def wsClient: WSClient = app.injector.instanceOf[WSClient]
 
-  "test create and get two cards paginated" in {
+  "test create and get two cards paginated" taggedAs(FunctionalTestsTag) in {
     val token = (new TestTokenProviderSvc(app.injector.instanceOf[Database])).getToken()
     val cardActionWsHelper = new CardActionsWsHelper(wsClient, port, token)
 
     val cardOneId:   String = cardActionWsHelper.postCardData("Foo1", "Bar1")
     val cardTwoId:   String = cardActionWsHelper.postCardData("Foo2", "Bar2")
     val cardThreeId: String = cardActionWsHelper.postCardData("Foo3", "Bar3")
+
+    refreshIdx("cards")
 
     val pagedData = cardActionWsHelper.getPagedCards(1, 2)
 

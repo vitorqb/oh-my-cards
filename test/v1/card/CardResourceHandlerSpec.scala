@@ -107,11 +107,12 @@ class CardResourceHandlerSpec
       val cardResource2 = CardResource("foo2", "", "baz2", "", List("A"), date1, date1)
       val cardData2 = CardData(Some("foo2"), "baz2", "", List("A"), date1, date1)
 
+      val findResult = FindResult(Seq(cardData1, cardData2), 10)
+
       val cardListReq = CardListRequest(1, 2, "userid", List(), List(), None)
 
       val repository = mock[CardRepository]
-      when(repository.find(cardListReq)).thenReturn(Future.successful(Array(cardData1, cardData2)))
-      when(repository.countItemsMatching(cardListReq)).thenReturn(Future.successful(10))
+      when(repository.find(cardListReq)).thenReturn(Future.successful(findResult))
 
       val handler = new CardResourceHandler(repository)
 
