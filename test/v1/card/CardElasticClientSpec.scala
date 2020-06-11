@@ -311,7 +311,7 @@ class CardElasticClientFunctionalSpec
 
   "All together" should {
 
-    "tags, pagination and body match" in {
+    "tags, pagination and body match" taggedAs(FunctionalTestsTag) in {
       val (id1, id2, id3, id4) = createFourCards()
       val query = Some(
         """((tags CONTAINS 't3') OR ((tags CONTAINS 'T1') AND (tags CONTAINS 'T2')))"""
