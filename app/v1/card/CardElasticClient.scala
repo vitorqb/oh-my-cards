@@ -208,7 +208,7 @@ class CardElasticIdFinder(
 
     //Search term query
     cardListReq.searchTerm.foreach { searchTerm => appendQuery {
-      multiMatchQuery(searchTerm).fields("title", "body").operator("or")
+      multiMatchQuery(searchTerm).fields("title", "body").operator("or").fuzziness("AUTO")
     }}
 
     //Tag lang query
