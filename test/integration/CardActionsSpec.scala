@@ -64,7 +64,8 @@ class CardActionsSpec
     with GuiceOneServerPerSuite
     with BeforeAndAfter
     with ScalaFutures
-    with TestEsClient {
+    with TestEsClient
+    with WaitUntil {
 
   after {
     cleanIndex("cards")
@@ -92,10 +93,14 @@ class CardActionsSpec
 
     refreshIdx("cards")
 
+    waitUntil { () =>
+      (cardActionWsHelper.getPagedCards(1, 2) \ "items" \ 1 \ "title").asOpt[String].isDefined
+    }
+
     val pagedData = cardActionWsHelper.getPagedCards(1, 2)
 
     (pagedData \ "page").as[Int] mustEqual 1
-    (pagedData \ "pageSize").as[Int] mustEqual 2
+      (pagedData \ "pageSize").as[Int] mustEqual 2
     Array("Foo1", "Foo2", "Foo3") must contain ((pagedData \ "items" \ 0 \ "title").as[String])
     Array("Foo1", "Foo2", "Foo3") must contain ((pagedData \ "items" \ 1 \ "title").as[String])
     ((pagedData \ "items" \ 0 \ "title").as[String]
