@@ -58,7 +58,7 @@ object CardResource {
 /**
   * Data transfer object for card metadata.
   */
-case class CardMetadataResource(tags: List[String]) //!!!! TODO
+case class CardMetadataResource(tags: List[String])
 
 object CardMetadataResource {
 
@@ -109,14 +109,13 @@ class CardResourceHandler @Inject()(
   val repository: CardRepository)(
   implicit val ec: ExecutionContext){
 
-  def find(cardListReq: CardListRequest): Future[CardListResponse] = {
-    for {
-      countOfCards     <- repository.countItemsMatching(cardListReq)
-      cardDataList     <- repository.find(cardListReq)
-      cardResourceList = cardDataList.map(CardResource.fromCardData(_))
-      cardListResponse = CardListResponse.fromRequest(cardListReq, cardResourceList, countOfCards)
-    } yield cardListResponse
-  }
+  def find(cardListReq: CardListRequest): Future[CardListResponse] = for {
+    findResult       <- repository.find(cardListReq)
+    cardDataList     = findResult.cards
+    countOfCards     = findResult.countOfItems
+    cardResourceList = cardDataList.map(CardResource.fromCardData(_))
+    cardListResponse = CardListResponse.fromRequest(cardListReq, cardResourceList, countOfCards)
+  } yield cardListResponse
 
   def create(input: CardFormInput, user: User): Try[CardResource] = {
     repository.create(input.asCardData, user).flatMap(createdDataId =>

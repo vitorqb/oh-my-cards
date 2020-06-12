@@ -22,11 +22,7 @@ jobs:
       name: "Functional Tests"
       services:
         docker
-      script: |
-          make devTools/ci/elasticSearch ES_API_PORT=$OHMYCARDS_TEST_ES_PORT >es.log 2>&1 &
-          sbt test:compile
-          ./devTools/waitFor 'o.e.x.s.s.SecurityStatusChangeListener' es.log
-          make functionalTests | tee test.log
+      script: devops/ci/run-functional-tests.bash
       after_failure:
         - cat es.log | sed 's/^/[ES_LOG] /' && sleep 10
         - cat test.log | sed 's/^/[TEST_LOG]/ ' && sleep 10

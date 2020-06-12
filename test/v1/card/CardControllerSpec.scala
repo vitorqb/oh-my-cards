@@ -4,8 +4,6 @@ import org.scalatestplus.play._
 import play.api.test.Helpers._
 import play.api.test.FakeRequest
 import play.api.libs.json.JsValue
-import play.api.libs.json.JsDefined
-import play.api.libs.json.JsUndefined
 import test.utils._
 import v1.auth.User
 import play.api.libs.json.Json
@@ -55,11 +53,12 @@ class CardControllerSpec
   after { TestUtils.cleanupDb(db) }
 
 
-  def createCard(): Unit = {
+  def createCard() = {
     val body = Json.obj("title" -> "Title", "body" -> "Body", "tags" -> List("Tag1", "Tag2"))
     val request = FakeRequest().withJsonBody(body)
     val response = controller.create()(request)
     Await.ready(response, 1000 millis)
+    response
   }
 
   "list" should {
@@ -71,69 +70,35 @@ class CardControllerSpec
       controller.list()(FakeRequest("GET", query))
     }
 
-    "use `query` and check that the created card is returned" in {
+    "return a list of elements based on ES matched ids" in {
 
       //First, creates a card
-      createCard()
+      val createdCardId = (contentAsJson(createCard()) \ "id").as[String]
 
-      //Make a query and see that the response contains the card
-      val query = "((tags CONTAINS 'Tag1') AND (tags CONTAINS 'Tag2'))"
-      val response = runQuery(query)
-      val responseObj = contentAsJson(response)
-      (responseObj \ "page").as[Int] mustEqual 1
-      (responseObj \ "pageSize").as[Int] mustEqual 2
-      (responseObj \ "items" \ 0 \ "title").as[String] mustEqual "Title"
-      (responseObj \ "countOfItems" ).as[Int] mustEqual 1
-    }
+      //Mock ES to return it
+      CardElasticClientMock.withIdsFound(Seq(createdCardId), 1) {
 
-    "use `query` and check that the created card is filtered out" in {
-
-      //First, creates a card
-      createCard()
-
-      //Make a query and see that the response contains the card
-      val query = "((tags CONTAINS 'Tag1') AND (tags NOT CONTAINS 'Tag2'))"
-      val response = runQuery(query)
-      val responseObj = contentAsJson(response)
-      println(responseObj.toString())
-      (responseObj \ "page").as[Int] mustEqual 1
-      (responseObj \ "pageSize").as[Int] mustEqual 2
-      (responseObj \ "countOfItems" ).as[Int] mustEqual 0
-    }
-
-    "gives a nice error message on wrong query" in {
-
-      val response = runQuery("FOO")
-      status(response) mustEqual 400
-      val responseMsg = (contentAsJson(response) \ "message").as[String]
-      responseMsg.contains("FOO")
-    }
-
-    "use elastic search for extra filtering" should {
-
-      "Filter out if there is no match" in  {
-        createCard()
-        CardElasticClientMock.withIdsFound(Seq()) {
-          val responseObj = contentAsJson(runQuery("", Some("FOME VERY CRAZY THING")))
-          (responseObj \ "page").as[Int] mustEqual 1
-          (responseObj \ "pageSize").as[Int] mustEqual 2
-          (responseObj \ "countOfItems" ).as[Int] mustEqual 0
-        }
-      }
-
-      "bring cards with match" in {
-        createCard()
-        val id = (contentAsJson(runQuery("")) \ "items" \ 0 \ "id").as[String]
-        CardElasticClientMock.withIdsFound(Seq(id)) {
-          val responseObj = contentAsJson(runQuery(""))
+        //Make a query and see that the response contains the card
+        val query = "((tags CONTAINS 'Tag1') AND (tags NOT CONTAINS 'Tag2'))"
+        val response = runQuery(query)
+        val responseObj = contentAsJson(response)
           (responseObj \ "page").as[Int] mustEqual 1
           (responseObj \ "pageSize").as[Int] mustEqual 2
           (responseObj \ "countOfItems" ).as[Int] mustEqual 1
-          (contentAsJson(runQuery("")) \ "items" \ 0 \ "id").as[String] mustEqual id
-        }
+
       }
     }
 
+    "Filter out if there is no match" in  {
+      createCard()
+      CardElasticClientMock.withIdsFound(Seq(), 0) {
+        val responseObj = contentAsJson(runQuery("", Some("FOME VERY CRAZY THING")))
+          (responseObj \ "page").as[Int] mustEqual 1
+          (responseObj \ "pageSize").as[Int] mustEqual 2
+          (responseObj \ "countOfItems" ).as[Int] mustEqual 0
+      }
+
+    }
   }
 
   "getMetadata" should {

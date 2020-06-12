@@ -163,3 +163,25 @@ trait WithImplicitMessageProvider {
   * A tag for functional tests that depend on extra setup.
   */
 object FunctionalTestsTag extends Tag("tags.FunctionalTests")
+
+/**
+  * Provides a quick way to wait until something is accomplished
+  */
+trait WaitUntil {
+
+  val maxAttempts = 20
+  val waitFor = 250
+
+  def waitUntil(block: () => Boolean): Unit = {
+    var attempts = 0
+    while (attempts <= maxAttempts) {
+      if (block()) {
+        return ()
+      }
+      attempts += 1
+      Thread.sleep(waitFor)
+    }
+    throw new Exception("Timed out!")
+  }
+
+}
