@@ -18,6 +18,9 @@ import v1.auth.User
 import com.sksamuel.elastic4s.requests.searches.queries.Query
 import services.TagsFilterMiniLang.TagsFilterMiniLang
 import services.TagsFilterMiniLang.ParsingError
+import com.sksamuel.elastic4s.requests.searches.sort.FieldSort
+import com.sksamuel.elastic4s.requests.searches.sort.ScoreSort
+import com.sksamuel.elastic4s.requests.searches.sort.SortOrder
 
 final case class CardElasticClientException(
   val message: String = "Something went wrong on ElasticSearch",
@@ -232,7 +235,7 @@ class CardElasticIdFinder(
 
     val request = search(index)
       .query(boolQuery().must(queries))
-      .sortByFieldAsc("createdAt")
+      .sortBy(FieldSort("createdAt"), ScoreSort(SortOrder.DESC))
       .from((cardListReq.page - 1) * cardListReq.pageSize)
       .size(cardListReq.pageSize)
       .trackTotalHits(true)
