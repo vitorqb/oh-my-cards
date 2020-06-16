@@ -8,7 +8,7 @@ import services.MailService
 import scala.concurrent.ExecutionContext
 import play.api.libs.ws.WSClient
 import play.api.Configuration
-import services.{MailServiceImpl,MailServiceFakeImpl}
+import services.{MailGunMailServiceImpl,MailServiceFakeImpl}
 import com.google.inject.Provides
 import v1.auth.TokenEncrypter
 import com.sksamuel.elastic4s.ElasticClient
@@ -40,7 +40,7 @@ class Module extends AbstractModule with ScalaModule {
     if (conf.get[String]("test") == "1")
       new MailServiceFakeImpl(conf)
     else
-      new MailServiceImpl(ws, conf)
+      new MailGunMailServiceImpl(ws, conf)
   }
 
   /**

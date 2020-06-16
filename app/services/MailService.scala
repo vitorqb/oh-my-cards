@@ -16,9 +16,9 @@ trait MailService {
 }
 
 /**
-  * Service to send emails.
+  * Service to send emails using MailGun.
   */
-class MailServiceImpl @Inject()(
+class MailGunMailServiceImpl @Inject()(
   ws: WSClient,
   conf: Configuration)(
   implicit ec: ExecutionContext) extends MailService {
