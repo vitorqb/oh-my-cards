@@ -17,6 +17,7 @@ import com.sksamuel.elastic4s.http.JavaClient
 import v1.card.CardElasticClientMock
 import v1.card.CardElasticClientImpl
 import v1.card.CardElasticClient
+import services.SendgridMailServiceImpl
 
 class Module extends AbstractModule with ScalaModule {
 
@@ -37,8 +38,15 @@ class Module extends AbstractModule with ScalaModule {
     implicit ec: ExecutionContext,
     ws: WSClient,
     conf: Configuration): MailService = {
+
     if (conf.get[String]("test") == "1")
       new MailServiceFakeImpl(conf)
+
+    //Give preference to sendgrid
+    else if (Helpers.shouldUseSendgrid(conf))
+      new SendgridMailServiceImpl(ws, conf)
+
+    //Fallback
     else
       new MailGunMailServiceImpl(ws, conf)
   }
@@ -76,5 +84,12 @@ class Module extends AbstractModule with ScalaModule {
     else
       new CardElasticClientImpl(elasticClient)
   }
+
+}
+
+protected object Helpers {
+
+  def shouldUseSendgrid(conf: Configuration) =
+    conf.getOptional[String]("sendgrid.key").filterNot(_ == "").isDefined
 
 }
