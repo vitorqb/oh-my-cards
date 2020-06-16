@@ -29,9 +29,9 @@ class MailServiceImpl @Inject()(
     * Sends the authentication to an email.
     */
   def sendSimple(to: String, subject: String, body: String): Unit = {
-    val url = conf.get[String]("sendgrid.url")
-    val from = conf.get[String]("sendgrid.from")
-    val key = conf.get[String]("sendgrid.key")
+    val url = conf.get[String]("mailgun.url")
+    val from = conf.get[String]("mailgun.from")
+    val key = conf.get[String]("mailgun.key")
     logger.info("Sending email with url=" + url + ", from=" + from + ", body=" + body)
     ws.url(url)
       .withAuth("api", key, WSAuthScheme.BASIC)
@@ -51,9 +51,9 @@ class MailServiceFakeImpl @Inject()(conf: Configuration) extends MailService {
     * Sends the authentication to an email.
     */
   def sendSimple(to: String, subject: String, body: String): Unit = {
-    val url = conf.get[String]("sendgrid.url")
-    val from = conf.get[String]("sendgrid.from")
-    val key = conf.get[String]("sendgrid.key")
+    val url = conf.get[String]("mailgun.url")
+    val from = conf.get[String]("mailgun.from")
+    val key = conf.get[String]("mailgun.key")
     logger.info("PRETENDING to send email with url=" + url + ", from=" + from + ", body=" + body)
     ()
   }
