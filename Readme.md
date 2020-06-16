@@ -6,14 +6,14 @@ The following environmental variables can be used to configure the
 application, and are expected to be set:
 
 ```bash
-# Sendgrid url used to send emails.
-OHMYCARDS_SENDGRID_URL="https://api.mailgun.net/v3/foo.mailgun.org/messages"
+# Mailgun url used to send emails.
+OHMYCARDS_MAILGUN_URL="https://api.mailgun.net/v3/foo.mailgun.org/messages"
 
 # The "from" email when sending emails.
-OHMYCARDS_SENDGRID_FROM="Info OhMyCards <mailgun@foo.mailgun.org>"
+OHMYCARDS_MAILGUN_FROM="Info OhMyCards <mailgun@foo.mailgun.org>"
 
-# The secret key to authenticate with sendgrid
-OHMYCARDS_SENDGRID_KEY="foobarbaz"
+# The secret key to authenticate with mailgun
+OHMYCARDS_MAILGUN_KEY="foobarbaz"
 
 # The jdbc path to the db
 OHMYCARDS_DB_DEFAULT_URL="jdbc:sqlite:dev.sqlite"
