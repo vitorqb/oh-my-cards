@@ -103,7 +103,7 @@ class CardGridProfileControllerSpec
     def controller = app.injector.instanceOf[CardGridProfileController]
 
     "update a profile" in {
-      repository.create(originalInput, user)
+      repository.create(originalInput, user).futureValue
 
       val result = controller.update("Foo")(request)
 
