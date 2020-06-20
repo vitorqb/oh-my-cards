@@ -18,6 +18,7 @@ class DefaultRouter @Inject()(
     case POST(p"/$url/synchronize-ES") if url == customAdminUrl => {
       controller.synchronizeElasticSearch()
     }
+    case GET(p"/version") => controller.version()
   }
 
 }
