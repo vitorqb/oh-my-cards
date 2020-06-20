@@ -1,5 +1,25 @@
 ## OhMyCards Server
 
+### About
+
+*OhMyCards* is a small personal web app that I use to manage cards. Each card is
+a note written using markdown and categorized by tags. I use it, for example, to
+have the backlog for OhMyCards itself.
+
+The [back end](https://github.com/vitorqb/oh-my-cards) is coded in Scala/Play and the [front end](https://github.com/vitorqb/oh-my-cards) is coded in Clojurescript/ReactJS.
+
+Ping me if you want to know anything else :).
+
+![Image of cards grid](./img/grid.png)
+
+
+### Demo
+
+You can find a running server at [http://134.209.87.114:7000/](http://134.209.87.114:7000/). In
+order to log in, all you need is an email address. Or a fake one from
+[https://temp-mail.org](https://temp-mail.org)
+
+
 ### Setting Up
 
 The following environmental variables can be used to configure the
