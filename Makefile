@@ -28,10 +28,10 @@ tests:
 sbt:
 	sbt
 
-# Delegates to devTools
+# delegates to devTools
 devTools/%:
 	make -C devTools $(@:devTools/%=%)
 
-# Creates a .tgz artifact with all needed dependencies
+# creates a .tgz artifact with all needed dependencies
 build:
 	sbt 'universal:packageZipTarball'

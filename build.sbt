@@ -1,9 +1,7 @@
 name := """oh-my-cards"""
 organization := "com.example"
 
-version := "0.6.0"
-
-//Defines a custom config for functional tests
+//Defines a custom config for functional and unit tests
 lazy val functionalTests = taskKey[Unit]("Run functional tests")
 lazy val unitTests = taskKey[Unit]("Run unit tests")
 

@@ -20,4 +20,7 @@ class AdminController @Inject()(
     Future.successful(Ok)
   }
 
+  def version() = controllerComponents.silhouette.UnsecuredAction.async { implicit request =>
+    Future.successful(Ok(Option(getClass().getPackage().getImplementationVersion()).getOrElse("")))
+  }
 }

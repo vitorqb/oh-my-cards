@@ -1,4 +1,4 @@
-.PHONY: images/ohmycards/prod images/ohmycards/dev images/scala-sbt clean build version
+.PHONY: images/ohmycards/prod clean builddir build
 
 # User and group id to use on all images
 USER_ID ?= $(shell id -u)
@@ -21,12 +21,7 @@ SOURCE_FILES = app build.sbt conf Makefile project test
 
 # Same as SOURCE_FILES, but prefixed by build/
 define BUILD_FILES
-	$(addprefix build/,$(SOURCE_FILES))
-endef
-
-# Get's the current version for the ohmycards source code in ./build/
-define version
-$(shell sed -n -r -e '/^version/ s/^.*\"(.*)\".*$$/\1/p' <$(BUILD_DIR)/build.sbt | tr -d '\n')
+$(addprefix $(BUILD_DIR)/,$(SOURCE_FILES))
 endef
 
 # A nicer echo command
@@ -34,10 +29,17 @@ define echo
 @echo ""; echo "=>> "${1}; echo ""
 endef
 
+# get's the current version
+define version
+$(shell cd $(SOURCE_DIR) && git describe --tags | tr -d '\n')
+endef
+
 # Builds the ohmycards prod image.
 images/ohmycards/prod: build
-	$(eval VERSION=$(call version))
-	$(call "Version: $(VERSION)")
+	$(call echo,"Injecting version...")
+	echo "" >>$(BUILD_DIR)/build.sbt
+	echo 'version := "$(call version)"' >>$(BUILD_DIR)/build.sbt
+	echo "" >>$(BUILD_DIR)/build.sbt
 
 	$(call echo,"Compiling the source code (generating .tgz artifact).") 
 	$(MAKE) -C $(BUILD_DIR) build
@@ -50,7 +52,7 @@ images/ohmycards/prod: build
 	  build \
 	  --build-arg USER_ID="$(USER_ID)" \
 	  --build-arg GROUP_ID="$(GROUP_ID)" \
-	  --build-arg OHMYCARDS_VERSION="$(VERSION)"\
+	  --build-arg OHMYCARDS_VERSION="$(version)"\
 	  -t '$(IMGTAG)' \
 	  $(BUILD_DIR)
 
@@ -60,14 +62,13 @@ clean:
 	rm -rf $(BUILD_DIR)
 
 # Prepares the build directory with the ohmycards contents
-build/%:
+$(BUILD_DIR)/%:
 	cp -rv $(SOURCE_DIR)/$* $(BUILD_DIR)/$*
 
+# Creates the build directory with all files
+$(BUILD_DIR): build
 build: builddir $(BUILD_FILES)
 
+# Creates an (empty) build directory.
 builddir:
 	mkdir -p $(BUILD_DIR)
-
-# Simply echos the version
-version:
-	@echo $(call version) | tr -d '\n'
