@@ -24,6 +24,7 @@ import play.api.mvc.ActionBuilder
 import play.api.mvc.ActionFilter
 
 import v1.admin.elasticSearchSynchronizer.ElasticSearchSynchornizer
+import play.api.Configuration
 
 /**
   * Just a helper to declare the SecuredRequestWrapper type somewhere.
@@ -60,7 +61,9 @@ class AdminControllerComponents @Inject()(
   val messagesApi: MessagesApi,
   val parsers: PlayBodyParsers,
   val silhouette: Silhouette[DefaultEnv],
-  val elasticSearchSynchronizer: ElasticSearchSynchornizer)(
+  val elasticSearchSynchronizer: ElasticSearchSynchornizer,
+  val config: Configuration
+)(
   implicit val ec: ExecutionContext
 ) extends ControllerComponents {
 
