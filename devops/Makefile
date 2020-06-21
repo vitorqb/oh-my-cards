@@ -37,9 +37,10 @@ endef
 # Builds the ohmycards prod image.
 images/ohmycards/prod: build
 	$(call echo,"Injecting version...")
-	echo "" >>$(BUILD_DIR)/build.sbt
-	echo 'version := "$(call version)"' >>$(BUILD_DIR)/build.sbt
-	echo "" >>$(BUILD_DIR)/build.sbt
+	echo "" >>$(BUILD_DIR)/conf/application.conf
+	echo '# VERSION INJECTED BY make images/ohmycards/prod'>>$(BUILD_DIR)/conf/application.conf
+	echo 'app.version = "$(call version)"' >>$(BUILD_DIR)/conf/application.conf
+	echo "" >>$(BUILD_DIR)/conf/application.conf
 
 	$(call echo,"Compiling the source code (generating .tgz artifact).") 
 	$(MAKE) -C $(BUILD_DIR) build

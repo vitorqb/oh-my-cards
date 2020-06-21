@@ -1,5 +1,13 @@
-name := """oh-my-cards"""
 organization := "com.example"
+name := """oh-my-cards"""
+
+//Versioning has a special handling to we are able to inject it during build time.
+//We read versioning from `AppVersioning.scala`, which in turns read it from
+//Play's configuration `application.conf`. When building the application, you
+//(or the CI system) can just find the right version using git and echo append
+//it to the very end of `application.conf`, and it will endup here and be readable
+//by the code.
+version := AppVersioning.appVersion
 
 //Defines a custom config for functional and unit tests
 lazy val functionalTests = taskKey[Unit]("Run functional tests")
