@@ -87,7 +87,8 @@ class CardController @Inject()(
       case Right(js) => Future.successful(BadRequest(js))
       case Left(input: CardListRequestInput) => {
         val user = request.identity
-        resourceHandler.find(input.toCardListRequest(user)).map(cards => Ok(Json.toJson(cards)))
+        val cardListRequest = input.toCardListRequest(user)
+        resourceHandler.find(cardListRequest).map(cards => Ok(Json.toJson(cards)))
       }.recover(handleError _)
     }
   }

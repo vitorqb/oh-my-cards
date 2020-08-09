@@ -197,7 +197,7 @@ class CardElasticIdFinder(
     * Find all ids matching a query.
     * The result has the matching ids and the count of total matches.
     */
-  def findIds(cardListReq: CardListRequest): Future[Result] = {
+  def findIds(cardListReq: CardListRequest): Future[Result] = Future {
     logger.info(s"Getting ids for $cardListReq")
 
     var queries : List[Query] = List(matchAllQuery())
@@ -246,7 +246,7 @@ class CardElasticIdFinder(
       case failure: RequestFailure => onFailure(failure)
     }
 
-  }
+  }.flatten
 
 }
 
