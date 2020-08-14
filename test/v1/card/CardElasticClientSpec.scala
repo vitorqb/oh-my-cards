@@ -337,4 +337,17 @@ class CardElasticClientFunctionalSpec
     }
 
   }
+
+  "Error handling" should {
+
+    "Returns failed future if minilang has parsing error" taggedAs(FunctionalTestsTag) in {
+
+      val query = Some("(foo)")
+      val request = cardListRequest.copy(query=query)
+      val result = cardEsClient.findIds(request)
+      whenReady(result.failed) { e =>
+        e mustBe a [TagsFilterMiniLangSyntaxError]
+      }
+    }
+  }
 }
