@@ -138,7 +138,7 @@ class CardRepository @Inject()(
   }
 
   def get(id: String, user: User): Option[CardData] = db.withConnection { implicit c =>
-    SQL(s"${sqlGetStatement} WHERE userId = {userId} AND  id = {id}")
+    SQL(s"${sqlGetStatement} WHERE userId = {userId} AND id = {id}")
       .on("id" -> id, "userId" -> user.id)
       .as(cardDataParser.*)
       .headOption
