@@ -33,6 +33,7 @@ trait TestEsClient {
   protected def cleanIndex(indexName: String): Unit = {
     val query = deleteByQuery(indexName, matchAllQuery())
     client.execute(query).await
+    refreshIdx(indexName)
   }
 
   protected def refreshIdx(indexName: String): Unit = Try {
