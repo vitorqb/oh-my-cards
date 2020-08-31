@@ -25,6 +25,8 @@ import test.utils.WaitUntil
 import org.joda.time.format.ISODateTimeFormat
 import org.scalatest.BeforeAndAfterAll
 import com.sksamuel.elastic4s.requests.searches.Total
+import org.scalatest.time.Span
+import org.scalatest.time.Millis
 
 
 class CardElasticIdFinderSpec extends PlaySpec with MockitoSugar with ScalaFutures {
@@ -101,6 +103,11 @@ class CardElasticClientFunctionalSpec
     with ScalaFutures
     with WaitUntil
     with BeforeAndAfterAll {
+
+  /**
+    * Increases patience for future because we were having timeouts
+    */
+  override implicit def patienceConfig = new PatienceConfig(Span(1000, Millis))
 
   /**
     * Before all, cleanup the db and the es index.
@@ -218,7 +225,7 @@ class CardElasticClientFunctionalSpec
       "find all ids if user has cards" taggedAs(FunctionalTestsTag) in {
         val (id1, id2, id3, id4) = createFourCards
         val result = cardEsClient.findIds(cardListRequest).futureValue
-        result.ids mustEqual List(id1, id2, id3, id4)
+        result.ids mustEqual List(id4, id3, id2, id1)
         result.countOfIds mustEqual 4
       }
 
@@ -231,14 +238,14 @@ class CardElasticClientFunctionalSpec
     "Find first page with 2 cards" taggedAs(FunctionalTestsTag) in {
       val (id1, id2, id3, id4) = createFourCards
       val result = cardEsClient.findIds(cardListRequest.copy(pageSize=2)).futureValue
-      result.ids mustEqual List(id1, id2)
+      result.ids mustEqual List(id4, id3)
       result.countOfIds mustEqual 4
     }
 
     "Find second page with 2 cards" taggedAs(FunctionalTestsTag) in {
       val (id1, id2, id3, id4) = createFourCards
       val result = cardEsClient.findIds(cardListRequest.copy(pageSize=2, page=2)).futureValue
-      result.ids mustEqual List(id3, id4)
+      result.ids mustEqual List(id2, id1)
       result.countOfIds mustEqual 4
     }
 
@@ -287,7 +294,7 @@ class CardElasticClientFunctionalSpec
       val (id1, id2, id3, id4) = createFourCards()
       val query = Some("""((tags CONTAINS 'T1'))""")
       val result = cardEsClient.findIds(cardListRequest.copy(query=query)).futureValue
-      result.ids mustEqual List(id1, id2, id4)
+      result.ids mustEqual List(id4, id2, id1)
       result.countOfIds mustEqual 3
     }
 
@@ -303,8 +310,45 @@ class CardElasticClientFunctionalSpec
       val (id1, id2, id3, id4) = createFourCards()
       val query = Some("""((tags CONTAINS 'T3') OR (tags CONTAINS 'T4'))""")
       val result = cardEsClient.findIds(cardListRequest.copy(query=query)).futureValue
-      result.ids mustEqual List(id2, id4)
+      result.ids mustEqual List(id4, id2)
       result.countOfIds mustEqual 2
+    }
+
+  }
+
+  "Sorting" should {
+
+    val date1 = DateTime.parse("2000-01-01T00:00:00")
+    val date2 = DateTime.parse("2020-01-01T00:00:00")
+    val searchTerm = cardData1.title
+    val request = cardListRequest.copy(searchTerm=Some(searchTerm))
+    def runQuery() = cardEsClient.findIds(request)
+
+    "if the score is the same, sort by createdAt" taggedAs(FunctionalTestsTag) in {
+      val oldCard: CardData = cardData1.copy(createdAt = Some(date1))
+      val newCard: CardData = cardData1.copy(createdAt = Some(date2))
+
+      val idOldCard = cardRepository.create(oldCard, user).get
+      val idNewCard = cardRepository.create(newCard, user).get
+
+      refreshIdx(index)
+      val result = runQuery().futureValue
+
+      result.ids mustEqual List(idNewCard, idOldCard)
+    }
+
+    "if the score is not the same, sort by score" taggedAs(FunctionalTestsTag) in {
+      val modifiedTitle = cardData1.title.substring(1, cardData1.title.length())
+      val oldCard: CardData = cardData1.copy(createdAt = Some(date1))
+      val newCard: CardData = cardData1.copy(createdAt = Some(date2), title=modifiedTitle)
+
+      val idOldCard = cardRepository.create(oldCard, user).get
+      val idNewCard = cardRepository.create(newCard, user).get
+
+      refreshIdx(index)
+      val result = runQuery().futureValue
+
+      result.ids mustEqual List(idOldCard, idNewCard)
     }
 
   }

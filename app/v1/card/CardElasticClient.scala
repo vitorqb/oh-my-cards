@@ -235,7 +235,7 @@ class CardElasticIdFinder(
 
     val request = search(index)
       .query(boolQuery().must(queries))
-      .sortBy(FieldSort("createdAt"), ScoreSort(SortOrder.DESC))
+      .sortBy(ScoreSort(SortOrder.DESC), FieldSort("createdAt", order=SortOrder.DESC))
       .from((cardListReq.page - 1) * cardListReq.pageSize)
       .size(cardListReq.pageSize)
       .trackTotalHits(true)
