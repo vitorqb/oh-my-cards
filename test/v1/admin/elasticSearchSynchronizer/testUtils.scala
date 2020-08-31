@@ -28,37 +28,16 @@ trait TestEsClient {
   lazy val client = ElasticClient(JavaClient(ElasticProperties(s"http://$elasticHost:$elasticPort")))
 
   /**
-    * Deletes and index from the test client.
-    */
-  protected def deleteIdx(indexName: String): Unit = {
-    Try {
-      client.execute {
-        deleteIndex(indexName)
-      }.await
-    }
-  }
-
-  /**
-    * Creates an index on the test client.
-    */
-  protected def createIdx(name: String) = Try {
-    client.execute {
-      createIndex(name)
-    }.await
-  }
-
-  /**
     * Deletes and then creates an index on the test client.
     */
   protected def cleanIndex(indexName: String): Unit = {
-    deleteIdx(indexName)
-    createIdx(indexName)
+    val query = deleteByQuery(indexName, matchAllQuery())
+    client.execute(query).await
   }
 
   protected def refreshIdx(indexName: String): Unit = Try {
-    client.execute {
-      refreshIndex(indexName)
-    }.await
+    val query = refreshIndex(indexName)
+    client.execute(query).await
   }
 
   /**
