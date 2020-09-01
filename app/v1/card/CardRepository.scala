@@ -40,10 +40,6 @@ final case class TagsFilterMiniLangSyntaxError(
   val cause: Throwable = None.orNull
 ) extends Exception(message, cause) with CardRepositoryUserException
 
-
-//!!!! TODO We should not be using CardData as parameter for the functions. We should
-//          only *return* CardData. The input must be a CardInput, without id, 
-//          or createdAt, updatedAt.
 /**
   * The data for a Card.
   */
@@ -55,6 +51,20 @@ final case class CardData(
   createdAt: Option[DateTime] = None,
   updatedAt: Option[DateTime] = None
 )
+
+object CardData {
+  /**
+    * Constructor that takes a CardFormInput as input.
+    */
+  def fromFormInput(cardFormInput: CardFormInput, id: String, datetime: DateTime) = CardData(
+    Some(id),
+    cardFormInput.getTitle(),
+    cardFormInput.getBody(),
+    cardFormInput.getTags(),
+    Some(datetime),
+    Some(datetime)
+  )
+}
 
 /**
   * The result of a find query.
@@ -113,27 +123,28 @@ class CardRepository @Inject()(
     }
   }
 
-  def create(cardData: CardData, user: User): Try[String] = {
+  //!!!! TODO Return Future
+  def create(cardFormInput: CardFormInput, user: User): Try[String] = {
     val now = clock.now()
-    if (cardData.id.isDefined) {
-      Failure(new Exception("Id for create should be null!"))
-    } else {
-      val id = uuidGenerator.generate
-      db.withTransaction { implicit c =>
-        SQL(
-          """INSERT INTO cards(id, userId, title, body, createdAt, updatedAt)
+    val id = uuidGenerator.generate
+    val title = cardFormInput.getTitle()
+    val body = cardFormInput.getBody()
+    val tags = cardFormInput.getTags()
+
+    db.withTransaction { implicit c =>
+      SQL(
+        """INSERT INTO cards(id, userId, title, body, createdAt, updatedAt)
              VALUES ({id}, {userId}, {title}, {body}, {now}, {now})"""
-        ).on(
-          "id" -> id,
-          "userId" -> user.id,
-          "title" -> cardData.title,
-          "body" -> cardData.body,
-          "now" -> now
-        ).executeInsert()
-        tagsRepo.create(id, cardData.tags)
-        cardElasticClient.create(cardData, id, now, user)
-        Success(id)
-      }
+      ).on(
+        "id" -> id,
+        "userId" -> user.id,
+        "title" -> title,
+        "body" -> body,
+        "now" -> now
+      ).executeInsert()
+      tagsRepo.create(id, tags)
+      cardElasticClient.create(cardFormInput, id, now, user)
+      Success(id)
     }
   }
 
@@ -216,7 +227,7 @@ class CardRepository @Inject()(
 /**
   * Helper object manage cards tags.
   */
-private class TagsRepository {
+protected class TagsRepository {
 
   /**
     * Delets all tags for a given card id.

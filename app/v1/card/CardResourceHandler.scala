@@ -118,7 +118,7 @@ class CardResourceHandler @Inject()(
   } yield cardListResponse
 
   def create(input: CardFormInput, user: User): Try[CardResource] = {
-    repository.create(input.asCardData, user).flatMap(createdDataId =>
+    repository.create(input, user).flatMap(createdDataId =>
       get(createdDataId, user) match {
         case Some(cardResource) => Success(cardResource)
         case None => Failure(new Exception("Could not find created resource!"))

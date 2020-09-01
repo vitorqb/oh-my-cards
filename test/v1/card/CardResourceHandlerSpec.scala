@@ -81,19 +81,17 @@ class CardResourceHandlerSpec
 
     "Delegate to repository.create" in {
       val cardFormInput = CardFormInput("foo", Some("bar"), None)
-      val cardData = CardData(None, "foo", "bar", List())
-      val createdCardDataId = "1"
-      val createdCardData = cardData.copy(id=Some(createdCardDataId))
+      val id = "1"
+      val createdCardData = CardData.fromFormInput(cardFormInput, id, date1.get)
       val user = mock[User]
-
       val repository = mock[CardRepository]
-      when(repository.create(cardData, user)).thenReturn(Try{ createdCardDataId })
-      when(repository.get(createdCardDataId, user)).thenReturn(Some(createdCardData))
-
+      when(repository.create(cardFormInput, user)).thenReturn(Try{ id })
+      when(repository.get(id, user)).thenReturn(Some(createdCardData))
       val handler = new CardResourceHandler(repository)
 
-      (handler.create(cardFormInput, user) mustEqual
-        Success(CardResource.fromCardData(createdCardData)))
+      val resource = handler.create(cardFormInput, user)
+
+      (resource mustEqual Success(CardResource.fromCardData(createdCardData)))
     }
 
   }
