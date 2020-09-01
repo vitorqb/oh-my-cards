@@ -61,6 +61,23 @@ final case class CardData(
   */
 final case class FindResult(cards: Seq[CardData], countOfItems: Int)
 
+object FindResult {
+
+  /**
+    * Alternative constructor from the results of the query for the IDs and the query for
+    * the data.
+    */
+  def fromQueryResults(
+    cardData: Seq[CardData],
+    idsResult: CardElasticIdFinder.Result
+  ): FindResult = {
+    val cardDataById = cardData.map(x => (x.id.get, x)).toMap
+    val sortedCardData = idsResult.ids.map(x => cardDataById.get(x)).flatten
+    FindResult(sortedCardData, idsResult.countOfIds)
+  }
+
+}
+
 /**
   * An implementation for a card repository.
   */
@@ -131,14 +148,14 @@ class CardRepository @Inject()(
     * Finds a list of cards for a given user.
     */
   def find(request: CardListRequest): Future[FindResult] = {
-
-    cardElasticClient.findIds(request).map { esIdsResult =>
-      db.withConnection { implicit c => FindResult(
-        SQL(s"${sqlGetStatement} WHERE id IN ({ids})")
-          .on("ids" -> esIdsResult.ids)
-          .as(cardDataParser.*),
-        esIdsResult.countOfIds
-      )}
+    for {
+      esIdsResult <- cardElasticClient.findIds(request)
+      query = SQL(s"${sqlGetStatement} WHERE id IN ({ids})").on("ids" -> esIdsResult.ids)
+    } yield {
+      db.withConnection { implicit c =>
+        val sqlQueryResult = query.as(cardDataParser.*)
+        FindResult.fromQueryResults(sqlQueryResult, esIdsResult)
+      }
     }
   }
 

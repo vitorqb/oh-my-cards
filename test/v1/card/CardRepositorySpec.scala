@@ -20,6 +20,26 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.concurrent.Future
 
+class FindResultSpec extends PlaySpec {
+
+  "fromQueryResults" should {
+    val cardData1 = CardData(Some("id1"), "ONE", "TWO", List("a", "b"))
+    val cardData2 = CardData(Some("id2"), "one", "two", List("A", "B", "D"))
+    val cardData = List(cardData1, cardData2)
+    val idsResult = CardElasticIdFinder.Result(Seq("id2", "id1"), 5)
+    val findResult = FindResult.fromQueryResults(cardData, idsResult)
+
+    "have the saem countOfids from idsResult" in {
+      findResult.countOfItems mustEqual 5
+    }
+
+    "sort the sequence of card data by the ids in the idsResult" in {
+      findResult.cards mustEqual Seq(cardData2, cardData1)
+    }
+  }
+
+}
+
 class CardRepositorySpec extends PlaySpec
     with MockitoSugar
     with ScalaFutures
@@ -152,7 +172,7 @@ class CardRepositorySpec extends PlaySpec
 
   "CardRepository.find" should {
 
-    val ids = Seq(cardData1.id.get, cardData3.id.get)
+    val ids = Seq(cardData3.id.get, cardData1.id.get)
     val count = 5
 
     def mockEsResult(cardElasticClient: CardElasticClient) = {
@@ -160,18 +180,14 @@ class CardRepositorySpec extends PlaySpec
       when(cardElasticClient.findIds(cardListRequest)).thenReturn(Future.successful(esResult))
     }
 
-    "query db to bring matching cards from ES" in testContext {
+    "query db to bring matching cards from ES and returns in correct order" in testContext {
       (_, _, repository, _, cardElasticClient, _) =>
       mockEsResult(cardElasticClient)
 
-      repository.find(cardListRequest).futureValue.cards mustEqual Seq(cardData1, cardData3)
-    }
-
-    "mirror the count from the es results" in testContext {
-      (_, _, repository, _, cardElasticClient, _) =>
-      mockEsResult(cardElasticClient)
-
-      repository.find(cardListRequest).futureValue.countOfItems mustEqual count
+      //Note: the order must be equal to the order in `ids`! That's part of the test.
+      val result = repository.find(cardListRequest).futureValue
+      val expectedResult = FindResult(Seq(cardData3, cardData1), count)
+      result mustEqual expectedResult
     }
 
   }
