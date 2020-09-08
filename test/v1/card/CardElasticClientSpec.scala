@@ -1,5 +1,7 @@
 package v1.card
 
+import scala.language.reflectiveCalls
+
 import org.scalatestplus.play.PlaySpec
 import com.sksamuel.elastic4s.ElasticClient
 import org.scalatestplus.mockito.MockitoSugar
@@ -31,6 +33,7 @@ import org.scalatest.time.Millis
 import v1.card.testUtils._
 import services.{UUIDGenerator,Clock}
 import scala.concurrent.ExecutionContext
+import v1.card.CardRefGenerator.CardRefGenerator
 
 class CardElasticIdFinderSpec extends PlaySpec with MockitoSugar with ScalaFutures {
 
@@ -158,10 +161,12 @@ class CardElasticClientFunctionalSpec
       val tagsRepo = new TagsRepository
       val cardElasticClient = new CardElasticClientImpl(client)
       val clock = mock[Clock]
+      val cardRefGenerator = new CardRefGenerator(db)
       val testContext = TestContext(
         db=db,
         uuidGenerator=uuidGenerator,
-        cardRepo=new CardRepository(db, uuidGenerator, tagsRepo, cardElasticClient, clock),
+        cardRefGenerator,
+        cardRepo=new CardRepository(db, uuidGenerator, cardRefGenerator, tagsRepo, cardElasticClient, clock),
         tagsRepo=tagsRepo,
         cardElasticClient=cardElasticClient,
         clock=clock,

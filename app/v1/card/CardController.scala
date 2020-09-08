@@ -24,8 +24,8 @@ import org.joda.time.DateTime
   */
 case class CardFormInput(title: String, body: Option[String], tags: Option[List[String]]) {
 
-  def asCardData(id: String, createdAt: Option[DateTime], updatedAt: Option[DateTime]): CardData =
-    CardData(id, title, getBody, getTags, createdAt, updatedAt)
+  def asCardData(id: String, createdAt: Option[DateTime], updatedAt: Option[DateTime], ref: Int): CardData =
+    CardData(id, getTitle(), getBody(), getTags(), createdAt, updatedAt, ref)
   def getTitle(): String = title
   def getBody(): String = body.getOrElse("")
   def getTags(): List[String] = tags.getOrElse(List())

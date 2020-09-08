@@ -1,5 +1,7 @@
 package v1.card
 
+import scala.language.reflectiveCalls
+
 import org.scalatest._
 import org.scalatestplus.play._
 import org.scalatestplus.mockito.MockitoSugar
@@ -22,12 +24,13 @@ import scala.concurrent.Future
 import scala.util.Success
 
 import v1.card.testUtils._
+import v1.card.CardRefGenerator.CardRefGenerator
 
 class FindResultSpec extends PlaySpec {
 
   "fromQueryResults" should {
-    val cardData1 = CardData("id1", "ONE", "TWO", List("a", "b"))
-    val cardData2 = CardData("id2", "one", "two", List("A", "B", "D"))
+    val cardData1 = CardData("id1", "ONE", "TWO", List("a", "b"), ref=1)
+    val cardData2 = CardData("id2", "one", "two", List("A", "B", "D"), ref=2)
     val cardData = List(cardData1, cardData2)
     val idsResult = CardElasticIdFinder.Result(Seq("id2", "id1"), 5)
     val findResult = FindResult.fromQueryResults(cardData, idsResult)
@@ -91,10 +94,12 @@ class CardRepositorySpec extends PlaySpec
     val tagsRepo = new TagsRepository
     val cardElasticClient = mock[CardElasticClient]
     val clock = mock[Clock]
-    val repository = new CardRepository(db, uuidGenerator, tagsRepo, cardElasticClient, clock)
+    val cardRefGenerator = new CardRefGenerator(db)
+    val repository = new CardRepository(db, uuidGenerator, cardRefGenerator, tagsRepo, cardElasticClient, clock)
     val testContext = TestContext(
       db,
       uuidGenerator,
+      cardRefGenerator,
       repository,
       tagsRepo,
       cardElasticClient,
@@ -116,7 +121,7 @@ class CardRepositorySpec extends PlaySpec
 
     val datetime = new DateTime(2000, 1, 1, 2, 2, 2)
     val baseCardInput = CardFormInput("Title", Some("Body"), Some(List("Tag1", "TagTwo")))
-    val baseExpectedCardData = baseCardInput.asCardData("id", Some(datetime), Some(datetime))
+    val baseExpectedCardData = baseCardInput.asCardData("id", Some(datetime), Some(datetime), 1)
 
     "Allow user to create and get a card without tags nor body" in testContext { c =>
       val cardInput = baseCardInput.copy(body=None, tags=None)
@@ -173,12 +178,14 @@ class CardRepositorySpec extends PlaySpec
       val expectedCardData3 = cardFixtures.f3.formInput.asCardData(
         cardFixtures.f3.id,
         Some(cardFixtures.f3.datetime),
-        Some(cardFixtures.f3.datetime)
+        Some(cardFixtures.f3.datetime),
+        3
       )
       val expectedCardData1 = cardFixtures.f1.formInput.asCardData(
         cardFixtures.f1.id,
         Some(cardFixtures.f1.datetime),
-        Some(cardFixtures.f1.datetime)
+        Some(cardFixtures.f1.datetime),
+        1
       )
       val expectedResult = FindResult(Seq(expectedCardData3, expectedCardData1), count)
       result mustEqual expectedResult

@@ -34,9 +34,10 @@ case class CardResource(
   tags: List[String],
   createdAt: Option[DateTime],
   updatedAt: Option[DateTime],
+  ref: Int
 ) {
 
-  def asCardData: CardData = CardData(id, title, body, tags)
+  def asCardData: CardData = CardData(id, title, body, tags, ref=ref)
 
   def updateWith(cardInput: CardFormInput): Try[CardResource] = {
     if (cardInput.title == "") Failure(InvalidCardData.emptyTitle)
@@ -50,7 +51,16 @@ object CardResource {
   implicit val format: Format[CardResource] = Json.format
 
   def fromCardData(cardData: CardData) = {
-    CardResource(cardData.id, "", cardData.title, cardData.body, cardData.tags, cardData.createdAt, cardData.updatedAt)
+    CardResource(
+      cardData.id,
+      "",
+      cardData.title,
+      cardData.body,
+      cardData.tags,
+      cardData.createdAt,
+      cardData.updatedAt,
+      cardData.ref
+    )
   }
 
 }

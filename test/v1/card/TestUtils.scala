@@ -6,6 +6,7 @@ import services.Clock
 import v1.auth.User
 import org.mockito.Mockito._
 import v1.card._
+import v1.card.CardRefGenerator.CardRefGeneratorLike
 
 /**
   * A data class for the data that a fixture of a card needs.
@@ -25,6 +26,7 @@ trait CardFixtureRepository {
 case class TestContext(
   val db: Database,
   val uuidGenerator: UUIDGenerator,
+  val cardRefGenerator: CardRefGeneratorLike,
   val cardRepo: CardRepository,
   val tagsRepo: TagsRepository,
   val cardElasticClient: CardElasticClient,

@@ -21,6 +21,7 @@ import test.utils.TestUtils
 import org.scalatest.BeforeAndAfter
 import org.scalatestplus.play.guice.GuiceOneServerPerSuite
 import test.utils.WaitUntil
+import org.scalatest.BeforeAndAfterEach
 
 
 /**
@@ -34,27 +35,25 @@ class CardActionsWsHelper(wsClient: WSClient, port: Int, token: String) extends 
 
   val url = s"http://localhost:$port/v1/cards"
 
+  def client(url: String = url) =
+    wsClient.url(url).withHttpHeaders("Authorization" -> s"Bearer $token")
+
   def postCardData(cardData: JsObject): String = {
-    (wsClient
-      .url(url)
-      .withHttpHeaders("Authorization" -> s"Bearer $token")
-      .post(cardData)
-      .futureValue.json \ "id").as[String]
+    (client().post(cardData).futureValue.json \ "id").as[String]
   }
 
   def postCardData(title: String, body: String): String = {
     postCardData(Json.obj("title" -> title, "body" -> body))
   }
 
-  def getPagedCards(page: Int, pageSize: Int): JsValue = {
-    (wsClient
-      .url(url)
-      .withHttpHeaders("Authorization" -> s"Bearer $token")
+  def getPagedCards(page: Int, pageSize: Int): JsValue =
+    client()
       .withQueryStringParameters("page" -> page.toString, "pageSize" -> pageSize.toString)
       .get()
       .futureValue
-      .json)
-  }
+      .json
+
+  def getCard(id: String): JsValue = client(url + s"/${id}").get().futureValue.json
 
 }
 
@@ -62,14 +61,17 @@ class CardActionsWsHelper(wsClient: WSClient, port: Int, token: String) extends 
 class CardActionsSpec
     extends PlaySpec
     with GuiceOneServerPerSuite
-    with BeforeAndAfter
+    with BeforeAndAfterEach
     with ScalaFutures
     with TestEsClient
     with WaitUntil {
 
-  after {
+  var token: String = ""
+
+  override def beforeEach() = {
     cleanIndex("cards")
     TestUtils.cleanupDb(app.injector.instanceOf[Database])
+    token = (new TestTokenProviderSvc(app.injector.instanceOf[Database])).getToken()
   }
 
   /**
@@ -83,15 +85,16 @@ class CardActionsSpec
 
   def wsClient: WSClient = app.injector.instanceOf[WSClient]
 
-  "test create and get two cards paginated" taggedAs(FunctionalTestsTag) in {
-    val token = (new TestTokenProviderSvc(app.injector.instanceOf[Database])).getToken()
-    val cardActionWsHelper = new CardActionsWsHelper(wsClient, port, token)
+  def cardActionWsHelper() = new CardActionsWsHelper(wsClient, port, token)
 
+  val index = "cards"
+
+  "test create and get two cards paginated" taggedAs(FunctionalTestsTag) in {
     val cardOneId:   String = cardActionWsHelper.postCardData("Foo1", "Bar1")
     val cardTwoId:   String = cardActionWsHelper.postCardData("Foo2", "Bar2")
     val cardThreeId: String = cardActionWsHelper.postCardData("Foo3", "Bar3")
 
-    refreshIdx("cards")
+    refreshIdx(index)
 
     waitUntil { () =>
       (cardActionWsHelper.getPagedCards(1, 2) \ "items" \ 1 \ "title").asOpt[String].isDefined
@@ -109,4 +112,19 @@ class CardActionsSpec
 
   }
 
+  "Card creationg" should {
+    "create a card with ref, updatedAt, createdAt" taggedAs(FunctionalTestsTag) in {
+      val id = cardActionWsHelper.postCardData("FOO", "BAR")
+      refreshIdx(index)
+      val card = cardActionWsHelper.getCard(id)
+
+      (card \ "id").as[String] mustEqual id
+      (card \ "ref").as[Int] mustEqual 1
+      (card \ "createdAt").as[String].length() > 10
+      (card \ "updatedAt").as[String] mustEqual (card \ "createdAt").as[String]
+      (card \ "title").as[String] mustEqual "FOO"
+      (card \ "body").as[String] mustEqual "BAR"
+      (card \ "tags").as[List[String]] mustEqual Seq()
+    }
+  }
 }

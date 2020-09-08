@@ -16,6 +16,7 @@ import anorm.Row
 import services.Clock
 import org.joda.time.DateTime
 import anorm.JodaParameterMetaData._
+import v1.card.CardRefGenerator.CardRefGeneratorLike
 
 
 /**
@@ -49,7 +50,8 @@ final case class CardData(
   body: String,
   tags: List[String],
   createdAt: Option[DateTime] = None,
-  updatedAt: Option[DateTime] = None
+  updatedAt: Option[DateTime] = None,
+  ref: Int
 )
 
 /**
@@ -80,6 +82,7 @@ object FindResult {
 class CardRepository @Inject()(
   db: Database,
   uuidGenerator: UUIDGenerator,
+  refGenerator: CardRefGeneratorLike,
   tagsRepo: TagsRepository,
   cardElasticClient: CardElasticClient,
   clock: Clock)(
@@ -89,7 +92,7 @@ class CardRepository @Inject()(
   /**
     * The statement used to get a card.
     */
-  val sqlGetStatement: String = s"SELECT id, title, body, updatedAt, createdAt FROM cards "
+  val sqlGetStatement: String = s"SELECT id, title, body, updatedAt, createdAt, ref FROM cards "
 
   /**
     * A parser for CardData that also queries for the tags from TagsRepo.
@@ -102,10 +105,11 @@ class CardRepository @Inject()(
         SqlParser.str("title") ~
         SqlParser.str("body") ~
         SqlParser.get[Option[DateTime]]("createdAt") ~
-        SqlParser.get[Option[DateTime]]("updatedAt")
+        SqlParser.get[Option[DateTime]]("updatedAt") ~
+        SqlParser.int("ref")
     ) map {
-      case id ~ title ~ body ~ createdAt ~ updatedAt =>
-        CardData(id, title, body, tagsRepo.get(id), createdAt, updatedAt)
+      case id ~ title ~ body ~ createdAt ~ updatedAt ~ ref =>
+        CardData(id, title, body, tagsRepo.get(id), createdAt, updatedAt, ref)
     }
   }
 
@@ -116,17 +120,19 @@ class CardRepository @Inject()(
     val title = cardFormInput.getTitle()
     val body = cardFormInput.getBody()
     val tags = cardFormInput.getTags()
+    val ref = refGenerator.nextRef()
 
     db.withTransaction { implicit c =>
       SQL(
-        """INSERT INTO cards(id, userId, title, body, createdAt, updatedAt)
-             VALUES ({id}, {userId}, {title}, {body}, {now}, {now})"""
+        """INSERT INTO cards(id, userId, title, body, createdAt, updatedAt, ref)
+             VALUES ({id}, {userId}, {title}, {body}, {now}, {now}, {ref})"""
       ).on(
         "id" -> id,
         "userId" -> user.id,
         "title" -> title,
         "body" -> body,
-        "now" -> now
+        "now" -> now,
+        "ref" -> ref
       ).executeInsert()
       tagsRepo.create(id, tags)
       cardElasticClient.create(cardFormInput, id, now, user)
