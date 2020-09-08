@@ -26,8 +26,8 @@ import v1.card.testUtils._
 class FindResultSpec extends PlaySpec {
 
   "fromQueryResults" should {
-    val cardData1 = CardData(Some("id1"), "ONE", "TWO", List("a", "b"))
-    val cardData2 = CardData(Some("id2"), "one", "two", List("A", "B", "D"))
+    val cardData1 = CardData("id1", "ONE", "TWO", List("a", "b"))
+    val cardData2 = CardData("id2", "one", "two", List("A", "B", "D"))
     val cardData = List(cardData1, cardData2)
     val idsResult = CardElasticIdFinder.Result(Seq("id2", "id1"), 5)
     val findResult = FindResult.fromQueryResults(cardData, idsResult)
@@ -240,7 +240,7 @@ class CardRepositorySpec extends PlaySpec
       val id = cardFixtures.f1.id
       val otherUser = User("bar", "b@b.b")
 
-      c.cardRepo.get(id, c.user).get.id mustEqual Some(id)
+      c.cardRepo.get(id, c.user).get.id mustEqual id
       c.cardRepo.delete(id, otherUser).futureValue mustEqual Failure(new CardDoesNotExist)
     }
 

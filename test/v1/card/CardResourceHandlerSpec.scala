@@ -31,7 +31,7 @@ class CardResourceSpec extends PlaySpec {
   "asCardData" should {
 
     "convert to a card data" in {
-      baseCardResource.asCardData mustEqual CardData(Some("id"), "title", "body", List("A"))
+      baseCardResource.asCardData mustEqual CardData("id", "title", "body", List("A"))
     }
 
   }
@@ -91,7 +91,7 @@ class CardResourceHandlerSpec
 
       val resource = handler.create(cardFormInput, user)
 
-      (resource mustEqual Success(CardResource.fromCardData(createdCardData)))
+      (resource mustEqual Success(CardResource.fromCardData(createdCardData))) 
     }
 
   }
@@ -100,10 +100,10 @@ class CardResourceHandlerSpec
 
     "Returns resources from repository data" in {
       val cardResource1 = CardResource("foo1", "", "baz1", "", List(), date1, date1)
-      val cardData1 = CardData(Some("foo1"), "baz1", "", List(), date1, date1)
+      val cardData1 = CardData("foo1", "baz1", "", List(), date1, date1)
 
       val cardResource2 = CardResource("foo2", "", "baz2", "", List("A"), date1, date1)
-      val cardData2 = CardData(Some("foo2"), "baz2", "", List("A"), date1, date1)
+      val cardData2 = CardData("foo2", "baz2", "", List("A"), date1, date1)
 
       val findResult = FindResult(Seq(cardData1, cardData2), 10)
 
@@ -136,7 +136,7 @@ class CardResourceHandlerSpec
       val user = mock[User]
       val repository = mock[CardRepository]
       val handler = new CardResourceHandler(repository)
-      val cardData = CardData(Some(id), "title1", "body1", List())
+      val cardData = CardData(id, "title1", "body1", List())
       
       "Fails if card not found" in {
         when(repository.get(id, user)).thenReturn(None)

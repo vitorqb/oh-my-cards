@@ -44,7 +44,7 @@ final case class TagsFilterMiniLangSyntaxError(
   * The data for a Card.
   */
 final case class CardData(
-  id: Option[String],
+  id: String,
   title: String,
   body: String,
   tags: List[String],
@@ -57,7 +57,7 @@ object CardData {
     * Constructor that takes a CardFormInput as input.
     */
   def fromFormInput(cardFormInput: CardFormInput, id: String, datetime: DateTime) = CardData(
-    Some(id),
+    id,
     cardFormInput.getTitle(),
     cardFormInput.getBody(),
     cardFormInput.getTags(),
@@ -81,7 +81,7 @@ object FindResult {
     cardData: Seq[CardData],
     idsResult: CardElasticIdFinder.Result
   ): FindResult = {
-    val cardDataById = cardData.map(x => (x.id.get, x)).toMap
+    val cardDataById = cardData.map(x => (x.id, x)).toMap
     val sortedCardData = idsResult.ids.map(x => cardDataById.get(x)).flatten
     FindResult(sortedCardData, idsResult.countOfIds)
   }
@@ -119,7 +119,7 @@ class CardRepository @Inject()(
         SqlParser.get[Option[DateTime]]("updatedAt")
     ) map {
       case id ~ title ~ body ~ createdAt ~ updatedAt =>
-        CardData(Some(id), title, body, tagsRepo.get(id), createdAt, updatedAt)
+        CardData(id, title, body, tagsRepo.get(id), createdAt, updatedAt)
     }
   }
 
@@ -205,8 +205,8 @@ class CardRepository @Inject()(
         "now" -> now
       )
       .executeUpdate()
-    tagsRepo.delete(data.id.get)
-    tagsRepo.create(data.id.get, data.tags)
+    tagsRepo.delete(data.id)
+    tagsRepo.create(data.id, data.tags)
     cardElasticClient.update(data, now, user)
   }}}
 

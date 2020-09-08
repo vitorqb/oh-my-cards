@@ -139,7 +139,7 @@ class CardElasticClientImpl @Inject()(
   override def update(cardData: CardData, updatedAt: DateTime, user: User): Unit = {
     logger.info(s"Updating elastic search entry for $cardData at $updatedAt for $user")
     elasticClient.execute {
-      updateById(index, cardData.id.get).doc(
+      updateById(index, cardData.id).doc(
         "title" -> cardData.title,
         "body" -> cardData.body,
         "updatedAt" -> updatedAt,

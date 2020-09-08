@@ -1,5 +1,5 @@
 package v1.card
-
+ 
 import scala.util.{Try,Success,Failure}
 
 import javax.inject.Inject
@@ -23,7 +23,7 @@ import utils.StringUtils
   */
 case class CardFormInput(title: String, body: Option[String], tags: Option[List[String]]) {
 
-  def asCardData(): CardData = CardData(None, title, getBody, getTags)
+  def asCardData(id: String): CardData = CardData(id, title, getBody, getTags)
   def getTitle(): String = title
   def getBody(): String = body.getOrElse("")
   def getTags(): List[String] = tags.getOrElse(List())
