@@ -52,20 +52,6 @@ final case class CardData(
   updatedAt: Option[DateTime] = None
 )
 
-object CardData {
-  /**
-    * Constructor that takes a CardFormInput as input.
-    */
-  def fromFormInput(cardFormInput: CardFormInput, id: String, datetime: DateTime) = CardData(
-    id,
-    cardFormInput.getTitle(),
-    cardFormInput.getBody(),
-    cardFormInput.getTags(),
-    Some(datetime),
-    Some(datetime)
-  )
-}
-
 /**
   * The result of a find query.
   */

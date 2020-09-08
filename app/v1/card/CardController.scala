@@ -17,13 +17,15 @@ import services.InputParser
 import play.api.libs.json.JsPath.json
 import play.api.i18n.MessagesProvider
 import utils.StringUtils
+import org.joda.time.DateTime
 
 /**
   * Represents the user-inputted data for a card.
   */
 case class CardFormInput(title: String, body: Option[String], tags: Option[List[String]]) {
 
-  def asCardData(id: String): CardData = CardData(id, title, getBody, getTags)
+  def asCardData(id: String, createdAt: Option[DateTime], updatedAt: Option[DateTime]): CardData =
+    CardData(id, title, getBody, getTags, createdAt, updatedAt)
   def getTitle(): String = title
   def getBody(): String = body.getOrElse("")
   def getTags(): List[String] = tags.getOrElse(List())

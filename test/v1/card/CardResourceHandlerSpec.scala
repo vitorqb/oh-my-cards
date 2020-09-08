@@ -82,7 +82,7 @@ class CardResourceHandlerSpec
     "Delegate to repository.create" in {
       val cardFormInput = CardFormInput("foo", Some("bar"), None)
       val id = "1"
-      val createdCardData = CardData.fromFormInput(cardFormInput, id, date1.get)
+      val createdCardData = cardFormInput.asCardData(id, date1, date1)
       val user = mock[User]
       val repository = mock[CardRepository]
       when(repository.create(cardFormInput, user)).thenReturn(Try{ id })

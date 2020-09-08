@@ -116,7 +116,7 @@ class CardRepositorySpec extends PlaySpec
 
     val datetime = new DateTime(2000, 1, 1, 2, 2, 2)
     val baseCardInput = CardFormInput("Title", Some("Body"), Some(List("Tag1", "TagTwo")))
-    val baseExpectedCardData = CardData.fromFormInput(baseCardInput, "id", datetime)
+    val baseExpectedCardData = baseCardInput.asCardData("id", Some(datetime), Some(datetime))
 
     "Allow user to create and get a card without tags nor body" in testContext { c =>
       val cardInput = baseCardInput.copy(body=None, tags=None)
@@ -170,15 +170,15 @@ class CardRepositorySpec extends PlaySpec
 
       //Note: the order must be equal to the order in `ids`! That's part of the test.
       val result = c.cardRepo.find(cardListRequest(c)).futureValue
-      val expectedCardData3 = CardData.fromFormInput(
-        cardFixtures.f3.formInput,
+      val expectedCardData3 = cardFixtures.f3.formInput.asCardData(
         cardFixtures.f3.id,
-        cardFixtures.f3.datetime
+        Some(cardFixtures.f3.datetime),
+        Some(cardFixtures.f3.datetime)
       )
-      val expectedCardData1 = CardData.fromFormInput(
-        cardFixtures.f1.formInput,
+      val expectedCardData1 = cardFixtures.f1.formInput.asCardData(
         cardFixtures.f1.id,
-        cardFixtures.f1.datetime
+        Some(cardFixtures.f1.datetime),
+        Some(cardFixtures.f1.datetime)
       )
       val expectedResult = FindResult(Seq(expectedCardData3, expectedCardData1), count)
       result mustEqual expectedResult
