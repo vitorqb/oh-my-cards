@@ -137,19 +137,19 @@ class CardElasticClientFunctionalSpec
     val f2 = CardFixture(
       "id2",
       CardFormInput("FOO BYE", Some(""), Some(List("T1", "T3"))),
-      DateTime.parse("2020-01-01T00:00:00Z")
+      DateTime.parse("2020-01-02T00:00:00Z")
     )
 
     val f3 = CardFixture(
       "id3",
       CardFormInput("BAR", Some("FOO BAR"), Some(List())),
-      DateTime.parse("2020-01-01T00:00:00Z")
+      DateTime.parse("2020-01-03T00:00:00Z")
     )
 
     val f4 = CardFixture(
       "id4",
       CardFormInput("BYE BYE DUDE", Some("I SAID BYE"), Some(List("T1", "T2", "T4"))),
-      DateTime.parse("2020-01-01T00:00:00Z")
+      DateTime.parse("2020-01-04T00:00:00Z")
     )
 
     def allFixtures() = Seq(f1, f2, f3, f4)
@@ -213,8 +213,8 @@ class CardElasticClientFunctionalSpec
       resultAfter.hits.hits.head.sourceAsMap("title") mustEqual cardData.title
       resultAfter.hits.hits.head.sourceAsMap("body") mustEqual cardData.body
       resultAfter.hits.hits.head.sourceAsMap("tags") mustEqual cardData.tags.map(_.toLowerCase())
-      resultAfter.hits.hits.head.sourceAsMap("createdAt").asInstanceOf[String] mustEqual "2020-01-01T00:00:00.000Z"
-      resultAfter.hits.hits.head.sourceAsMap("updatedAt").asInstanceOf[String] mustEqual "2020-01-01T00:00:00.000Z"
+      resultAfter.hits.hits.head.sourceAsMap("createdAt").asInstanceOf[String] mustEqual "2020-01-04T00:00:00.000Z"
+      resultAfter.hits.hits.head.sourceAsMap("updatedAt").asInstanceOf[String] mustEqual "2020-01-04T00:00:00.000Z"
 
       c.cardRepo.delete(id, user).await
       refreshIdx(index)
@@ -240,7 +240,7 @@ class CardElasticClientFunctionalSpec
         c.saveCardsToDb()
         refreshIdx(index)
         val result = c.cardElasticClient.findIds(cardListRequest).futureValue
-        result.ids mustEqual cardFixtures.allFixtures().map(_.id)
+        result.ids mustEqual cardFixtures.allFixtures().map(_.id).reverse;
         result.countOfIds mustEqual 4
       }
 
@@ -254,7 +254,7 @@ class CardElasticClientFunctionalSpec
       c.saveCardsToDb()
       refreshIdx(index)
       val result = c.cardElasticClient.findIds(cardListRequest.copy(pageSize=2)).futureValue
-      result.ids mustEqual List(cardFixtures.f1.id, cardFixtures.f2.id)
+      result.ids mustEqual List(cardFixtures.f4.id, cardFixtures.f3.id)
       result.countOfIds mustEqual 4
     }
 
@@ -262,7 +262,7 @@ class CardElasticClientFunctionalSpec
       c.saveCardsToDb()
       refreshIdx(index)
       val result = c.cardElasticClient.findIds(cardListRequest.copy(pageSize=2, page=2)).futureValue
-      result.ids mustEqual List(cardFixtures.f3.id, cardFixtures.f4.id)
+      result.ids mustEqual List(cardFixtures.f2.id, cardFixtures.f1.id)
       result.countOfIds mustEqual 4
     }
 
@@ -317,7 +317,7 @@ class CardElasticClientFunctionalSpec
       refreshIdx(index)
       val query = Some("""((tags CONTAINS 'T1'))""")
       val result = c.cardElasticClient.findIds(cardListRequest.copy(query=query)).futureValue
-      result.ids mustEqual List(cardFixtures.f1.id, cardFixtures.f2.id, cardFixtures.f4.id)
+      result.ids mustEqual List(cardFixtures.f4.id, cardFixtures.f2.id, cardFixtures.f1.id)
       result.countOfIds mustEqual 3
     }
 
