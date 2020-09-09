@@ -21,6 +21,8 @@ import org.scalatest.BeforeAndAfter
 import v1.card.CardElasticClient
 import play.api.inject.bind
 import v1.card.CardElasticClientImpl
+import v1.card.testUtils.CardFixture
+import v1.card.CardFormInput
 
 class ElasticSearchSynchronizerSpec
     extends PlaySpec
@@ -52,20 +54,17 @@ class ElasticSearchSynchronizerSpec
 
   "run" should {
 
-    lazy val datetime1 = new DateTime(2020, 1, 1, 0, 0, 0)
-    lazy val datetime2 = new DateTime(2020, 1, 2, 0, 0, 0)
-
-    lazy val cardData1 = CardData(None, "t1", "b1", List("A"), Some(datetime1), Some(datetime1))
-    lazy val cardData2 = CardData(None, "t2", "b2", List(), Some(datetime1), Some(datetime2))
-    lazy val cardData3 = CardData(None, "t3", "b3", List("a", "B"), None, None)
+    lazy val cardInput1 = CardFormInput("t1", Some("b1"), Some(List("A")))
+    lazy val cardInput2 = CardFormInput("t2", Some("b2"), Some(List()))
+    lazy val cardInput3 = CardFormInput("t3", Some("b3"), Some(List("a", "B")))
 
     lazy val user = User("a", "b")
 
     def createThreeCardsOnDb() = {
       val repository: CardRepository = app.injector.instanceOf[CardRepository]
-      val idOne = repository.create(cardData1, user).get
-      val idTwo = repository.create(cardData2, user).get
-      val idThree = repository.create(cardData3, user).get
+      val idOne = repository.create(cardInput1, user).get
+      val idTwo = repository.create(cardInput2, user).get
+      val idThree = repository.create(cardInput3, user).get
       (idOne, idTwo, idThree)
     }
 

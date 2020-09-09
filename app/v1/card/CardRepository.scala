@@ -16,6 +16,7 @@ import anorm.Row
 import services.Clock
 import org.joda.time.DateTime
 import anorm.JodaParameterMetaData._
+import v1.card.CardRefGenerator.CardRefGeneratorLike
 
 
 /**
@@ -40,20 +41,17 @@ final case class TagsFilterMiniLangSyntaxError(
   val cause: Throwable = None.orNull
 ) extends Exception(message, cause) with CardRepositoryUserException
 
-
-//!!!! TODO We should not be using CardData as parameter for the functions. We should
-//          only *return* CardData. The input must be a CardInput, without id, 
-//          or createdAt, updatedAt.
 /**
   * The data for a Card.
   */
 final case class CardData(
-  id: Option[String],
+  id: String,
   title: String,
   body: String,
   tags: List[String],
   createdAt: Option[DateTime] = None,
-  updatedAt: Option[DateTime] = None
+  updatedAt: Option[DateTime] = None,
+  ref: Int
 )
 
 /**
@@ -71,7 +69,7 @@ object FindResult {
     cardData: Seq[CardData],
     idsResult: CardElasticIdFinder.Result
   ): FindResult = {
-    val cardDataById = cardData.map(x => (x.id.get, x)).toMap
+    val cardDataById = cardData.map(x => (x.id, x)).toMap
     val sortedCardData = idsResult.ids.map(x => cardDataById.get(x)).flatten
     FindResult(sortedCardData, idsResult.countOfIds)
   }
@@ -84,6 +82,7 @@ object FindResult {
 class CardRepository @Inject()(
   db: Database,
   uuidGenerator: UUIDGenerator,
+  refGenerator: CardRefGeneratorLike,
   tagsRepo: TagsRepository,
   cardElasticClient: CardElasticClient,
   clock: Clock)(
@@ -93,7 +92,7 @@ class CardRepository @Inject()(
   /**
     * The statement used to get a card.
     */
-  val sqlGetStatement: String = s"SELECT id, title, body, updatedAt, createdAt FROM cards "
+  val sqlGetStatement: String = s"SELECT id, title, body, updatedAt, createdAt, ref FROM cards "
 
   /**
     * A parser for CardData that also queries for the tags from TagsRepo.
@@ -106,39 +105,43 @@ class CardRepository @Inject()(
         SqlParser.str("title") ~
         SqlParser.str("body") ~
         SqlParser.get[Option[DateTime]]("createdAt") ~
-        SqlParser.get[Option[DateTime]]("updatedAt")
+        SqlParser.get[Option[DateTime]]("updatedAt") ~
+        SqlParser.int("ref")
     ) map {
-      case id ~ title ~ body ~ createdAt ~ updatedAt =>
-        CardData(Some(id), title, body, tagsRepo.get(id), createdAt, updatedAt)
+      case id ~ title ~ body ~ createdAt ~ updatedAt ~ ref =>
+        CardData(id, title, body, tagsRepo.get(id), createdAt, updatedAt, ref)
     }
   }
 
-  def create(cardData: CardData, user: User): Try[String] = {
+  //!!!! TODO Return Future
+  def create(cardFormInput: CardFormInput, user: User): Try[String] = {
     val now = clock.now()
-    if (cardData.id.isDefined) {
-      Failure(new Exception("Id for create should be null!"))
-    } else {
-      val id = uuidGenerator.generate
-      db.withTransaction { implicit c =>
-        SQL(
-          """INSERT INTO cards(id, userId, title, body, createdAt, updatedAt)
-             VALUES ({id}, {userId}, {title}, {body}, {now}, {now})"""
-        ).on(
-          "id" -> id,
-          "userId" -> user.id,
-          "title" -> cardData.title,
-          "body" -> cardData.body,
-          "now" -> now
-        ).executeInsert()
-        tagsRepo.create(id, cardData.tags)
-        cardElasticClient.create(cardData, id, now, user)
-        Success(id)
-      }
+    val id = uuidGenerator.generate
+    val title = cardFormInput.getTitle()
+    val body = cardFormInput.getBody()
+    val tags = cardFormInput.getTags()
+    val ref = refGenerator.nextRef()
+
+    db.withTransaction { implicit c =>
+      SQL(
+        """INSERT INTO cards(id, userId, title, body, createdAt, updatedAt, ref)
+             VALUES ({id}, {userId}, {title}, {body}, {now}, {now}, {ref})"""
+      ).on(
+        "id" -> id,
+        "userId" -> user.id,
+        "title" -> title,
+        "body" -> body,
+        "now" -> now,
+        "ref" -> ref
+      ).executeInsert()
+      tagsRepo.create(id, tags)
+      cardElasticClient.create(cardFormInput, id, now, user)
+      Success(id)
     }
   }
 
   def get(id: String, user: User): Option[CardData] = db.withConnection { implicit c =>
-    SQL(s"${sqlGetStatement} WHERE userId = {userId} AND  id = {id}")
+    SQL(s"${sqlGetStatement} WHERE userId = {userId} AND id = {id}")
       .on("id" -> id, "userId" -> user.id)
       .as(cardDataParser.*)
       .headOption
@@ -194,8 +197,8 @@ class CardRepository @Inject()(
         "now" -> now
       )
       .executeUpdate()
-    tagsRepo.delete(data.id.get)
-    tagsRepo.create(data.id.get, data.tags)
+    tagsRepo.delete(data.id)
+    tagsRepo.create(data.id, data.tags)
     cardElasticClient.update(data, now, user)
   }}}
 
@@ -216,7 +219,7 @@ class CardRepository @Inject()(
 /**
   * Helper object manage cards tags.
   */
-private class TagsRepository {
+protected class TagsRepository {
 
   /**
     * Delets all tags for a given card id.

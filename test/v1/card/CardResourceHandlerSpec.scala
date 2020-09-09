@@ -17,11 +17,12 @@ import scala.concurrent.Future
 import services.UUIDGenerator
 import services.Clock
 import org.joda.time.DateTime
+import v1.card.CardRefGenerator.CardRefGeneratorLike
 
 class CardResourceSpec extends PlaySpec {
 
   val date1 = Some(new DateTime(2000, 12, 12, 12, 12, 12))
-  val baseCardResource = CardResource("id", "link", "title", "body", List("A"), date1, date1)
+  val baseCardResource = CardResource("id", "link", "title", "body", List("A"), date1, date1, ref=1)
   val baseCardInput = CardFormInput(
     baseCardResource.title,
     Some(baseCardResource.body),
@@ -31,7 +32,7 @@ class CardResourceSpec extends PlaySpec {
   "asCardData" should {
 
     "convert to a card data" in {
-      baseCardResource.asCardData mustEqual CardData(Some("id"), "title", "body", List("A"))
+      baseCardResource.asCardData mustEqual CardData("id", "title", "body", List("A"), ref=1)
     }
 
   }
@@ -81,19 +82,17 @@ class CardResourceHandlerSpec
 
     "Delegate to repository.create" in {
       val cardFormInput = CardFormInput("foo", Some("bar"), None)
-      val cardData = CardData(None, "foo", "bar", List())
-      val createdCardDataId = "1"
-      val createdCardData = cardData.copy(id=Some(createdCardDataId))
+      val id = "1"
+      val createdCardData = cardFormInput.asCardData(id, date1, date1, 0)
       val user = mock[User]
-
       val repository = mock[CardRepository]
-      when(repository.create(cardData, user)).thenReturn(Try{ createdCardDataId })
-      when(repository.get(createdCardDataId, user)).thenReturn(Some(createdCardData))
-
+      when(repository.create(cardFormInput, user)).thenReturn(Try{ id })
+      when(repository.get(id, user)).thenReturn(Some(createdCardData))
       val handler = new CardResourceHandler(repository)
 
-      (handler.create(cardFormInput, user) mustEqual
-        Success(CardResource.fromCardData(createdCardData)))
+      val resource = handler.create(cardFormInput, user)
+
+      (resource mustEqual Success(CardResource.fromCardData(createdCardData))) 
     }
 
   }
@@ -101,11 +100,11 @@ class CardResourceHandlerSpec
   "CardResourceHandlerSpec.find" should {
 
     "Returns resources from repository data" in {
-      val cardResource1 = CardResource("foo1", "", "baz1", "", List(), date1, date1)
-      val cardData1 = CardData(Some("foo1"), "baz1", "", List(), date1, date1)
+      val cardResource1 = CardResource("foo1", "", "baz1", "", List(), date1, date1, ref=1)
+      val cardData1 = CardData("foo1", "baz1", "", List(), date1, date1, ref=1)
 
-      val cardResource2 = CardResource("foo2", "", "baz2", "", List("A"), date1, date1)
-      val cardData2 = CardData(Some("foo2"), "baz2", "", List("A"), date1, date1)
+      val cardResource2 = CardResource("foo2", "", "baz2", "", List("A"), date1, date1, ref=2)
+      val cardData2 = CardData("foo2", "baz2", "", List("A"), date1, date1, ref=2)
 
       val findResult = FindResult(Seq(cardData1, cardData2), 10)
 
@@ -138,7 +137,7 @@ class CardResourceHandlerSpec
       val user = mock[User]
       val repository = mock[CardRepository]
       val handler = new CardResourceHandler(repository)
-      val cardData = CardData(Some(id), "title1", "body1", List())
+      val cardData = CardData(id, "title1", "body1", List(), ref=1)
       
       "Fails if card not found" in {
         when(repository.get(id, user)).thenReturn(None)
@@ -170,8 +169,9 @@ class CardResourceHandlerSpec
           val elasticClient = mock[CardElasticClient]
           val clock = mock[Clock]
           val user = User("userId", "userEmail")
+          val cardRefGenerator = mock[CardRefGeneratorLike]
           val input = CardFormInput("title", Some("body"), None)
-          val repository = new CardRepository(db, uuidGenerator, tagsRepo, elasticClient, clock)
+          val repository = new CardRepository(db, uuidGenerator, cardRefGenerator, tagsRepo, elasticClient, clock)
           val handler = new CardResourceHandler(repository)
           val created = handler.create(input, user).get
 

@@ -31,10 +31,10 @@ final case class CardElasticClientException(
 trait CardElasticClient {
 
   /**
-    * Creates a new entry on ElasticSearch for a new cardData, with a given id created at
+    * Creates a new entry on ElasticSearch for a new cardFormInput, with a given id created at
     *  a specific time.
     */
-  def create(cardData: CardData, id: String, createdAt: DateTime, user: User): Unit
+  def create(cardFormInput: CardFormInput, id: String, createdAt: DateTime, user: User): Unit
 
   /**
     * Updates an entry on ElasticSearch for an existing cardData.
@@ -63,8 +63,8 @@ class CardElasticClientMock() extends CardElasticClient {
 
   val logger = Logger(getClass)
 
-  override def create(cardData: CardData, id: String, createdAt: DateTime, user: User): Unit = {
-    logger.info(s"Mocked create for $cardData and $id at $createdAt for user $user")
+  override def create(cardFormInput: CardFormInput, id: String, createdAt: DateTime, user: User): Unit = {
+    logger.info(s"Mocked create for $cardFormInput with id $id at $createdAt for $user")
   }
 
   override def update(cardData: CardData, updatedAt: DateTime, user: User): Unit = {
@@ -122,16 +122,16 @@ class CardElasticClientImpl @Inject()(
     case Success(value) => logger.info(s"Success: $value")
   }
 
-  override def create(cardData: CardData, id: String, createdAt: DateTime, user: User): Unit = {
-    logger.info(s"Creating elastic search entry for $cardData and $id at $createdAt for $user")
+  override def create(cardFormInput: CardFormInput, id: String, createdAt: DateTime, user: User): Unit = {
+    logger.info(s"Creating elastic search entry for $cardFormInput and $id at $createdAt for $user")
     elasticClient.execute {
       indexInto(index).id(id).fields(
-        "title" -> cardData.title,
-        "body" -> cardData.body,
+        "title" -> cardFormInput.getTitle(),
+        "body" -> cardFormInput.getBody(),
         "updatedAt" -> createdAt,
         "createdAt" -> createdAt,
         "userId" -> user.id,
-        "tags" -> cardData.tags.map(_.toLowerCase())
+        "tags" -> cardFormInput.getTags().map(_.toLowerCase())
       )
     }.onComplete(handleResponse)
   }
@@ -139,7 +139,7 @@ class CardElasticClientImpl @Inject()(
   override def update(cardData: CardData, updatedAt: DateTime, user: User): Unit = {
     logger.info(s"Updating elastic search entry for $cardData at $updatedAt for $user")
     elasticClient.execute {
-      updateById(index, cardData.id.get).doc(
+      updateById(index, cardData.id).doc(
         "title" -> cardData.title,
         "body" -> cardData.body,
         "updatedAt" -> updatedAt,

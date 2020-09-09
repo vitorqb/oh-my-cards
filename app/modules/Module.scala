@@ -18,6 +18,9 @@ import v1.card.CardElasticClientMock
 import v1.card.CardElasticClientImpl
 import v1.card.CardElasticClient
 import services.SendgridMailServiceImpl
+import v1.card.CardRefGenerator.CardRefGenerator
+import v1.card.CardRefGenerator.CardRefGeneratorLike
+import play.api.db.Database
 
 class Module extends AbstractModule with ScalaModule {
 
@@ -84,6 +87,9 @@ class Module extends AbstractModule with ScalaModule {
     else
       new CardElasticClientImpl(elasticClient)
   }
+
+  @Provides
+  def cardRefGenerator(db: Database): CardRefGeneratorLike = new CardRefGenerator(db)
 
 }
 

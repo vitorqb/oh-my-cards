@@ -34,9 +34,10 @@ case class CardResource(
   tags: List[String],
   createdAt: Option[DateTime],
   updatedAt: Option[DateTime],
+  ref: Int
 ) {
 
-  def asCardData: CardData = CardData(Some(id), title, body, tags)
+  def asCardData: CardData = CardData(id, title, body, tags, ref=ref)
 
   def updateWith(cardInput: CardFormInput): Try[CardResource] = {
     if (cardInput.title == "") Failure(InvalidCardData.emptyTitle)
@@ -50,7 +51,16 @@ object CardResource {
   implicit val format: Format[CardResource] = Json.format
 
   def fromCardData(cardData: CardData) = {
-    CardResource(cardData.id.fold("")(x => x), "", cardData.title, cardData.body, cardData.tags, cardData.createdAt, cardData.updatedAt)
+    CardResource(
+      cardData.id,
+      "",
+      cardData.title,
+      cardData.body,
+      cardData.tags,
+      cardData.createdAt,
+      cardData.updatedAt,
+      cardData.ref
+    )
   }
 
 }
@@ -118,7 +128,7 @@ class CardResourceHandler @Inject()(
   } yield cardListResponse
 
   def create(input: CardFormInput, user: User): Try[CardResource] = {
-    repository.create(input.asCardData, user).flatMap(createdDataId =>
+    repository.create(input, user).flatMap(createdDataId =>
       get(createdDataId, user) match {
         case Some(cardResource) => Success(cardResource)
         case None => Failure(new Exception("Could not find created resource!"))

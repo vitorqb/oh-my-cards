@@ -1,5 +1,5 @@
 package v1.card
-
+ 
 import scala.util.{Try,Success,Failure}
 
 import javax.inject.Inject
@@ -17,16 +17,18 @@ import services.InputParser
 import play.api.libs.json.JsPath.json
 import play.api.i18n.MessagesProvider
 import utils.StringUtils
+import org.joda.time.DateTime
 
 /**
   * Represents the user-inputted data for a card.
   */
 case class CardFormInput(title: String, body: Option[String], tags: Option[List[String]]) {
 
-  def asCardData: CardData = CardData(None, title, getBody, getTags)
-  def getTitle: String = title
-  def getBody: String = body.getOrElse("")
-  def getTags: List[String] = tags.getOrElse(List())
+  def asCardData(id: String, createdAt: Option[DateTime], updatedAt: Option[DateTime], ref: Int): CardData =
+    CardData(id, getTitle(), getBody(), getTags(), createdAt, updatedAt, ref)
+  def getTitle(): String = title
+  def getBody(): String = body.getOrElse("")
+  def getTags(): List[String] = tags.getOrElse(List())
 
 }
 
