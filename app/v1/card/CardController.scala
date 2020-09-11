@@ -101,7 +101,7 @@ class CardController @Inject()(
   def create = silhouette.SecuredAction { implicit request =>
     logger.info("Handling create card action...")
     CardFormInput.form.bindFromRequest().fold(
-      _ => BadRequest("Invalid post data!"),
+      f => BadRequest(f.errorsAsJson),
       cardFormInput => resourceHandler.create(cardFormInput, request.identity) match {
         case Success(card) => Ok(Json.toJson(card))
         case Failure(e) => handleError(e)
