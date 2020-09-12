@@ -18,20 +18,25 @@ then
     exit 1
 fi
 
+function msg() {
+    echo ""
+    echo "=> $1"
+    echo ""
+}
 
 # 
 # Script
-# 
-# run the elasticSearch in the background.
+#
+msg "Starting ES in the background..."
 make devTools/ci/elasticSearch ES_API_PORT="$OHMYCARDS_TEST_ES_PORT" >es.log 2>&1 &
 
-# compile while ES is loading
+msg "Compiling code for test..."
 sbt test:compile
 
-# make sure ES has loaded
-./devTools/waitFor 'o.e.x.s.s.SecurityStatusChangeListener' es.log
+msg "Waiting for ES to be ready..."
+./devTools/waitForEs -e "http://127.0.0.1:${OHMYCARDS_TEST_ES_PORT}"
 
-# run the functional tests
+msg "Running functional tests"
 make functionalTests | tee test.log
 
 # Exists with the make functionalTests result

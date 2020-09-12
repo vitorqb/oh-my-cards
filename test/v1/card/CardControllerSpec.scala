@@ -32,6 +32,18 @@ trait CardListRequestParserTestUtils extends JsonUtils {
 
 }
 
+class CardFormInputSpec extends PlaySpec {
+  "Parsing json to CardFormInput" should {
+    "fail if tag has spaces" in {
+      val inputJson = Json.obj("title" -> "foo", "tags" -> Seq("tag with spaces"))
+      val form = CardFormInput.form.bind(inputJson)
+      form.errors.length mustEqual 1
+      form.errors.head.key mustEqual "tags"
+      form.errors.head.message mustEqual "Can not contain spaces"
+    }
+  }
+}
+
 class CardControllerSpec
     extends PlaySpec
     with GuiceOneAppPerSuite

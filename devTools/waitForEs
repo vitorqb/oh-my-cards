@@ -1,0 +1,49 @@
+#!/bin/bash
+USAGE="$0 [-e VAL] [-p VAL] [-t VAL]
+Waits for ES health check to be green.
+
+-e)
+  The endpoint to use to communicate to ES. Defaults to http://127.0.0.1:9200.
+
+-t)
+  The timeout (seconds) up to what we want to wait."
+
+# Parse opts and defaults
+ENDPOINT="http://127.0.0.1:9200"
+TIMEOUT=60
+
+SHORT='he:t:'
+OPTS="$(getopt --options $SHORT --name "$0" -- "$@")"
+! [ "$?" = 0 ] && echo "$USAGE" 1>&2 && exit 1
+eval set -- "$OPTS"
+
+# Parses params
+while [[ "$#" -gt 0 ]]
+do
+    case "$1" in
+        -h)
+            echo "$USAGE"
+            exit 0
+            ;;
+        -e)
+            ENDPOINT="$2"
+            shift
+            shift
+            ;;
+        -t)
+            TIMEOUT="$2"
+            shift
+            shift
+            ;;
+        --)
+            shift
+            ;;
+        *)
+            echo "ERROR: Unknown parameter: $1" 1>&2
+            echo "$USAGE" 1>&2
+            exit 1
+    esac
+done
+
+echo "==>> Sending health status check request..."
+curl -v "${ENDPOINT}/_cluster/health?wait_for_status=yellow&timeout=${TIMEOUT}s"
