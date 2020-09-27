@@ -11,6 +11,9 @@ import v1.card.cardrepositorycomponents.CardRepositoryComponentsLike
 import v1.card.cardrepositorycomponents.CardRepositoryComponents
 import org.mockito.MockitoSugar
 import v1.card.CardRefGenerator.CardRefGeneratorLike
+import javax.sql.DataSource
+import play.api.db.TransactionIsolationLevel
+import java.sql.Connection
 
 /**
   * A data class for the data that a fixture of a card needs.
@@ -29,7 +32,7 @@ trait CardFixtureRepository {
   */
 case class TestContext(
   val components: CardRepositoryComponentsLike,
-  val cardRepo: CardDataRepository,
+  val cardRepo: CardRepositoryLike,
   val tagsRepo: TagsRepositoryLike,
   val cardElasticClient: CardElasticClient,
   val cardFixtures: CardFixtureRepository,
@@ -66,22 +69,66 @@ case class TestContext(
   * A fixture factory for the CardRepositoryComponentsLike that defaults to mock everything.
   */
 case class ComponentsBuilder(
-  val db: Database,
+  val db: Option[Database] = None,
   val uuidGenerator: Option[UUIDGenerator] = None,
   val refGenerator: Option[CardRefGeneratorLike] = None,
   val clock: Option[Clock] = None
 ) extends MockitoSugar {
 
+  def withDb(db: Database) = copy(db=Some(db))
   def withUUIDGenerator(uuidGenerator: UUIDGenerator) = copy(uuidGenerator=Some(uuidGenerator))
   def withRefGenerator(refGenerator: CardRefGeneratorLike) = copy(refGenerator=Some(refGenerator))
   def withClock(clock: Clock) = copy(clock=Some(clock))
 
-  def build(): CardRepositoryComponentsLike =
+  /**
+    * Shortcut to construct a Components from a CreateContext.
+    */
+  def withContext(context: CardCreationContext) = {
+    val uuidGenerator_ = mock[UUIDGenerator]
+    when(uuidGenerator_.generate()).thenReturn(context.id)
+    val refGenerator_ = mock[CardRefGenerator]
+    when(refGenerator_.nextRef()).thenReturn(context.ref)
+    val clock_ = mock[Clock]
+    when(clock_.now()).thenReturn(context.now)
+
+    this.withClock(clock_).withUUIDGenerator(uuidGenerator_).withRefGenerator(refGenerator_)
+  }
+
+  def build(): CardRepositoryComponentsLike = {
+    val db_ = db.getOrElse(mock[Database])
     new CardRepositoryComponents(
-      db,
+      db_,
       uuidGenerator.getOrElse(mock[UUIDGenerator]),
-      refGenerator.getOrElse(new CardRefGenerator(db)),
+      refGenerator.getOrElse(new CardRefGenerator(db_)),
       clock.getOrElse(mock[Clock])
     )
+  }
+}
+
+
+/**
+  * A mocked db that only implement a bunch of useful methods
+  */
+trait MockDb extends Database {
+
+  override def name: String = ???
+
+  override def dataSource: DataSource = ???
+
+  override def url: String = ???
+
+  override def getConnection(): Connection = ???
+
+  override def getConnection(autocommit: Boolean): Connection = ???
+
+  override def withConnection[A](block: Connection => A): A = ???
+
+  override def withConnection[A](autocommit: Boolean)(block: Connection => A): A = ???
+
+  override def withTransaction[A](block: Connection => A): A = ???
+
+  override def withTransaction[A](isolationLevel: TransactionIsolationLevel)(block: Connection => A): A = ???
+
+  override def shutdown(): Unit = ???
 
 }

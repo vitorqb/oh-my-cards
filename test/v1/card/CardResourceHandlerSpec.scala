@@ -89,7 +89,7 @@ class CardResourceHandlerSpec
       val id = "1"
       val createdCardData = cardFormInput.asCardData(id, date1, date1, 0)
       val user = mock[User]
-      val repository = mock[CardDataRepository]
+      val repository = mock[CardRepositoryLike]
       when(repository.create(cardFormInput, user)).thenReturn(Try{ id })
       when(repository.get(id, user)).thenReturn(Some(createdCardData))
       val handler = new CardResourceHandler(repository)
@@ -114,7 +114,7 @@ class CardResourceHandlerSpec
 
       val cardListReq = CardListRequest(1, 2, "userid", List(), List(), None)
 
-      val repository = mock[CardDataRepository]
+      val repository = mock[CardRepositoryLike]
       when(repository.find(cardListReq)).thenReturn(Future.successful(findResult))
 
       val handler = new CardResourceHandler(repository)
@@ -139,7 +139,7 @@ class CardResourceHandlerSpec
       val id = "FOO"
       val input = CardFormInput("title2", Some("body2"), None)
       val user = mock[User]
-      val repository = mock[CardDataRepository]
+      val repository = mock[CardRepositoryLike]
       val handler = new CardResourceHandler(repository)
       val cardData = CardData(id, "title1", "body1", List(), ref=1)
       
@@ -176,7 +176,7 @@ class CardResourceHandlerSpec
           val cardRefGenerator = mock[CardRefGeneratorLike]
           val input = CardFormInput("title", Some("body"), None)
           val components = new CardRepositoryComponents(db, uuidGenerator, cardRefGenerator, clock)
-          val repository = new CardDataRepository(components, tagsRepo, elasticClient)
+          val repository = new CardRepository(new CardDataRepository(components, tagsRepo, elasticClient), tagsRepo, elasticClient, components)
           val handler = new CardResourceHandler(repository)
           val created = handler.create(input, user).get
 
@@ -199,7 +199,7 @@ class CardResourceHandlerSpec
       val tags = List("FOO", "BAR")
       val user = mock[User]
 
-      val repository = mock[CardDataRepository]
+      val repository = mock[CardRepositoryLike]
       when(repository.getAllTags(user)).thenReturn(Future.successful(tags))
 
       val exp = CardMetadataResource(tags)

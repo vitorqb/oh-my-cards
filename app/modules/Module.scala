@@ -25,6 +25,10 @@ import v1.card.cardrepositorycomponents.CardRepositoryComponentsLike
 import v1.card.cardrepositorycomponents.CardRepositoryComponents
 import v1.card.tagsrepository.TagsRepository
 import v1.card.TagsRepositoryLike
+import v1.card.CardRepositoryLike
+import v1.card.CardDataRepositoryLike
+import v1.card.CardRepository
+import v1.card.CardDataRepository
 
 class Module extends AbstractModule with ScalaModule {
 
@@ -99,6 +103,15 @@ class Module extends AbstractModule with ScalaModule {
   def tagsRepository(): TagsRepositoryLike = new TagsRepository()
 
   @Provides
+  def cardRepository(
+    dataRepo: CardDataRepositoryLike,
+    tagsRepo: TagsRepositoryLike,
+    esClient: CardElasticClient,
+    components: CardRepositoryComponentsLike
+  ): CardRepositoryLike =
+    new CardRepository(dataRepo, tagsRepo, esClient, components)
+
+  @Provides
   def cardRepositoryComponents(
     db: Database,
     uuidGenerator: UUIDGenerator,
@@ -107,6 +120,15 @@ class Module extends AbstractModule with ScalaModule {
   ): CardRepositoryComponentsLike =
     new CardRepositoryComponents(db, uuidGenerator, refGenerator, clock)
 
+  @Provides
+  def cardDataRepository(
+    components: CardRepositoryComponentsLike,
+    tagsRepo: TagsRepositoryLike,
+    cardElasticClient: CardElasticClient,
+  )(
+    implicit ec: ExecutionContext
+  ): CardDataRepositoryLike =
+    new CardDataRepository(components, tagsRepo, cardElasticClient)
 }
 
 protected object Helpers {

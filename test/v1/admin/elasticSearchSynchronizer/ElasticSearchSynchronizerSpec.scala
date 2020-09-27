@@ -22,6 +22,7 @@ import play.api.inject.bind
 import v1.card.CardElasticClientImpl
 import v1.card.testUtils.CardFixture
 import v1.card.CardFormInput
+import v1.card.CardRepositoryLike
 
 class ElasticSearchSynchronizerSpec
     extends PlaySpec
@@ -60,7 +61,7 @@ class ElasticSearchSynchronizerSpec
     lazy val user = User("a", "b")
 
     def createThreeCardsOnDb() = {
-      val repository: CardDataRepository = app.injector.instanceOf[CardDataRepository]
+      val repository: CardRepositoryLike = app.injector.instanceOf[CardRepositoryLike]
       val idOne = repository.create(cardInput1, user).get
       val idTwo = repository.create(cardInput2, user).get
       val idThree = repository.create(cardInput3, user).get

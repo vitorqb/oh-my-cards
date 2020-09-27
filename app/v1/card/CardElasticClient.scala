@@ -34,7 +34,7 @@ trait CardElasticClient {
     * Creates a new entry on ElasticSearch for a new cardFormInput, with a given id created at
     *  a specific time.
     */
-  def create(cardFormInput: CardFormInput, id: String, createdAt: DateTime, user: User): Unit
+  def create(cardFormInput: CardFormInput, context: CardCreationContext): Unit
 
   /**
     * Updates an entry on ElasticSearch for an existing cardData.
@@ -63,8 +63,8 @@ class CardElasticClientMock() extends CardElasticClient {
 
   val logger = Logger(getClass)
 
-  override def create(cardFormInput: CardFormInput, id: String, createdAt: DateTime, user: User): Unit = {
-    logger.info(s"Mocked create for $cardFormInput with id $id at $createdAt for $user")
+  override def create(cardFormInput: CardFormInput, context: CardCreationContext): Unit = {
+    logger.info(s"Mocked create for $cardFormInput with $context")
   }
 
   override def update(cardData: CardData, updatedAt: DateTime, user: User): Unit = {
@@ -122,15 +122,15 @@ class CardElasticClientImpl @Inject()(
     case Success(value) => logger.info(s"Success: $value")
   }
 
-  override def create(cardFormInput: CardFormInput, id: String, createdAt: DateTime, user: User): Unit = {
-    logger.info(s"Creating elastic search entry for $cardFormInput and $id at $createdAt for $user")
+  override def create(cardFormInput: CardFormInput, context: CardCreationContext): Unit = {
+    logger.info(s"Creating elastic search entry for $cardFormInput with $context")
     elasticClient.execute {
-      indexInto(index).id(id).fields(
+      indexInto(index).id(context.id).fields(
         "title" -> cardFormInput.getTitle(),
         "body" -> cardFormInput.getBody(),
-        "updatedAt" -> createdAt,
-        "createdAt" -> createdAt,
-        "userId" -> user.id,
+        "updatedAt" -> context.now,
+        "createdAt" -> context.now,
+        "userId" -> context.user.id,
         "tags" -> cardFormInput.getTags().map(_.toLowerCase())
       )
     }.onComplete(handleResponse)

@@ -116,7 +116,8 @@ object CardListResponse {
   * A resource handler for Cards.
   */
 class CardResourceHandler @Inject()(
-  val repository: CardDataRepository)(
+  val repository: CardRepositoryLike
+)(
   implicit val ec: ExecutionContext){
 
   def find(cardListReq: CardListRequest): Future[CardListResponse] = for {
