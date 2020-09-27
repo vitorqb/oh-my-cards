@@ -1,5 +1,7 @@
 package v1.card
 
+import v1.card.tagsrepository._
+
 import scala.language.reflectiveCalls
 
 import org.scalatestplus.play.PlaySpec

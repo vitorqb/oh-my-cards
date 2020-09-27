@@ -25,6 +25,14 @@ import v1.card.cardrepositorycomponents.CardRepositoryComponentsLike
   */
 sealed trait CardRepositoryUserException { val message: String }
 
+/**
+  * A trait for a tags repository.
+  */
+trait TagsRepositoryLike {
+  def delete(cardId: String)(implicit c:Connection): Unit
+  def create(cardId: String, tags: List[String])(implicit c: Connection): Unit
+  def get(cardId: String)(implicit c: Connection): List[String]
+}
 
 /**
   * Custom exception signaling that a card does not exist.
@@ -82,7 +90,7 @@ object FindResult {
   */
 class CardDataRepository @Inject()(
   components: CardRepositoryComponentsLike,
-  tagsRepo: TagsRepository,
+  tagsRepo: TagsRepositoryLike,
   cardElasticClient: CardElasticClient
 )(
   implicit val ec: ExecutionContext
@@ -221,34 +229,4 @@ class CardDataRepository @Inject()(
     """.as(str(1).*)
       }
     }
-}
-
-/**
-  * Helper object manage cards tags.
-  */
-protected class TagsRepository {
-
-  /**
-    * Delets all tags for a given card id.
-    */
-  def delete(cardId: String)(implicit c:Connection): Unit = {
-    SQL"DELETE FROM cardsTags WHERE cardId = ${cardId}".execute()
-  }
-
-  /**
-    * Create all tags for a given card id.
-    */
-  def create(cardId: String, tags: List[String])(implicit c: Connection): Unit = {
-    tags.foreach { tag =>
-      SQL"INSERT INTO cardsTags(cardId, tag) VALUES (${cardId}, ${tag})".executeInsert()
-    }
-  }
-
-  /**
-    * Returns all tags for a given card id.
-    */
-  def get(cardId: String)(implicit c: Connection): List[String] = {
-    SQL"SELECT tag FROM cardsTags WHERE cardId = ${cardId} ORDER BY tag"
-      .as(SqlParser.scalar[String].*)
-  }
 }

@@ -8,6 +8,8 @@ import org.scalatestplus.mockito.MockitoSugar
 
 import org.mockito.Mockito._
 
+import v1.card.tagsrepository._
+
 import scala.concurrent.ExecutionContext
 import org.scalatest.concurrent.ScalaFutures
 import v1.auth.User

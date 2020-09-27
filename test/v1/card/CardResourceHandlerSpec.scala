@@ -1,5 +1,7 @@
 package v1.card
 
+import v1.card.tagsrepository._
+
 import org.scalatest._
 import org.scalatestplus.play._
 import org.scalatestplus.mockito.MockitoSugar

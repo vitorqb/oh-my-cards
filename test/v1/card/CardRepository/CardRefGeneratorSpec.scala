@@ -3,6 +3,7 @@ package v1.card.CardRefGenerator
 import scala.language.reflectiveCalls
 
 import v1.card._
+import v1.card.tagsrepository._
 
 import org.scalatestplus.play._
 import v1.card.testUtils.TestContext

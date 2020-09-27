@@ -30,7 +30,7 @@ trait CardFixtureRepository {
 case class TestContext(
   val components: CardRepositoryComponentsLike,
   val cardRepo: CardDataRepository,
-  val tagsRepo: TagsRepository,
+  val tagsRepo: TagsRepositoryLike,
   val cardElasticClient: CardElasticClient,
   val cardFixtures: CardFixtureRepository,
   val user: User

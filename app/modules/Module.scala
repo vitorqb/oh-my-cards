@@ -23,6 +23,8 @@ import v1.card.CardRefGenerator.CardRefGeneratorLike
 import play.api.db.Database
 import v1.card.cardrepositorycomponents.CardRepositoryComponentsLike
 import v1.card.cardrepositorycomponents.CardRepositoryComponents
+import v1.card.tagsrepository.TagsRepository
+import v1.card.TagsRepositoryLike
 
 class Module extends AbstractModule with ScalaModule {
 
@@ -92,6 +94,9 @@ class Module extends AbstractModule with ScalaModule {
 
   @Provides
   def cardRefGenerator(db: Database): CardRefGeneratorLike = new CardRefGenerator(db)
+
+  @Provides
+  def tagsRepository(): TagsRepositoryLike = new TagsRepository()
 
   @Provides
   def cardRepositoryComponents(
