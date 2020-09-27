@@ -17,6 +17,7 @@ import services.Clock
 import org.joda.time.DateTime
 import anorm.JodaParameterMetaData._
 import v1.card.CardRefGenerator.CardRefGeneratorLike
+import v1.card.cardrepositorycomponents.CardRepositoryComponentsLike
 
 
 /**
@@ -80,12 +81,10 @@ object FindResult {
   * An implementation for a card repository.
   */
 class CardRepository @Inject()(
-  db: Database,
-  uuidGenerator: UUIDGenerator,
-  refGenerator: CardRefGeneratorLike,
+  components: CardRepositoryComponentsLike,
   tagsRepo: TagsRepository,
-  cardElasticClient: CardElasticClient,
-  clock: Clock)(
+  cardElasticClient: CardElasticClient
+)(
   implicit val ec: ExecutionContext
 ) {
 
@@ -115,14 +114,14 @@ class CardRepository @Inject()(
 
   //!!!! TODO Return Future
   def create(cardFormInput: CardFormInput, user: User): Try[String] = {
-    val now = clock.now()
-    val id = uuidGenerator.generate
+    val now = components.clock.now()
+    val id = components.uuidGenerator.generate
     val title = cardFormInput.getTitle()
     val body = cardFormInput.getBody()
     val tags = cardFormInput.getTags()
-    val ref = refGenerator.nextRef()
+    val ref = components.refGenerator.nextRef()
 
-    db.withTransaction { implicit c =>
+    components.db.withTransaction { implicit c =>
       SQL(
         """INSERT INTO cards(id, userId, title, body, createdAt, updatedAt, ref)
              VALUES ({id}, {userId}, {title}, {body}, {now}, {now}, {ref})"""
@@ -140,7 +139,7 @@ class CardRepository @Inject()(
     }
   }
 
-  def get(id: String, user: User): Option[CardData] = db.withConnection { implicit c =>
+  def get(id: String, user: User): Option[CardData] = components.db.withConnection { implicit c =>
     SQL(s"${sqlGetStatement} WHERE userId = {userId} AND id = {id}")
       .on("id" -> id, "userId" -> user.id)
       .as(cardDataParser.*)
@@ -155,7 +154,7 @@ class CardRepository @Inject()(
       esIdsResult <- cardElasticClient.findIds(request)
       query = SQL(s"${sqlGetStatement} WHERE id IN ({ids})").on("ids" -> esIdsResult.ids)
     } yield {
-      db.withConnection { implicit c =>
+      components.db.withConnection { implicit c =>
         val sqlQueryResult = query.as(cardDataParser.*)
         FindResult.fromQueryResults(sqlQueryResult, esIdsResult)
       }
@@ -168,7 +167,7 @@ class CardRepository @Inject()(
   def delete(id: String, user: User): Future[Try[Unit]] = Future {
     get(id, user) match {
       case None => Failure(new CardDoesNotExist)
-      case Some(_) => db.withTransaction { implicit c =>
+      case Some(_) => components.db.withTransaction { implicit c =>
         SQL(s"DELETE FROM cards WHERE userId = {userId} AND id = {id}")
           .on("id" -> id, "userId" -> user.id)
           .executeUpdate()
@@ -182,38 +181,46 @@ class CardRepository @Inject()(
   /**
     * Updates a card.
     */
-  def update(data: CardData, user: User): Future[Try[Unit]] = Future { Try { db.withTransaction {
-    implicit c =>
-    val now = clock.now()
-    SQL("""
+  def update(data: CardData, user: User): Future[Try[Unit]] =
+    Future {
+      Try {
+        components.db.withTransaction {
+          implicit c =>
+          val now = components.clock.now()
+          SQL("""
         UPDATE cards SET title={title}, body={body}, updatedAt={now}
         WHERE id={id} AND userId={userId}
        """)
-      .on(
-        "title" -> data.title,
-        "body" -> data.body,
-        "id" -> data.id,
-        "userId" -> user.id,
-        "now" -> now
-      )
-      .executeUpdate()
-    tagsRepo.delete(data.id)
-    tagsRepo.create(data.id, data.tags)
-    cardElasticClient.update(data, now, user)
-  }}}
+            .on(
+              "title" -> data.title,
+              "body" -> data.body,
+              "id" -> data.id,
+              "userId" -> user.id,
+              "now" -> now
+            )
+            .executeUpdate()
+          tagsRepo.delete(data.id)
+          tagsRepo.create(data.id, data.tags)
+          cardElasticClient.update(data, now, user)
+        }
+      }
+    }
 
   /**
     * Returns all tags for a given user.
     */
-  def getAllTags(user: User): Future[List[String]] = Future { db.withTransaction { implicit c =>
-    import anorm.SqlParser._
-    SQL"""
+  def getAllTags(user: User): Future[List[String]] =
+    Future {
+      components.db.withTransaction { implicit c =>
+        import anorm.SqlParser._
+        SQL"""
        SELECT tag
        FROM cardsTags
        JOIN cards ON cards.id = cardId
        WHERE cards.userId = ${user.id}
     """.as(str(1).*)
-  }}
+      }
+    }
 }
 
 /**

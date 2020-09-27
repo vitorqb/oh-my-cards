@@ -17,6 +17,9 @@ import v1.card.testUtils.CardFixtureRepository
 import v1.card.testUtils.CardFixture
 import org.joda.time.DateTime
 import v1.auth.User
+import v1.card.cardrepositorycomponents.CardRepositoryComponentsLike
+import v1.card.cardrepositorycomponents.CardRepositoryComponents
+import v1.card.testUtils.ComponentsBuilder
 
 
 class CardRefGeneratorSpec extends PlaySpec with MockitoSugar {
@@ -30,20 +33,15 @@ class CardRefGeneratorSpec extends PlaySpec with MockitoSugar {
 
   def testContext(block: TestContext => Any) = {
     TestUtils.testDB { implicit db =>
-      val uuidGenerator = mock[UUIDGenerator]
       val tagsRepo = new TagsRepository
       val cardElasticClient = mock[CardElasticClient]
-      val clock = mock[Clock]
-      val cardRefGenerator = new CardRefGenerator(db)
-      val repository = new CardRepository(db, uuidGenerator, cardRefGenerator, tagsRepo, cardElasticClient, clock)
+      val components = ComponentsBuilder(db).build()
+      val repository = new CardRepository(components, tagsRepo, cardElasticClient)
       val testContext = TestContext(
-        db,
-        uuidGenerator,
-        cardRefGenerator,
+        components,
         repository,
         tagsRepo,
         cardElasticClient,
-        clock,
         cardFixtures,
         new User("userId", "user@email.com")
       )
@@ -57,12 +55,12 @@ class CardRefGeneratorSpec extends PlaySpec with MockitoSugar {
 
   "nextRef" should {
     "generate 1 if db is empty" in testContext { c =>
-      c.cardRefGenerator.nextRef() mustEqual 1
+      c.components.refGenerator.nextRef() mustEqual 1
     }
 
     "generate 2 if db has 1 card" in testContext { c =>
       c.createCardInDb(cardFixtures.f1)
-      c.cardRefGenerator.nextRef() mustEqual 2
+      c.components.refGenerator.nextRef() mustEqual 2
     }
   }
 

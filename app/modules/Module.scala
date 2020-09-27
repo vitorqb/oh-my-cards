@@ -21,6 +21,8 @@ import services.SendgridMailServiceImpl
 import v1.card.CardRefGenerator.CardRefGenerator
 import v1.card.CardRefGenerator.CardRefGeneratorLike
 import play.api.db.Database
+import v1.card.cardrepositorycomponents.CardRepositoryComponentsLike
+import v1.card.cardrepositorycomponents.CardRepositoryComponents
 
 class Module extends AbstractModule with ScalaModule {
 
@@ -90,6 +92,15 @@ class Module extends AbstractModule with ScalaModule {
 
   @Provides
   def cardRefGenerator(db: Database): CardRefGeneratorLike = new CardRefGenerator(db)
+
+  @Provides
+  def cardRepositoryComponents(
+    db: Database,
+    uuidGenerator: UUIDGenerator,
+    refGenerator: CardRefGeneratorLike,
+    clock: Clock
+  ): CardRepositoryComponentsLike =
+    new CardRepositoryComponents(db, uuidGenerator, refGenerator, clock)
 
 }
 

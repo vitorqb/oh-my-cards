@@ -25,6 +25,8 @@ import scala.util.Success
 
 import v1.card.testUtils._
 import v1.card.CardRefGenerator.CardRefGenerator
+import v1.card.cardrepositorycomponents.CardRepositoryComponentsLike
+import v1.card.cardrepositorycomponents.CardRepositoryComponents
 
 class FindResultSpec extends PlaySpec {
 
@@ -90,20 +92,15 @@ class CardRepositorySpec extends PlaySpec
     * Initializes and provides context for the tests.
     */
   def testContext(block: TestContext => Any): Any = {
-    val uuidGenerator = mock[UUIDGenerator]
     val tagsRepo = new TagsRepository
     val cardElasticClient = mock[CardElasticClient]
-    val clock = mock[Clock]
-    val cardRefGenerator = new CardRefGenerator(db)
-    val repository = new CardRepository(db, uuidGenerator, cardRefGenerator, tagsRepo, cardElasticClient, clock)
+    val components = ComponentsBuilder(db).build()
+    val repository = new CardRepository(components, tagsRepo, cardElasticClient)
     val testContext = TestContext(
-      db,
-      uuidGenerator,
-      cardRefGenerator,
+      components,
       repository,
       tagsRepo,
       cardElasticClient,
-      clock,
       cardFixtures,
       new User("userId", "user@email.com")
     )
@@ -281,7 +278,7 @@ class CardRepositorySpec extends PlaySpec
         createdAt=Some(datetime),
         updatedAt=Some(laterDatetime)
       )
-      when(c.clock.now()).thenReturn(laterDatetime)
+      when(c.components.clock.now()).thenReturn(laterDatetime)
 
       c.cardRepo.update(newCardData, c.user).futureValue
 
@@ -292,7 +289,7 @@ class CardRepositorySpec extends PlaySpec
       val fixture = cardFixtures.f2
       c.createCardInDb(fixture)
       val cardData = c.cardRepo.get(fixture.id, c.user).get
-      when(c.clock.now()).thenReturn(laterDatetime)
+      when(c.components.clock.now()).thenReturn(laterDatetime)
 
       Await.ready(c.cardRepo.update(cardData, c.user), 5000 millis)
 

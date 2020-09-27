@@ -34,6 +34,8 @@ import v1.card.testUtils._
 import services.{UUIDGenerator,Clock}
 import scala.concurrent.ExecutionContext
 import v1.card.CardRefGenerator.CardRefGenerator
+import v1.card.cardrepositorycomponents.CardRepositoryComponentsLike
+import v1.card.cardrepositorycomponents.CardRepositoryComponents
 
 class CardElasticIdFinderSpec extends PlaySpec with MockitoSugar with ScalaFutures {
 
@@ -157,19 +159,14 @@ class CardElasticClientFunctionalSpec
 
   def testContext(block: TestContext => Any) = {
     TestUtils.testDB { db =>
-      val uuidGenerator = mock[UUIDGenerator]
       val tagsRepo = new TagsRepository
       val cardElasticClient = new CardElasticClientImpl(client)
-      val clock = mock[Clock]
-      val cardRefGenerator = new CardRefGenerator(db)
+      val components = ComponentsBuilder(db).build()
       val testContext = TestContext(
-        db=db,
-        uuidGenerator=uuidGenerator,
-        cardRefGenerator,
-        cardRepo=new CardRepository(db, uuidGenerator, cardRefGenerator, tagsRepo, cardElasticClient, clock),
+        components=components,
+        cardRepo=new CardRepository(components, tagsRepo, cardElasticClient),
         tagsRepo=tagsRepo,
         cardElasticClient=cardElasticClient,
-        clock=clock,
         cardFixtures=cardFixtures,
         user=user
       )

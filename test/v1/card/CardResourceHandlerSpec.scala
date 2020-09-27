@@ -18,6 +18,8 @@ import services.UUIDGenerator
 import services.Clock
 import org.joda.time.DateTime
 import v1.card.CardRefGenerator.CardRefGeneratorLike
+import v1.card.cardrepositorycomponents.CardRepositoryComponentsLike
+import v1.card.cardrepositorycomponents.CardRepositoryComponents
 
 class CardResourceSpec extends PlaySpec {
 
@@ -171,7 +173,8 @@ class CardResourceHandlerSpec
           val user = User("userId", "userEmail")
           val cardRefGenerator = mock[CardRefGeneratorLike]
           val input = CardFormInput("title", Some("body"), None)
-          val repository = new CardRepository(db, uuidGenerator, cardRefGenerator, tagsRepo, elasticClient, clock)
+          val components = new CardRepositoryComponents(db, uuidGenerator, cardRefGenerator, clock)
+          val repository = new CardRepository(components, tagsRepo, elasticClient)
           val handler = new CardResourceHandler(repository)
           val created = handler.create(input, user).get
 
