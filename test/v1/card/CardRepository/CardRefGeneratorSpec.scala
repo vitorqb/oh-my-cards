@@ -8,7 +8,7 @@ import org.scalatestplus.play._
 import v1.card.testUtils.TestContext
 import test.utils.TestUtils
 import services.UUIDGenerator
-import v1.card.CardRepository
+import v1.card.CardDataRepository
 import org.scalatestplus.mockito.MockitoSugar
 import org.mockito.Mockito._
 import services.Clock
@@ -36,7 +36,7 @@ class CardRefGeneratorSpec extends PlaySpec with MockitoSugar {
       val tagsRepo = new TagsRepository
       val cardElasticClient = mock[CardElasticClient]
       val components = ComponentsBuilder(db).build()
-      val repository = new CardRepository(components, tagsRepo, cardElasticClient)
+      val repository = new CardDataRepository(components, tagsRepo, cardElasticClient)
       val testContext = TestContext(
         components,
         repository,

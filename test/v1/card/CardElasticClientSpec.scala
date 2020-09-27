@@ -164,7 +164,7 @@ class CardElasticClientFunctionalSpec
       val components = ComponentsBuilder(db).build()
       val testContext = TestContext(
         components=components,
-        cardRepo=new CardRepository(components, tagsRepo, cardElasticClient),
+        cardRepo=new CardDataRepository(components, tagsRepo, cardElasticClient),
         tagsRepo=tagsRepo,
         cardElasticClient=cardElasticClient,
         cardFixtures=cardFixtures,

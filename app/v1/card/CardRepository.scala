@@ -80,7 +80,7 @@ object FindResult {
 /**
   * An implementation for a card repository.
   */
-class CardRepository @Inject()(
+class CardDataRepository @Inject()(
   components: CardRepositoryComponentsLike,
   tagsRepo: TagsRepository,
   cardElasticClient: CardElasticClient

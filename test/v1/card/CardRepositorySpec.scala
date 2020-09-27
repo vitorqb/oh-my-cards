@@ -95,7 +95,7 @@ class CardRepositorySpec extends PlaySpec
     val tagsRepo = new TagsRepository
     val cardElasticClient = mock[CardElasticClient]
     val components = ComponentsBuilder(db).build()
-    val repository = new CardRepository(components, tagsRepo, cardElasticClient)
+    val repository = new CardDataRepository(components, tagsRepo, cardElasticClient)
     val testContext = TestContext(
       components,
       repository,

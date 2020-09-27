@@ -9,7 +9,7 @@ import org.joda.time.DateTime
 import org.scalatestplus.mockito.MockitoSugar
 import org.mockito.Mockito._
 import services.UUIDGenerator
-import v1.card.CardRepository
+import v1.card.CardDataRepository
 import v1.card.TagsRepository
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import v1.auth.User
@@ -61,7 +61,7 @@ class ElasticSearchSynchronizerSpec
     lazy val user = User("a", "b")
 
     def createThreeCardsOnDb() = {
-      val repository: CardRepository = app.injector.instanceOf[CardRepository]
+      val repository: CardDataRepository = app.injector.instanceOf[CardDataRepository]
       val idOne = repository.create(cardInput1, user).get
       val idTwo = repository.create(cardInput2, user).get
       val idThree = repository.create(cardInput3, user).get
