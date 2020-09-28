@@ -6,9 +6,10 @@ import org.scalatestplus.mockito.MockitoSugar
 
 import org.mockito.Mockito._
 import org.mockito.{ ArgumentMatchersSugar }
-import services.Clock
 import org.joda.time.DateTime
 import v1.auth.OneTimePasswordInfo
+import com.mohiva.play.silhouette.api.util.{Clock=>SilhouetteClock}
+
 
 
 class OneTimePasswordInfoSpec
@@ -17,7 +18,7 @@ class OneTimePasswordInfoSpec
     with ArgumentMatchersSugar {
 
   "OneTimePasswordInfo.isValid" should {
-    val clockMock = mock[Clock]
+    val clockMock = mock[SilhouetteClock]
     when(clockMock.now).thenReturn(DateTime.parse("2019-01-01T0:00:00"))
 
     val validOneTimePasswordInfo = OneTimePasswordInfo(

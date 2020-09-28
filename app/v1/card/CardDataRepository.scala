@@ -13,7 +13,6 @@ import scala.concurrent.ExecutionContext
 import java.sql.Connection
 import anorm.SimpleSql
 import anorm.Row
-import services.Clock
 import org.joda.time.DateTime
 import anorm.JodaParameterMetaData._
 import v1.card.CardRefGenerator.CardRefGeneratorLike
@@ -123,7 +122,7 @@ class CardDataRepository @Inject()(
       Try {
         components.db.withTransaction {
           implicit c =>
-          val now = components.clock.now()
+          val now = components.clock.now
           SQL("""
         UPDATE cards SET title={title}, body={body}, updatedAt={now}
         WHERE id={id} AND userId={userId}

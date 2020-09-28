@@ -6,13 +6,13 @@ import play.api.mvc.Request
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext
 import com.google.inject.Inject
-import services.Clock
+import com.mohiva.play.silhouette.api.util.{Clock=>SilhouetteClock}
 import play.api.Logger
 
 
 class BearerTokenRequestProvider @Inject()(
   userTokenRepository: UserTokenRepository,
-  clock: Clock)(
+  clock: SilhouetteClock)(
   implicit ec: ExecutionContext)
     extends RequestProvider {
 

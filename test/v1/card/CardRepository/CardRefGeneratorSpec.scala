@@ -12,7 +12,6 @@ import services.UUIDGenerator
 import v1.card.CardDataRepository
 import org.scalatestplus.mockito.MockitoSugar
 import org.mockito.Mockito._
-import services.Clock
 import scala.concurrent.ExecutionContext
 import v1.card.testUtils.CardFixtureRepository
 import v1.card.testUtils.CardFixture

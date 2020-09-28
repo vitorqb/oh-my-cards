@@ -118,7 +118,7 @@ class CardRepository(
 
   override def create(cardFormInput: CardFormInput, user: User): Try[String] = {
     components.db.withTransaction { implicit c =>
-      val now = components.clock.now()
+      val now = components.clock.now
       val id = components.uuidGenerator.generate()
       val ref = components.refGenerator.nextRef()
       val context = CardCreationContext(user, now, id, ref)

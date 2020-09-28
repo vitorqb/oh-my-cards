@@ -10,7 +10,7 @@ import scala.concurrent.ExecutionContextExecutor
 import scala.util.Try
 import scala.util.Failure
 import scala.util.Success
-import services.Clock
+import com.mohiva.play.silhouette.api.util.{Clock=>SilhouetteClock}
 
 /**
   * Custom exception for failures here.
@@ -25,7 +25,7 @@ final case class AuthenticationException(
   */
 class OneTimePasswordProvider @Inject()(
   val oneTimePassInfoRepository: OneTimePasswordInfoRepository,
-  val clock: Clock)(
+  val clock: SilhouetteClock)(
   implicit val ec: ExecutionContextExecutor)
     extends Provider {
 

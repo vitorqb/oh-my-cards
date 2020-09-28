@@ -2,7 +2,8 @@ package v1.auth
 
 import org.joda.time.DateTime
 import com.mohiva.play.silhouette.api.AuthInfo
-import services.Clock
+import com.mohiva.play.silhouette.api.util.{Clock=>SilhouetteClock}
+
 
 /**
   * This is the Authentication Info (AuthInfo) for a oneTimePassword.
@@ -19,7 +20,7 @@ case class OneTimePasswordInfo(
   /**
     * Returns whether the OneTimePasswordInfo is valid for a login.
     */
-  def isValid(clock: Clock): Boolean = {
+  def isValid(clock: SilhouetteClock): Boolean = {
     ! hasBeenInvalidated && ! hasBeenUsed && ! clock.now.isAfter(expirationDateTime)
   }
 

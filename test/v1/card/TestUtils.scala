@@ -2,7 +2,6 @@ package v1.card.testUtils
 import org.joda.time.DateTime
 import play.api.db.Database
 import services.UUIDGenerator
-import services.Clock
 import v1.auth.User
 import org.mockito.Mockito._
 import v1.card._
@@ -14,6 +13,7 @@ import v1.card.CardRefGenerator.CardRefGeneratorLike
 import javax.sql.DataSource
 import play.api.db.TransactionIsolationLevel
 import java.sql.Connection
+import com.mohiva.play.silhouette.api.util.{Clock=>SilhouetteClock}
 
 /**
   * A data class for the data that a fixture of a card needs.
@@ -53,7 +53,7 @@ case class TestContext(
     */
   def createCardInDb(formInput: CardFormInput, id: String, now: DateTime): String = {
     when(components.uuidGenerator.generate).thenReturn(id)
-    when(components.clock.now()).thenReturn(now)
+    when(components.clock.now).thenReturn(now)
     val result = cardRepo.create(formInput, user).get
     reset(components.uuidGenerator)
     reset(components.clock)
@@ -72,13 +72,13 @@ case class ComponentsBuilder(
   val db: Option[Database] = None,
   val uuidGenerator: Option[UUIDGenerator] = None,
   val refGenerator: Option[CardRefGeneratorLike] = None,
-  val clock: Option[Clock] = None
+  val clock: Option[SilhouetteClock] = None
 ) extends MockitoSugar {
 
   def withDb(db: Database) = copy(db=Some(db))
   def withUUIDGenerator(uuidGenerator: UUIDGenerator) = copy(uuidGenerator=Some(uuidGenerator))
   def withRefGenerator(refGenerator: CardRefGeneratorLike) = copy(refGenerator=Some(refGenerator))
-  def withClock(clock: Clock) = copy(clock=Some(clock))
+  def withClock(clock: SilhouetteClock) = copy(clock=Some(clock))
 
   /**
     * Shortcut to construct a Components from a CreateContext.
@@ -88,8 +88,8 @@ case class ComponentsBuilder(
     when(uuidGenerator_.generate()).thenReturn(context.id)
     val refGenerator_ = mock[CardRefGenerator]
     when(refGenerator_.nextRef()).thenReturn(context.ref)
-    val clock_ = mock[Clock]
-    when(clock_.now()).thenReturn(context.now)
+    val clock_ = mock[SilhouetteClock]
+    when(clock_.now).thenReturn(context.now)
 
     this.withClock(clock_).withUUIDGenerator(uuidGenerator_).withRefGenerator(refGenerator_)
   }
@@ -100,7 +100,7 @@ case class ComponentsBuilder(
       db_,
       uuidGenerator.getOrElse(mock[UUIDGenerator]),
       refGenerator.getOrElse(new CardRefGenerator(db_)),
-      clock.getOrElse(mock[Clock])
+      clock.getOrElse(mock[SilhouetteClock])
     )
   }
 }

@@ -29,6 +29,7 @@ import v1.card.CardRepositoryLike
 import v1.card.CardDataRepositoryLike
 import v1.card.CardRepository
 import v1.card.CardDataRepository
+import com.mohiva.play.silhouette.api.util.{Clock=>SilhouetteClock}
 
 class Module extends AbstractModule with ScalaModule {
 
@@ -38,7 +39,7 @@ class Module extends AbstractModule with ScalaModule {
   override def configure() = {
     bind[RandomStringGenerator].toInstance(new RandomStringGenerator)
     bind[UUIDGenerator].toInstance(new UUIDGenerator)
-    bind[Clock].toInstance(new Clock)
+    bind[SilhouetteClock].toInstance(new Clock)
   }
 
   /**
@@ -116,7 +117,7 @@ class Module extends AbstractModule with ScalaModule {
     db: Database,
     uuidGenerator: UUIDGenerator,
     refGenerator: CardRefGeneratorLike,
-    clock: Clock
+    clock: SilhouetteClock
   ): CardRepositoryComponentsLike =
     new CardRepositoryComponents(db, uuidGenerator, refGenerator, clock)
 

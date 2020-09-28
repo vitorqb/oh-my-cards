@@ -14,9 +14,7 @@ import org.mockito.{ ArgumentMatchersSugar }
 import v1.card.testUtils.MockDb
 import scala.util.Failure
 import org.joda.time.DateTime
-import services.Clock
 import v1.card.CardRefGenerator.CardRefGeneratorLike
-
 
 class FindResultSpec extends PlaySpec {
 

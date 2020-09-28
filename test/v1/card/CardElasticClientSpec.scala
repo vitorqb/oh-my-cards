@@ -33,7 +33,7 @@ import org.scalatest.time.Span
 import org.scalatest.time.Millis
 
 import v1.card.testUtils._
-import services.{UUIDGenerator,Clock}
+import services.{UUIDGenerator}
 import scala.concurrent.ExecutionContext
 import v1.card.CardRefGenerator.CardRefGenerator
 import v1.card.cardrepositorycomponents.CardRepositoryComponentsLike
@@ -129,7 +129,7 @@ class CardElasticClientFunctionalSpec
     */
   val user = User("UserId", "Email")
   val cardListRequest = CardListRequest(1, 100, user.id, List(), List(), None, None)
-  def getNowAsISOString = ISODateTimeFormat.dateTime().print(DateTime.now())
+  def getNowAsISOString = ISODateTimeFormat.dateTime().print(DateTime.now)
 
   val cardFixtures = new CardFixtureRepository() {
     val f1 = CardFixture(

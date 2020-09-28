@@ -1,15 +1,16 @@
 package v1.auth
 
 import com.google.inject.Inject
-import services.Clock
 import services.RandomStringGenerator
 import services.UUIDGenerator
+import com.mohiva.play.silhouette.api.util.{Clock=>SilhouetteClock}
+
 
 /**
   * Generates new OneTimePasswordInfos
   */
 class OneTimePasswordInfoGenerator @Inject()(
-  val clock: Clock,
+  val clock: SilhouetteClock,
   val randomStringGenerator: RandomStringGenerator,
   val uuidGenerator: UUIDGenerator) {
 

@@ -17,7 +17,6 @@ import services.UUIDGenerator
 import scala.util.Failure
 import play.api.db.Database
 import test.utils.TestUtils
-import services.Clock
 import org.joda.time.DateTime
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -229,7 +228,7 @@ class CardDataRepositorySpec extends PlaySpec
         createdAt=Some(datetime),
         updatedAt=Some(laterDatetime)
       )
-      when(c.components.clock.now()).thenReturn(laterDatetime)
+      when(c.components.clock.now).thenReturn(laterDatetime)
 
       c.cardRepo.update(newCardData, c.user).futureValue
 
@@ -240,7 +239,7 @@ class CardDataRepositorySpec extends PlaySpec
       val fixture = cardFixtures.f2
       c.createCardInDb(fixture)
       val cardData = c.cardRepo.get(fixture.id, c.user).get
-      when(c.components.clock.now()).thenReturn(laterDatetime)
+      when(c.components.clock.now).thenReturn(laterDatetime)
 
       Await.ready(c.cardRepo.update(cardData, c.user), 5000 millis)
 

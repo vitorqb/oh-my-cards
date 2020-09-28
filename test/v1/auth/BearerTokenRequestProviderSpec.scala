@@ -14,7 +14,8 @@ import org.scalatest.concurrent.ScalaFutures
 import org.joda.time.DateTime
 import play.api.mvc.AnyContent
 import com.mohiva.play.silhouette.api.LoginInfo
-import services.Clock
+import com.mohiva.play.silhouette.api.util.{Clock=>SilhouetteClock}
+
 
 
 class BearerTokenRequestProviderSpec
@@ -25,7 +26,7 @@ class BearerTokenRequestProviderSpec
   implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
 
   "authenticate" should {
-    val clock = mock[Clock]
+    val clock = mock[SilhouetteClock]
     when(clock.now).thenReturn(DateTime.parse("2019-01-01"))
 
     val tokenValue = "foo"
