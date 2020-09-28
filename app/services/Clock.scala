@@ -11,3 +11,8 @@ class Clock extends SilhouetteClock {
   def now: DateTime = DateTime.now
 
 }
+
+/**
+  * A mocked implementation for tests.
+  */
+class FrozenClock(val now: DateTime) extends SilhouetteClock
