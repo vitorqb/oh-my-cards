@@ -1,7 +1,7 @@
 package v1.card.testUtils
 import org.joda.time.DateTime
 import play.api.db.Database
-import services.UUIDGenerator
+import services.UUIDGeneratorLike
 import v1.auth.User
 import org.mockito.Mockito._
 import v1.card._
@@ -70,13 +70,13 @@ case class TestContext(
   */
 case class ComponentsBuilder(
   val db: Option[Database] = None,
-  val uuidGenerator: Option[UUIDGenerator] = None,
+  val uuidGenerator: Option[UUIDGeneratorLike] = None,
   val refGenerator: Option[CardRefGeneratorLike] = None,
   val clock: Option[SilhouetteClock] = None
 ) extends MockitoSugar {
 
   def withDb(db: Database) = copy(db=Some(db))
-  def withUUIDGenerator(uuidGenerator: UUIDGenerator) = copy(uuidGenerator=Some(uuidGenerator))
+  def withUUIDGenerator(uuidGenerator: UUIDGeneratorLike) = copy(uuidGenerator=Some(uuidGenerator))
   def withRefGenerator(refGenerator: CardRefGeneratorLike) = copy(refGenerator=Some(refGenerator))
   def withClock(clock: SilhouetteClock) = copy(clock=Some(clock))
 
@@ -84,7 +84,7 @@ case class ComponentsBuilder(
     * Shortcut to construct a Components from a CreateContext.
     */
   def withContext(context: CardCreationContext) = {
-    val uuidGenerator_ = mock[UUIDGenerator]
+    val uuidGenerator_ = mock[UUIDGeneratorLike]
     when(uuidGenerator_.generate()).thenReturn(context.id)
     val refGenerator_ = mock[CardRefGenerator]
     when(refGenerator_.nextRef()).thenReturn(context.ref)
@@ -98,7 +98,7 @@ case class ComponentsBuilder(
     val db_ = db.getOrElse(mock[Database])
     new CardRepositoryComponents(
       db_,
-      uuidGenerator.getOrElse(mock[UUIDGenerator]),
+      uuidGenerator.getOrElse(mock[UUIDGeneratorLike]),
       refGenerator.getOrElse(new CardRefGenerator(db_)),
       clock.getOrElse(mock[SilhouetteClock])
     )

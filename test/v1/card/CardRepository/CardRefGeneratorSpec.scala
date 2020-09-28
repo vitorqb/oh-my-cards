@@ -8,7 +8,6 @@ import v1.card.tagsrepository._
 import org.scalatestplus.play._
 import v1.card.testUtils.TestContext
 import test.utils.TestUtils
-import services.UUIDGenerator
 import v1.card.CardDataRepository
 import org.scalatestplus.mockito.MockitoSugar
 import org.mockito.Mockito._

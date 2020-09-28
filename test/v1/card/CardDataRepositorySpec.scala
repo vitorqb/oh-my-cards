@@ -13,7 +13,6 @@ import v1.card.tagsrepository._
 import scala.concurrent.ExecutionContext
 import org.scalatest.concurrent.ScalaFutures
 import v1.auth.User
-import services.UUIDGenerator
 import scala.util.Failure
 import play.api.db.Database
 import test.utils.TestUtils

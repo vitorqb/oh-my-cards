@@ -1,7 +1,7 @@
 package v1.card.cardrepositorycomponents
 
 import play.api.db.Database
-import services.UUIDGenerator
+import services.UUIDGeneratorLike
 import v1.card.CardRefGenerator.CardRefGeneratorLike
 import com.mohiva.play.silhouette.api.util.{Clock=>SilhouetteClock}
 
@@ -11,7 +11,7 @@ import com.mohiva.play.silhouette.api.util.{Clock=>SilhouetteClock}
   */
 trait CardRepositoryComponentsLike {
   val db: Database
-  val uuidGenerator: UUIDGenerator
+  val uuidGenerator: UUIDGeneratorLike
   val refGenerator: CardRefGeneratorLike
   val clock: SilhouetteClock
 }
@@ -21,7 +21,7 @@ trait CardRepositoryComponentsLike {
   */
 class CardRepositoryComponents (
   val db: Database,
-  val uuidGenerator: UUIDGenerator,
+  val uuidGenerator: UUIDGeneratorLike,
   val refGenerator: CardRefGeneratorLike,
   val clock: SilhouetteClock
 ) extends CardRepositoryComponentsLike

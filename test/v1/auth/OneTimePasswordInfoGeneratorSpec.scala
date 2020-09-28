@@ -9,7 +9,7 @@ import org.mockito.{ ArgumentMatchersSugar }
 
 import org.joda.time.DateTime
 import services.RandomStringGenerator
-import services.UUIDGenerator
+import services.UUIDGeneratorLike
 import com.mohiva.play.silhouette.api.util.{Clock=>SilhouetteClock}
 
 
@@ -27,7 +27,7 @@ class OneTimePasswordInfoGeneratorSpec
       val randomStringGeneratorMock = mock[RandomStringGenerator]
       when(randomStringGeneratorMock.generate(2)).thenReturn("foo")
 
-      val uuidGeneratorMock = mock[UUIDGenerator]
+      val uuidGeneratorMock = mock[UUIDGeneratorLike]
       when(uuidGeneratorMock.generate).thenReturn("bar")
 
       val generator = new OneTimePasswordInfoGenerator(

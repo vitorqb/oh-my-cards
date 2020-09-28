@@ -33,7 +33,6 @@ import org.scalatest.time.Span
 import org.scalatest.time.Millis
 
 import v1.card.testUtils._
-import services.{UUIDGenerator}
 import scala.concurrent.ExecutionContext
 import v1.card.CardRefGenerator.CardRefGenerator
 import v1.card.cardrepositorycomponents.CardRepositoryComponentsLike

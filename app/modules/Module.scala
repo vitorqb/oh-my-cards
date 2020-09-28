@@ -2,7 +2,7 @@ package modules
 
 import com.google.inject.AbstractModule
 import net.codingwell.scalaguice.ScalaModule
-import services.{RandomStringGenerator, UUIDGenerator, Clock}
+import services.{RandomStringGenerator, UUIDGeneratorLike, Clock}
 import java.util.UUID
 import services.MailService
 import scala.concurrent.ExecutionContext
@@ -30,6 +30,7 @@ import v1.card.CardDataRepositoryLike
 import v1.card.CardRepository
 import v1.card.CardDataRepository
 import com.mohiva.play.silhouette.api.util.{Clock=>SilhouetteClock}
+import services.UUIDGenerator
 
 class Module extends AbstractModule with ScalaModule {
 
@@ -38,7 +39,7 @@ class Module extends AbstractModule with ScalaModule {
     */
   override def configure() = {
     bind[RandomStringGenerator].toInstance(new RandomStringGenerator)
-    bind[UUIDGenerator].toInstance(new UUIDGenerator)
+    bind[UUIDGeneratorLike].toInstance(new UUIDGenerator)
     bind[SilhouetteClock].toInstance(new Clock)
   }
 
@@ -115,7 +116,7 @@ class Module extends AbstractModule with ScalaModule {
   @Provides
   def cardRepositoryComponents(
     db: Database,
-    uuidGenerator: UUIDGenerator,
+    uuidGenerator: UUIDGeneratorLike,
     refGenerator: CardRefGeneratorLike,
     clock: SilhouetteClock
   ): CardRepositoryComponentsLike =

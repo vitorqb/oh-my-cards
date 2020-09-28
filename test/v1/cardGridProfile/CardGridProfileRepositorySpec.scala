@@ -6,7 +6,7 @@ import test.utils._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import org.mockito.MockitoSugar
-import services.UUIDGenerator
+import services.UUIDGeneratorLike
 import anorm.{SQL}
 import anorm.SqlParser
 import org.scalatest.concurrent.ScalaFutures
@@ -35,7 +35,7 @@ class CardGridProfileRepositorySpec extends PlaySpec with MockitoSugar with Scal
 
   val user = User("user-id", "user@email")
 
-  val uuidGenerator = mock[UUIDGenerator]
+  val uuidGenerator = mock[UUIDGeneratorLike]
   when(uuidGenerator.generate).thenReturn("created-id")
 
   "create" should {

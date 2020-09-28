@@ -8,7 +8,6 @@ import v1.card.CardData
 import org.joda.time.DateTime
 import org.scalatestplus.mockito.MockitoSugar
 import org.mockito.Mockito._
-import services.UUIDGenerator
 import v1.card.CardDataRepository
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import v1.auth.User

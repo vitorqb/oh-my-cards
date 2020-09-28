@@ -16,12 +16,12 @@ import scala.util.Success
 import v1.auth.User
 import scala.util.Failure
 import scala.concurrent.Future
-import services.UUIDGenerator
 import org.joda.time.DateTime
 import v1.card.CardRefGenerator.CardRefGeneratorLike
 import v1.card.cardrepositorycomponents.CardRepositoryComponentsLike
 import v1.card.cardrepositorycomponents.CardRepositoryComponents
 import com.mohiva.play.silhouette.api.util.{Clock=>SilhouetteClock}
+import services.UUIDGenerator
 
 class CardResourceSpec extends PlaySpec {
 

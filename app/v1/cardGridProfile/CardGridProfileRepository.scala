@@ -6,7 +6,7 @@ import scala.concurrent.Future
 import com.google.inject.Inject
 import scala.concurrent.ExecutionContext
 import anorm.SQL
-import services.UUIDGenerator
+import services.UUIDGeneratorLike
 import java.sql.Connection
 
 /**
@@ -36,7 +36,7 @@ case class CardGridConfigData(
   */
 class CardGridProfileRepository @Inject()(
   db: Database,
-  uuidGenerator: UUIDGenerator)(
+  uuidGenerator: UUIDGeneratorLike)(
   implicit val ec: ExecutionContext
 ) {
 

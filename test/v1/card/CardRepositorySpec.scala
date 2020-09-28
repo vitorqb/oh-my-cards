@@ -5,7 +5,6 @@ import org.scalatestplus.play.PlaySpec
 import org.mockito.MockitoSugar
 import org.mockito.Mockito._
 import v1.auth.User
-import services.UUIDGenerator
 import v1.card.testUtils.ComponentsBuilder
 import play.api.db.Database
 import scala.util.Success

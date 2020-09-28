@@ -6,7 +6,6 @@ import scala.util.{Try,Success,Failure}
 import anorm.{SQL,RowParser,Macro,SqlParser,SeqParameter}
 import play.api.db.Database
 import v1.auth.User
-import services.UUIDGenerator
 import anorm.`package`.SqlStringInterpolation
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext
