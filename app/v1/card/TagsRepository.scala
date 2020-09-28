@@ -4,6 +4,7 @@ import v1.card.TagsRepositoryLike
 import java.sql.Connection
 import anorm.{SQL,SqlParser}
 import anorm.`package`.SqlStringInterpolation
+import v1.card.CardData
 
 /**
   * Helper object manage cards tags.
@@ -33,4 +34,9 @@ class TagsRepository extends TagsRepositoryLike {
     SQL"SELECT tag FROM cardsTags WHERE cardId = ${cardId} ORDER BY tag"
       .as(SqlParser.scalar[String].*)
   }
+
+  /**
+    * Queries and fills the card with it's tags.
+    */
+  def fill(card: CardData)(implicit c: Connection): CardData = card.copy(tags=get(card.id))
 }

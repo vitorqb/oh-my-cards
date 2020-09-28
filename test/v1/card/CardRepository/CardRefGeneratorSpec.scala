@@ -32,10 +32,11 @@ class CardRefGeneratorSpec extends PlaySpec with MockitoSugar {
 
   def testContext(block: TestContext => Any) = {
     TestUtils.testDB { implicit db =>
+      val dataRepo = new CardDataRepository
       val tagsRepo = new TagsRepository
       val cardElasticClient = mock[CardElasticClient]
       val components = ComponentsBuilder().withDb(db).build()
-      val repository = new CardRepository(new CardDataRepository(components, tagsRepo, cardElasticClient), tagsRepo, cardElasticClient, components)
+      val repository = new CardRepository(dataRepo, tagsRepo, cardElasticClient, components)
       val testContext = TestContext(
         components,
         repository,

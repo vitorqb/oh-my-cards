@@ -26,6 +26,7 @@ import services.FrozenClock
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.Span
 import org.scalatest.time.Millis
+import scala.concurrent.Future
 
 class FindResultSpec extends PlaySpec {
 
@@ -47,8 +48,15 @@ class FindResultSpec extends PlaySpec {
 
 }
 
-class CardRepositorySpec extends PlaySpec with MockitoSugar with ArgumentMatchersSugar {
+class CardRepositorySpec
+    extends PlaySpec
+    with MockitoSugar
+    with ArgumentMatchersSugar
+    with ScalaFutures
+{
 
+  implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
+  
   case class TestContext(
     val dataRepo: CardDataRepositoryLike,
     val tagsRepo: TagsRepositoryLike,
@@ -62,16 +70,20 @@ class CardRepositorySpec extends PlaySpec with MockitoSugar with ArgumentMatcher
   val connection = mock[Connection]
   val db = new MockDb {
     override def withTransaction[A](block: Connection => A): A = block(connection)
+    override def getConnection(autocommit: Boolean): Connection = connection
   }
   val components = ComponentsBuilder().withDb(db).withContext(context).build()
 
   def testContext(block: TestContext => Any): Any = {
     val dataRepo = mock[CardDataRepositoryLike]
     when(dataRepo.create(any, any)(any)).thenReturn(Success("id"))
+    when(dataRepo.delete(any, any)(any)).thenReturn(Future.successful(Success(())))
+    when(dataRepo.update(any, any)(any)).thenReturn(Future.successful(Success(())))
     val tagsRepo = mock[TagsRepositoryLike]
     val esClient = mock[CardElasticClient]
     val repo = new CardRepository(dataRepo, tagsRepo, esClient, components)
-    TestContext(dataRepo, tagsRepo, esClient, repo)
+    val testContext = TestContext(dataRepo, tagsRepo, esClient, repo)
+    block(testContext)
   }
 
   "create" should {
@@ -99,6 +111,46 @@ class CardRepositorySpec extends PlaySpec with MockitoSugar with ArgumentMatcher
       c.repo.create(formInput, user).get mustEqual "id"
     }
 
+  }
+
+  "delete" should {
+    
+    "send delete msg to card data repository" in testContext { c =>
+      c.repo.delete("1", user).futureValue
+      verify(c.dataRepo).delete("1", user)(connection)
+    }
+
+    "send delete msg to tags repository" in testContext { c =>
+      c.repo.delete("1", user).futureValue
+      verify(c.tagsRepo).delete("1")(connection)
+    }
+
+    "send delete msg to es client" in testContext { c =>
+      c.repo.delete("1", user).futureValue
+      verify(c.esClient).delete("1")
+    }
+
+  }
+
+  "update" should {
+
+    val data = CardData("1", "t", "b", List("A"), Some(now), Some(now), 1)
+    val context = CardUpdateContext(user, now)
+
+    "send update msg to card data repository" in testContext { c =>
+      c.repo.update(data, user).futureValue
+      verify(c.dataRepo).update(data, context)(connection)
+    }
+
+    "send update msg to tags repository" in testContext { c =>
+      c.repo.update(data, user).futureValue
+      verify(c.tagsRepo).update(data)(connection)
+    }
+
+    "send update msg to es client" in testContext { c =>
+      c.repo.update(data, user).futureValue
+      verify(c.esClient).update(data, context)
+    }
   }
 
 }
@@ -131,7 +183,7 @@ class CardRepositoryIntegrationSpec
         .build()
       val tagsRepo = new TagsRepository()
       val esClient = new CardElasticClientImpl(client)
-      val dataRepo = new CardDataRepository(components, tagsRepo, esClient)
+      val dataRepo = new CardDataRepository
       val repo = new CardRepository(dataRepo, tagsRepo, esClient, components)
       val testContext = TestContext(components, repo)
       try {
@@ -183,7 +235,11 @@ class CardRepositoryIntegrationSpec
       c.repo.get("1", user) mustEqual None
     }
 
-    "create three cards and find 2 with search term" in testContext { c =>
+    "deletes a card that does not exist" taggedAs(FunctionalTestsTag) in testContext { c =>
+      c.repo.delete("1", user).futureValue.failed.get mustBe a[CardDoesNotExist]
+    }
+
+    "create three cards and find 2 with search term" taggedAs(FunctionalTestsTag) in testContext { c =>
       val input_1 = baseCardInput.copy(title="SomeLongWord")
       val input_2 = baseCardInput.copy(title="SomeLongWo")
       val input_3 = baseCardInput.copy(title="Nothing to do with the others")
@@ -203,7 +259,7 @@ class CardRepositoryIntegrationSpec
       response.cards mustEqual Seq(expected_1, expected_2)
     }
 
-    "get with pagination" in testContext { c =>
+    "get with pagination" taggedAs(FunctionalTestsTag) in testContext { c =>
       c.repo.create(baseCardInput, user)
       c.repo.create(baseCardInput, user)
       refreshIdx()

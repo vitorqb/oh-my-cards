@@ -169,6 +169,7 @@ class CardResourceHandlerSpec
         test.utils.TestUtils.testDB { implicit db =>
           //Creates a card
           val uuidGenerator = new UUIDGenerator
+          val dataRepo = new CardDataRepository
           val tagsRepo = new TagsRepository
           val elasticClient = mock[CardElasticClient]
           val clock = mock[SilhouetteClock]
@@ -176,7 +177,7 @@ class CardResourceHandlerSpec
           val cardRefGenerator = mock[CardRefGeneratorLike]
           val input = CardFormInput("title", Some("body"), None)
           val components = new CardRepositoryComponents(db, uuidGenerator, cardRefGenerator, clock)
-          val repository = new CardRepository(new CardDataRepository(components, tagsRepo, elasticClient), tagsRepo, elasticClient, components)
+          val repository = new CardRepository(dataRepo, tagsRepo, elasticClient, components)
           val handler = new CardResourceHandler(repository)
           val created = handler.create(input, user).get
 

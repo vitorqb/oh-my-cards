@@ -39,7 +39,7 @@ trait CardElasticClient {
   /**
     * Updates an entry on ElasticSearch for an existing cardData.
     */
-  def update(cardData: CardData, updatedAt: DateTime, user: User): Unit
+  def update(cardData: CardData, context: CardUpdateContext): Unit
 
   /**
     * Deletes an entry from ElasticSearch for an existing cardData.
@@ -67,8 +67,8 @@ class CardElasticClientMock() extends CardElasticClient {
     logger.info(s"Mocked create for $cardFormInput with $context")
   }
 
-  override def update(cardData: CardData, updatedAt: DateTime, user: User): Unit = {
-    logger.info(s"Mocked update for $cardData at $updatedAt for $user")
+  override def update(cardData: CardData, context: CardUpdateContext): Unit = {
+    logger.info(s"Mocked update for $cardData with $context")
   }
 
   override def delete(id: String): Unit = {
@@ -136,14 +136,14 @@ class CardElasticClientImpl @Inject()(
     }.onComplete(handleResponse)
   }
 
-  override def update(cardData: CardData, updatedAt: DateTime, user: User): Unit = {
-    logger.info(s"Updating elastic search entry for $cardData at $updatedAt for $user")
+  override def update(cardData: CardData, context: CardUpdateContext): Unit = {
+    logger.info(s"Updating elastic search entry for $cardData with $context")
     elasticClient.execute {
       updateById(index, cardData.id).doc(
         "title" -> cardData.title,
         "body" -> cardData.body,
-        "updatedAt" -> updatedAt,
-        "userId" -> user.id,
+        "updatedAt" -> context.now,
+        "userId" -> context.user.id,
         "tags" -> cardData.tags.map(_.toLowerCase())
       )
     }.onComplete(handleResponse)

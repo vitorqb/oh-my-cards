@@ -160,12 +160,13 @@ class CardElasticClientFunctionalSpec
 
   def testContext(block: TestContext => Any) = {
     TestUtils.testDB { db =>
+      val dataRepo = new CardDataRepository
       val tagsRepo = new TagsRepository
       val cardElasticClient = new CardElasticClientImpl(client)
       val components = ComponentsBuilder().withDb(db).build()
       val testContext = TestContext(
         components=components,
-        cardRepo=new CardRepository(new CardDataRepository(components, tagsRepo, cardElasticClient), tagsRepo, cardElasticClient, components),
+        cardRepo=new CardRepository(dataRepo, tagsRepo, cardElasticClient, components),
         tagsRepo=tagsRepo,
         cardElasticClient=cardElasticClient,
         cardFixtures=cardFixtures,

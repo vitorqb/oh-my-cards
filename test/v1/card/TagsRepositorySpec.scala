@@ -6,6 +6,7 @@ import org.scalatestplus.play.PlaySpec
 import v1.card.TagsRepositoryLike
 import test.utils.TestUtils
 import play.api.db.Database
+import v1.card.CardData
 
 case class TestContext(val db: Database, val tagsRepo: TagsRepositoryLike)
 
@@ -49,6 +50,17 @@ class TagsRepositorySpec extends PlaySpec {
 
         c.tagsRepo.get("id1") mustEqual List()
         c.tagsRepo.get("id2") mustEqual List("Baz", "Buz")
+      }
+    }
+
+  }
+
+  "fill" should {
+    "Fill the card with it's tags" in TestContext.run { c =>
+      c.db.withTransaction { implicit t =>
+        c.tagsRepo.create("1", List("Bar", "Foo"))
+        val data = CardData("1", "A", "B", List(), None, None, 1)
+        c.tagsRepo.fill(data) mustEqual data.copy(tags=List("Bar", "Foo"))
       }
     }
   }

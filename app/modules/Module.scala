@@ -110,6 +110,8 @@ class Module extends AbstractModule with ScalaModule {
     tagsRepo: TagsRepositoryLike,
     esClient: CardElasticClient,
     components: CardRepositoryComponentsLike
+  )(
+    implicit ec: ExecutionContext
   ): CardRepositoryLike =
     new CardRepository(dataRepo, tagsRepo, esClient, components)
 
@@ -123,14 +125,8 @@ class Module extends AbstractModule with ScalaModule {
     new CardRepositoryComponents(db, uuidGenerator, refGenerator, clock)
 
   @Provides
-  def cardDataRepository(
-    components: CardRepositoryComponentsLike,
-    tagsRepo: TagsRepositoryLike,
-    cardElasticClient: CardElasticClient,
-  )(
-    implicit ec: ExecutionContext
-  ): CardDataRepositoryLike =
-    new CardDataRepository(components, tagsRepo, cardElasticClient)
+  def cardDataRepository()(implicit ec: ExecutionContext): CardDataRepositoryLike =
+    new CardDataRepository
 }
 
 protected object Helpers {
