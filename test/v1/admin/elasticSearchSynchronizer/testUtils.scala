@@ -36,6 +36,8 @@ trait TestEsClient {
     refreshIdx(indexName)
   }
 
+  protected def refreshIdx(): Unit = refreshIdx("_all")
+
   protected def refreshIdx(indexName: String): Unit = Try {
     val query = refreshIndex(indexName)
     client.execute(query).await

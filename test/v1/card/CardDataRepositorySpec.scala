@@ -28,6 +28,7 @@ import v1.card.CardRefGenerator.CardRefGenerator
 import v1.card.cardrepositorycomponents.CardRepositoryComponentsLike
 import v1.card.cardrepositorycomponents.CardRepositoryComponents
 
+//!!!! TODO We are testing the CardRepository, not CardDataRepository
 class CardDataRepositorySpec extends PlaySpec
     with MockitoSugar
     with ScalaFutures
