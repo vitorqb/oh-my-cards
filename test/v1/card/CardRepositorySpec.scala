@@ -29,26 +29,6 @@ import org.scalatest.time.Millis
 import scala.concurrent.Future
 import v1.card.elasticclient.CardElasticClientImpl
 
-class FindResultSpec extends PlaySpec {
-
-  "fromQueryResults" should {
-    val cardData1 = CardData("id1", "ONE", "TWO", List("a", "b"), ref=1)
-    val cardData2 = CardData("id2", "one", "two", List("A", "B", "D"), ref=2)
-    val cardData = List(cardData1, cardData2)
-    val idsResult = IdsFindResult(Seq("id2", "id1"), 5)
-    val findResult = FindResult.fromQueryResults(cardData, idsResult)
-
-    "have the same countOfids from idsResult" in {
-      findResult.countOfItems mustEqual 5
-    }
-
-    "sort the sequence of card data by the ids in the idsResult" in {
-      findResult.cards mustEqual Seq(cardData2, cardData1)
-    }
-  }
-
-}
-
 class CardRepositorySpec
     extends PlaySpec
     with MockitoSugar

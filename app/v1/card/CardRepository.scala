@@ -91,20 +91,6 @@ final case class IdsFindResult(ids: Seq[String], countOfItems: Integer)
   */
 final case class FindResult(cards: Seq[CardData], countOfItems: Int)
 
-object FindResult {
-
-  /**
-    * Alternative constructor from the results of the query for the IDs and the query for
-    * the data.
-    */
-  def fromQueryResults(cardData: Seq[CardData], idsResult: IdsFindResult): FindResult = {
-    val cardDataById = cardData.map(x => (x.id, x)).toMap
-    val sortedCardData = idsResult.ids.map(x => cardDataById.get(x)).flatten
-    FindResult(sortedCardData, idsResult.countOfItems)
-  }
-
-}
-
 /**
   * The base trait for a CardRepository.
   */
@@ -180,9 +166,9 @@ class CardRepository(
   }
 
   override def find(request: CardListRequest): Future[FindResult] =
-    esClient.findIds(request).map { esIdsResult =>
+    esClient.findIds(request).map { idsResult =>
       components.db.withConnection { implicit c =>
-        val findResult = dataRepo.find(request, esIdsResult)
+        val findResult = dataRepo.find(request, idsResult)
         val cardsWithTags = findResult.cards.map(x => tagsRepo.fill(x))
         findResult.copy(cards=cardsWithTags)
       }
