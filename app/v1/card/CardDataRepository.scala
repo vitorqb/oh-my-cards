@@ -48,7 +48,7 @@ class CardDataRepository extends CardDataRepositoryLike {
   def create(
     cardFormInput: CardFormInput,
     context: CardCreationContext
-  )(implicit c: Connection): Try[String] = {
+  )(implicit c: Connection): Unit = {
     SQL(
       """INSERT INTO cards(id, userId, title, body, createdAt, updatedAt, ref)
              VALUES ({id}, {userId}, {title}, {body}, {now}, {now}, {ref})"""
@@ -60,7 +60,6 @@ class CardDataRepository extends CardDataRepositoryLike {
       "now" -> context.now,
       "ref" -> context.ref
     ).executeInsert()
-    Success(context.id)
   }
 
   def get(id: String, user: User)(implicit c: Connection): Option[CardData] =
@@ -81,34 +80,31 @@ class CardDataRepository extends CardDataRepositoryLike {
   /**
     * Deletes a card by it's id.
     */
-  def delete(id: String, user: User)(implicit c: Connection): Try[Unit] =
+  def delete(id: String, user: User)(implicit c: Connection): Unit =
     get(id, user) match {
-      case None => Failure(new CardDoesNotExist)
+      case None => throw new CardDoesNotExist
       case Some(_) =>
         SQL(s"DELETE FROM cards WHERE userId = {userId} AND id = {id}")
           .on("id" -> id, "userId" -> user.id)
           .executeUpdate()
-        Success(())
     }
 
   /**
     * Updates a card.
     */
-  def update(data: CardData, context: CardUpdateContext)(implicit c: Connection): Try[Unit] =
-    Try {
-      SQL("""
+  def update(data: CardData, context: CardUpdateContext)(implicit c: Connection): Unit =
+    SQL("""
         UPDATE cards SET title={title}, body={body}, updatedAt={now}
         WHERE id={id} AND userId={userId}
        """)
-        .on(
-          "title" -> data.title,
-          "body" -> data.body,
-          "id" -> data.id,
-          "userId" -> context.user.id,
-          "now" -> context.now
-        )
-        .executeUpdate()
-    }
+      .on(
+        "title" -> data.title,
+        "body" -> data.body,
+        "id" -> data.id,
+        "userId" -> context.user.id,
+        "now" -> context.now
+      )
+      .executeUpdate()
 
   /**
     * Returns all tags for a given user.

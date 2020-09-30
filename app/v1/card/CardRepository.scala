@@ -3,12 +3,9 @@ package v1.card
 import java.sql.Connection
 import org.joda.time.DateTime
 import v1.auth.User
-import scala.util.Try
 import scala.concurrent.Future
 import v1.card.cardrepositorycomponents.CardRepositoryComponentsLike
 import scala.concurrent.ExecutionContext
-import scala.util.Success
-import scala.util.Failure
 
 /**
   * A trait for all known user exceptions.
@@ -50,11 +47,11 @@ trait TagsRepositoryLike {
   * A trait for card data repository.
   */
 trait CardDataRepositoryLike {
-  def create(cardFormInput: CardFormInput, context: CardCreationContext)(implicit c: Connection): Try[String]
+  def create(cardFormInput: CardFormInput, context: CardCreationContext)(implicit c: Connection): Unit
   def get(id: String, user: User)(implicit c: Connection): Option[CardData]
   def find(request: CardListRequest, idsResult: CardElasticIdFinder.Result)(implicit c: Connection): FindResult
-  def delete(id: String, user: User)(implicit c: Connection): Try[Unit]
-  def update(data: CardData, context: CardUpdateContext)(implicit c: Connection): Try[Unit]
+  def delete(id: String, user: User)(implicit c: Connection): Unit
+  def update(data: CardData, context: CardUpdateContext)(implicit c: Connection): Unit
   def getAllTags(user: User)(implicit c: Connection): List[String]
 }
 
@@ -134,7 +131,7 @@ class CardRepository(
       val ref = components.refGenerator.nextRef()
       val context = CardCreationContext(user, now, id, ref)
 
-      dataRepo.create(cardFormInput, context).get
+      dataRepo.create(cardFormInput, context)
       tagsRepo.create(id, cardFormInput.getTags())
       esClient.create(cardFormInput, context)
 
@@ -161,7 +158,7 @@ class CardRepository(
 
   override def delete(id: String, user: User): Future[Unit] = Future {
     components.db.withTransaction { implicit c =>
-      dataRepo.delete(id, user).get
+      dataRepo.delete(id, user)
       tagsRepo.delete(id)
       esClient.delete(id)
     }
@@ -170,7 +167,7 @@ class CardRepository(
   override def update(data: CardData, user: User): Future[Unit] = Future {
     val context = CardUpdateContext(user, components.clock.now)
     components.db.withTransaction { implicit c =>
-      dataRepo.update(data, context).get
+      dataRepo.update(data, context)
       tagsRepo.update(data)
       esClient.update(data, context)
     }
