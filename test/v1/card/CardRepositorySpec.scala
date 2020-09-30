@@ -91,25 +91,25 @@ class CardRepositorySpec
 
     "send create msg to card data repository" in testContext { c =>
       val formInput = CardFormInput("title", Some("body"), None)
-      c.repo.create(formInput, user)
+      c.repo.create(formInput, user).futureValue
       verify(c.dataRepo).create(formInput, context)(connection)
     }
 
     "send create msg to tags repo" in testContext { c =>
       val formInput = CardFormInput("title", Some("body"), Some(List("A")))
-      c.repo.create(formInput, user)
+      c.repo.create(formInput, user).futureValue
       verify(c.tagsRepo).create("id", List("A"))(connection)
     }
 
     "send create data to es client" in testContext { c =>
       val formInput = CardFormInput("title", Some("body"), Some(List("A")))
-      c.repo.create(formInput, user)
+      c.repo.create(formInput, user).futureValue
       verify(c.esClient).create(formInput, context)
     }
 
     "returns created id" in testContext { c =>
       val formInput = CardFormInput("title", Some("body"), None)
-      c.repo.create(formInput, user).get mustEqual "id"
+      c.repo.create(formInput, user).futureValue mustEqual "id"
     }
 
   }
@@ -200,13 +200,13 @@ class CardRepositoryIntegrationSpec
   "Functional tests for card creation and deletion" should {
 
     "create and get a card" taggedAs(FunctionalTestsTag) in testContext { c =>
-      c.repo.create(baseCardInput, user).get mustEqual "1"
-      c.repo.get("1", user).get mustEqual baseExpectedCardData
+      c.repo.create(baseCardInput, user).futureValue mustEqual "1"
+      c.repo.get("1", user).futureValue mustEqual Some(baseExpectedCardData)
     }
 
     "create and find 2 cards" taggedAs(FunctionalTestsTag) in testContext { c =>
-      c.repo.create(baseCardInput, user).get
-      c.repo.create(baseCardInput, user).get
+      c.repo.create(baseCardInput, user).futureValue
+      c.repo.create(baseCardInput, user).futureValue
       refreshIdx()
 
       val listRequest = CardListRequest(1, 2, user.id, List(), List(), None, None)
@@ -219,25 +219,25 @@ class CardRepositoryIntegrationSpec
     }
 
     "update a card" taggedAs(FunctionalTestsTag) in testContext { c =>
-      c.repo.create(baseCardInput, user).get
+      c.repo.create(baseCardInput, user).futureValue
       refreshIdx()
 
       val newCardData = baseExpectedCardData.copy(title="A", body="B", tags=List())
       c.repo.update(newCardData, user).futureValue
 
-      c.repo.get("1", user).get mustEqual newCardData
+      c.repo.get("1", user).futureValue mustEqual Some(newCardData)
     }
 
     "create and delete a card" taggedAs(FunctionalTestsTag) in testContext { c =>
-      c.repo.create(baseCardInput, user).get
+      c.repo.create(baseCardInput, user).futureValue
       refreshIdx()
       c.repo.delete("1", user).futureValue
 
-      c.repo.get("1", user) mustEqual None
+      c.repo.get("1", user).futureValue mustEqual None
     }
 
     "deletes a card that does not exist" taggedAs(FunctionalTestsTag) in testContext { c =>
-      c.repo.delete("1", user).futureValue.failed.get mustBe a[CardDoesNotExist]
+      c.repo.delete("1", user).failed.futureValue mustBe a[CardDoesNotExist]
     }
 
     "create three cards and find 2 with search term" taggedAs(FunctionalTestsTag) in testContext { c =>
@@ -245,9 +245,9 @@ class CardRepositoryIntegrationSpec
       val input_2 = baseCardInput.copy(title="SomeLongWo")
       val input_3 = baseCardInput.copy(title="Nothing to do with the others")
 
-      c.repo.create(input_1, user)
-      c.repo.create(input_2, user)
-      c.repo.create(input_3, user)
+      c.repo.create(input_1, user).futureValue
+      c.repo.create(input_2, user).futureValue
+      c.repo.create(input_3, user).futureValue
       refreshIdx()
 
       val listRequest = CardListRequest(1, 3, user.id, List(), List(), None, Some("SomeLongWord"))
@@ -261,8 +261,8 @@ class CardRepositoryIntegrationSpec
     }
 
     "get with pagination" taggedAs(FunctionalTestsTag) in testContext { c =>
-      c.repo.create(baseCardInput, user)
-      c.repo.create(baseCardInput, user)
+      c.repo.create(baseCardInput, user).futureValue
+      c.repo.create(baseCardInput, user).futureValue
       refreshIdx()
 
       val listRequest1 = CardListRequest(1, 1, user.id, List(), List(), None, None)

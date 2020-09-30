@@ -90,13 +90,13 @@ class CardResourceHandlerSpec
       val createdCardData = cardFormInput.asCardData(id, date1, date1, 0)
       val user = mock[User]
       val repository = mock[CardRepositoryLike]
-      when(repository.create(cardFormInput, user)).thenReturn(Try{ id })
-      when(repository.get(id, user)).thenReturn(Some(createdCardData))
+      when(repository.create(cardFormInput, user)).thenReturn(Future.successful(id))
+      when(repository.get(id, user)).thenReturn(Future.successful(Some(createdCardData)))
       val handler = new CardResourceHandler(repository)
 
-      val resource = handler.create(cardFormInput, user)
+      val resource = handler.create(cardFormInput, user).futureValue
 
-      (resource mustEqual Success(CardResource.fromCardData(createdCardData))) 
+      (resource mustEqual CardResource.fromCardData(createdCardData))
     }
 
   }
@@ -144,22 +144,22 @@ class CardResourceHandlerSpec
       val cardData = CardData(id, "title1", "body1", List(), ref=1)
       
       "Fails if card not found" in {
-        when(repository.get(id, user)).thenReturn(None)
-        handler.update(id, input, user).futureValue mustEqual Failure(new CardDoesNotExist)
+        when(repository.get(id, user)).thenReturn(Future.successful(None))
+        handler.update(id, input, user).failed.futureValue mustEqual new CardDoesNotExist
       }
 
       "Fail if card can not be updated with inputs" in {
         //empty title -> error
         val input_ = input.copy(title="", body=Some(""))
-        when(repository.get(id, user)).thenReturn(Some(cardData))
-        handler.update(id, input_, user).futureValue mustEqual Failure(InvalidCardData.emptyTitle)
+        when(repository.get(id, user)).thenReturn(Future.successful(Some(cardData)))
+        handler.update(id, input_, user).failed.futureValue mustEqual InvalidCardData.emptyTitle
       }
 
       "Fail if card update fails" in {
         val e = new Exception
-        when(repository.get(id, user)).thenReturn(Some(cardData))
-        when(repository.update(any, eqTo(user))).thenReturn(Future(Failure(e)))
-        handler.update(id, input, user).futureValue mustEqual Failure(e)
+        when(repository.get(id, user)).thenReturn(Future.successful(Some(cardData)))
+        when(repository.update(any, eqTo(user))).thenReturn(Future.failed(e))
+        handler.update(id, input, user).failed.futureValue mustEqual e
       }
     }
 
@@ -179,14 +179,14 @@ class CardResourceHandlerSpec
           val components = new CardRepositoryComponents(db, uuidGenerator, cardRefGenerator, clock)
           val repository = new CardRepository(dataRepo, tagsRepo, elasticClient, components)
           val handler = new CardResourceHandler(repository)
-          val created = handler.create(input, user).get
+          val created = handler.create(input, user).futureValue
 
           //Updates it
           val updateInput = input.copy(title="title2", body=Some("body2"))
-          val updated = handler.update(created.id, updateInput, user).futureValue.get
+          val updated = handler.update(created.id, updateInput, user).futureValue
 
           updated mustEqual created.copy(title="title2", body="body2")
-          updated mustEqual handler.get(created.id, user).get
+          updated mustEqual handler.get(created.id, user).futureValue.get
         }
       }
 

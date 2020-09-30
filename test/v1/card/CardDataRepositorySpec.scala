@@ -104,13 +104,14 @@ class CardDataRepositorySpec extends PlaySpec
 
     "Allow user to create and get a card without tags nor body" in testContext { c =>
       val cardInput = baseCardInput.copy(body=None, tags=None)
+      val expectedCardData = baseExpectedCardData.copy(tags=List(), body="")
       c.createCardInDb(cardInput, "id", datetime) mustEqual "id"
-      c.cardRepo.get("id", c.user).get mustEqual baseExpectedCardData.copy(tags=List(), body="")
+      c.cardRepo.get("id", c.user).futureValue mustEqual Some(expectedCardData)
     }
 
     "Allow user to create and get a card with tags and body" in testContext { c =>
       c.createCardInDb(baseCardInput, "id", datetime) mustEqual "id"
-      c.cardRepo.get("id", c.user).get mustEqual baseExpectedCardData
+      c.cardRepo.get("id", c.user).futureValue mustEqual Some(baseExpectedCardData)
     }
 
     "User gets three cards" in testContext { c =>
@@ -119,9 +120,9 @@ class CardDataRepositorySpec extends PlaySpec
       val f2 = cardFixtures.f2
       val f3 = cardFixtures.f3
 
-      c.cardRepo.get(f1.id, c.user).get.title mustEqual f1.formInput.title
-      c.cardRepo.get(f2.id, c.user).get.body mustEqual f2.formInput.body.get
-      c.cardRepo.get(f3.id, c.user).get.tags mustEqual f3.formInput.tags.get
+      c.cardRepo.get(f1.id, c.user).futureValue.get.title mustEqual f1.formInput.title
+      c.cardRepo.get(f2.id, c.user).futureValue.get.body mustEqual f2.formInput.body.get
+      c.cardRepo.get(f3.id, c.user).futureValue.get.tags mustEqual f3.formInput.tags.get
     }
 
     "elasticSearchClient is called for each card" in testContext { c =>
@@ -133,7 +134,7 @@ class CardDataRepositorySpec extends PlaySpec
     "the createdAt is recorded properly" in testContext { c =>
       val datetime = DateTime.parse("2020-11-23T00:00:00")
       c.createCardInDb(baseCardInput, "id", datetime) mustEqual "id"
-      c.cardRepo.get("id", c.user).get.createdAt mustEqual Some(datetime)
+      c.cardRepo.get("id", c.user).futureValue.get.createdAt mustEqual Some(datetime)
     }
   }
 
@@ -187,7 +188,7 @@ class CardDataRepositorySpec extends PlaySpec
     }
 
     "fail if the card does not exist" in testContext { c =>
-      c.cardRepo.delete("FOO", mock[User]).futureValue mustEqual Failure(new CardDoesNotExist)
+      c.cardRepo.delete("FOO", mock[User]).failed.futureValue mustEqual new CardDoesNotExist
     }
 
     "fail if the card does not exist for a specific user" in testContext { c =>
@@ -195,16 +196,16 @@ class CardDataRepositorySpec extends PlaySpec
       val id = cardFixtures.f1.id
       val otherUser = User("bar", "b@b.b")
 
-      c.cardRepo.get(id, c.user).get.id mustEqual id
-      c.cardRepo.delete(id, otherUser).futureValue mustEqual Failure(new CardDoesNotExist)
+      c.cardRepo.get(id, c.user).futureValue.get.id mustEqual id
+      c.cardRepo.delete(id, otherUser).failed.futureValue mustEqual new CardDoesNotExist
     }
 
     "find and delete card that exists" in testContext { c =>
       c.saveCardsToDb()
       val id = cardFixtures.f2.id
 
-      c.cardRepo.delete(id, c.user).futureValue mustEqual Success(())
-      c.cardRepo.get(id, c.user) mustEqual None
+      c.cardRepo.delete(id, c.user).futureValue mustEqual ()
+      c.cardRepo.get(id, c.user).futureValue mustEqual None
     }
 
     "calls elastic client to delete the entry" in testContext { c =>
@@ -223,7 +224,7 @@ class CardDataRepositorySpec extends PlaySpec
     "Update a card including the tags" in testContext { c =>
       val fixture = cardFixtures.f1
       val id = c.createCardInDb(fixture)
-      val cardData = c.cardRepo.get(id, c.user).get
+      val cardData = c.cardRepo.get(id, c.user).futureValue.get
       val newCardData = cardData.copy(
         tags=List("D"),
         createdAt=Some(datetime),
@@ -233,18 +234,18 @@ class CardDataRepositorySpec extends PlaySpec
 
       c.cardRepo.update(newCardData, c.user).futureValue
 
-      c.cardRepo.get(id, c.user).get mustEqual newCardData
+      c.cardRepo.get(id, c.user).futureValue mustEqual Some(newCardData)
     }
 
     "set's the updatedAt" in testContext { c =>
       val fixture = cardFixtures.f2
       c.createCardInDb(fixture)
-      val cardData = c.cardRepo.get(fixture.id, c.user).get
+      val cardData = c.cardRepo.get(fixture.id, c.user).futureValue.get
       when(c.components.clock.now).thenReturn(laterDatetime)
 
       Await.ready(c.cardRepo.update(cardData, c.user), 5000 millis)
 
-      c.cardRepo.get(fixture.id, c.user).get.updatedAt.get mustEqual laterDatetime
+      c.cardRepo.get(fixture.id, c.user).futureValue.get.updatedAt.get mustEqual laterDatetime
 
     }
 

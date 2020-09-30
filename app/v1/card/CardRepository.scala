@@ -107,11 +107,11 @@ object FindResult {
   * The base trait for a CardRepository.
   */
 trait CardRepositoryLike {
-  def create(cardFormInput: CardFormInput, user: User): Try[String]
-  def get(id: String, user: User): Option[CardData]
+  def create(cardFormInput: CardFormInput, user: User): Future[String]
+  def get(id: String, user: User): Future[Option[CardData]]
   def find(request: CardListRequest): Future[FindResult]
-  def delete(id: String, user: User): Future[Try[Unit]]
-  def update(data: CardData, user: User): Future[Try[Unit]]
+  def delete(id: String, user: User): Future[Unit]
+  def update(data: CardData, user: User): Future[Unit]
   def getAllTags(user: User): Future[List[String]]
 }
 
@@ -127,28 +127,28 @@ class CardRepository(
   implicit ec: ExecutionContext
 ) extends CardRepositoryLike {
 
-  override def create(cardFormInput: CardFormInput, user: User): Try[String] = {
+  override def create(cardFormInput: CardFormInput, user: User): Future[String] = Future {
     components.db.withTransaction { implicit c =>
       val now = components.clock.now
       val id = components.uuidGenerator.generate()
       val ref = components.refGenerator.nextRef()
       val context = CardCreationContext(user, now, id, ref)
-      for {
-        id <- dataRepo.create(cardFormInput, context)
-      } yield {
-        tagsRepo.create(id, cardFormInput.getTags())
-        esClient.create(cardFormInput, context)
-        id
-      }
+
+      dataRepo.create(cardFormInput, context).get
+      tagsRepo.create(id, cardFormInput.getTags())
+      esClient.create(cardFormInput, context)
+
+      id
     }
   }
 
-  override def get(id: String, user: User): Option[CardData] =
+  override def get(id: String, user: User): Future[Option[CardData]] = Future {
     components.db.withTransaction { implicit c =>
       dataRepo.get(id, user).map { data =>
         tagsRepo.fill(data)
       }
     }
+  }
 
   override def find(request: CardListRequest): Future[FindResult] =
     esClient.findIds(request).map { esIdsResult =>
@@ -159,26 +159,20 @@ class CardRepository(
       }
     }
 
-  override def delete(id: String, user: User): Future[Try[Unit]] = Future {
+  override def delete(id: String, user: User): Future[Unit] = Future {
     components.db.withTransaction { implicit c =>
-      dataRepo.delete(id, user) map { _ =>
-        tagsRepo.delete(id)
-        esClient.delete(id)
-      } recover {
-        e => throw e
-      }
+      dataRepo.delete(id, user).get
+      tagsRepo.delete(id)
+      esClient.delete(id)
     }
   }
 
-  override def update(data: CardData, user: User): Future[Try[Unit]] = Future {
+  override def update(data: CardData, user: User): Future[Unit] = Future {
     val context = CardUpdateContext(user, components.clock.now)
     components.db.withTransaction { implicit c =>
-      dataRepo.update(data, context) map { _ =>
-        tagsRepo.update(data)
-        esClient.update(data, context)
-      } recover {
-        e => throw e
-      }
+      dataRepo.update(data, context).get
+      tagsRepo.update(data)
+      esClient.update(data, context)
     }
   }
 

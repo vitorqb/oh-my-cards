@@ -22,12 +22,15 @@ import v1.card.CardElasticClientImpl
 import v1.card.testUtils.CardFixture
 import v1.card.CardFormInput
 import v1.card.CardRepositoryLike
+import org.scalatest.concurrent.ScalaFutures
 
 class ElasticSearchSynchronizerSpec
     extends PlaySpec
     with GuiceOneAppPerSuite
     with TestEsClient
-    with BeforeAndAfter {
+    with BeforeAndAfter
+    with ScalaFutures
+{
 
   import com.sksamuel.elastic4s.ElasticDsl._
 
@@ -61,9 +64,9 @@ class ElasticSearchSynchronizerSpec
 
     def createThreeCardsOnDb() = {
       val repository: CardRepositoryLike = app.injector.instanceOf[CardRepositoryLike]
-      val idOne = repository.create(cardInput1, user).get
-      val idTwo = repository.create(cardInput2, user).get
-      val idThree = repository.create(cardInput3, user).get
+      val idOne = repository.create(cardInput1, user).futureValue
+      val idTwo = repository.create(cardInput2, user).futureValue
+      val idThree = repository.create(cardInput3, user).futureValue
       (idOne, idTwo, idThree)
     }
 

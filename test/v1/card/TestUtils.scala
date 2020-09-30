@@ -14,6 +14,7 @@ import javax.sql.DataSource
 import play.api.db.TransactionIsolationLevel
 import java.sql.Connection
 import com.mohiva.play.silhouette.api.util.{Clock=>SilhouetteClock}
+import org.scalatest.concurrent.ScalaFutures
 
 /**
   * A data class for the data that a fixture of a card needs.
@@ -37,7 +38,8 @@ case class TestContext(
   val cardElasticClient: CardElasticClient,
   val cardFixtures: CardFixtureRepository,
   val user: User
-) {
+) extends ScalaFutures
+{
 
   /**
     * Save all card fixtures to the db
@@ -54,7 +56,7 @@ case class TestContext(
   def createCardInDb(formInput: CardFormInput, id: String, now: DateTime): String = {
     when(components.uuidGenerator.generate).thenReturn(id)
     when(components.clock.now).thenReturn(now)
-    val result = cardRepo.create(formInput, user).get
+    val result = cardRepo.create(formInput, user).futureValue
     reset(components.uuidGenerator)
     reset(components.clock)
     result

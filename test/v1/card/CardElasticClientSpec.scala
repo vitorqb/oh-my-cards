@@ -203,7 +203,7 @@ class CardElasticClientFunctionalSpec
       waitUntil { () =>
         client.execute(queryByTitleAndBody).await.result.hits.total.value > 0
       }
-      val cardData = c.cardRepo.get(id, c.user).get
+      val cardData = c.cardRepo.get(id, c.user).futureValue.get
 
       val resultAfter = client.execute(queryByTitleAndBody).await.result
       resultAfter.hits.total.value mustEqual 1
