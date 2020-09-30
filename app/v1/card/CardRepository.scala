@@ -52,10 +52,10 @@ trait TagsRepositoryLike {
 trait CardDataRepositoryLike {
   def create(cardFormInput: CardFormInput, context: CardCreationContext)(implicit c: Connection): Try[String]
   def get(id: String, user: User)(implicit c: Connection): Option[CardData]
-  def find(request: CardListRequest, idsResult: CardElasticIdFinder.Result)(implicit c: Connection): Future[FindResult]
-  def delete(id: String, user: User)(implicit c: Connection): Future[Try[Unit]]
-  def update(data: CardData, context: CardUpdateContext)(implicit c: Connection): Future[Try[Unit]]
-  def getAllTags(user: User)(implicit c: Connection): Future[List[String]]
+  def find(request: CardListRequest, idsResult: CardElasticIdFinder.Result)(implicit c: Connection): FindResult
+  def delete(id: String, user: User)(implicit c: Connection): Try[Unit]
+  def update(data: CardData, context: CardUpdateContext)(implicit c: Connection): Try[Unit]
+  def getAllTags(user: User)(implicit c: Connection): List[String]
 }
 
 /**
@@ -151,52 +151,41 @@ class CardRepository(
     }
 
   override def find(request: CardListRequest): Future[FindResult] =
-    esClient.findIds(request).flatMap { esIdsResult =>
-      implicit val c: Connection = components.db.getConnection()
-      dataRepo.find(request, esIdsResult).map { findResult =>
+    esClient.findIds(request).map { esIdsResult =>
+      components.db.withConnection { implicit c =>
+        val findResult = dataRepo.find(request, esIdsResult)
         val cardsWithTags = findResult.cards.map(x => tagsRepo.fill(x))
         findResult.copy(cards=cardsWithTags)
-      } andThen {
-        case _ => c.close()
       }
     }
 
-  override def delete(id: String, user: User): Future[Try[Unit]] = {
-    implicit val c: Connection = components.db.getConnection(false)
-    dataRepo.delete(id, user).andThen {
-      case Success(_) => {
-        try {
-          tagsRepo.delete(id)
-          esClient.delete(id)
-          c.commit()
-        } finally {
-          c.rollback()
-        }
+  override def delete(id: String, user: User): Future[Try[Unit]] = Future {
+    components.db.withTransaction { implicit c =>
+      dataRepo.delete(id, user) map { _ =>
+        tagsRepo.delete(id)
+        esClient.delete(id)
+      } recover {
+        e => throw e
       }
-    } andThen {
-      case _ => c.close()
     }
   }
 
-  override def update(data: CardData, user: User): Future[Try[Unit]] = {
+  override def update(data: CardData, user: User): Future[Try[Unit]] = Future {
     val context = CardUpdateContext(user, components.clock.now)
-    implicit val c: Connection = components.db.getConnection(false)
-    dataRepo.update(data, context).andThen {
-      case Success(_) => {
-        try {
-          tagsRepo.update(data)
-          esClient.update(data, context)
-          c.commit()
-        } finally {
-          c.rollback()
-        }
+    components.db.withTransaction { implicit c =>
+      dataRepo.update(data, context) map { _ =>
+        tagsRepo.update(data)
+        esClient.update(data, context)
+      } recover {
+        e => throw e
       }
     }
   }
 
-  override def getAllTags(user: User): Future[List[String]] = {
-    implicit val c: Connection = components.db.getConnection(false)
-    dataRepo.getAllTags(user).andThen(_ => c.close())
+  override def getAllTags(user: User): Future[List[String]] = Future {
+    components.db.withConnection { implicit c =>
+      dataRepo.getAllTags(user)
+    }
   }
 
 }

@@ -70,6 +70,7 @@ class CardRepositorySpec
   val connection = mock[Connection]
   val db = new MockDb {
     override def withTransaction[A](block: Connection => A): A = block(connection)
+    override def withConnection[A](block: Connection => A): A = block(connection)
     override def getConnection(autocommit: Boolean): Connection = connection
   }
   val components = ComponentsBuilder().withDb(db).withContext(context).build()
@@ -77,8 +78,8 @@ class CardRepositorySpec
   def testContext(block: TestContext => Any): Any = {
     val dataRepo = mock[CardDataRepositoryLike]
     when(dataRepo.create(any, any)(any)).thenReturn(Success("id"))
-    when(dataRepo.delete(any, any)(any)).thenReturn(Future.successful(Success(())))
-    when(dataRepo.update(any, any)(any)).thenReturn(Future.successful(Success(())))
+    when(dataRepo.delete(any, any)(any)).thenReturn(Success(()))
+    when(dataRepo.update(any, any)(any)).thenReturn(Success(()))
     val tagsRepo = mock[TagsRepositoryLike]
     val esClient = mock[CardElasticClient]
     val repo = new CardRepository(dataRepo, tagsRepo, esClient, components)

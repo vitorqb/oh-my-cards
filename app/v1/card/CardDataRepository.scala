@@ -19,7 +19,7 @@ import v1.card.CardRefGenerator.CardRefGeneratorLike
 /**
   * An implementation for a card repository.
   */
-class CardDataRepository(implicit val ec: ExecutionContext) extends CardDataRepositoryLike {
+class CardDataRepository extends CardDataRepositoryLike {
 
   /**
     * The statement used to get a card.
@@ -45,7 +45,6 @@ class CardDataRepository(implicit val ec: ExecutionContext) extends CardDataRepo
     }
   }
 
-  //!!!! TODO Return Future
   def create(
     cardFormInput: CardFormInput,
     context: CardCreationContext
@@ -73,7 +72,7 @@ class CardDataRepository(implicit val ec: ExecutionContext) extends CardDataRepo
   /**
     * Finds a list of cards for a given user.
     */
-  def find(request: CardListRequest, esIdsResult: CardElasticIdFinder.Result)(implicit c: Connection): Future[FindResult] = Future {
+  def find(request: CardListRequest, esIdsResult: CardElasticIdFinder.Result)(implicit c: Connection): FindResult = {
     val query = SQL(s"${sqlGetStatement} WHERE id IN ({ids})").on("ids" -> esIdsResult.ids)
     val sqlQueryResult = query.as(cardDataParser.*)
     FindResult.fromQueryResults(sqlQueryResult, esIdsResult)
@@ -82,7 +81,7 @@ class CardDataRepository(implicit val ec: ExecutionContext) extends CardDataRepo
   /**
     * Deletes a card by it's id.
     */
-  def delete(id: String, user: User)(implicit c: Connection): Future[Try[Unit]] = Future {
+  def delete(id: String, user: User)(implicit c: Connection): Try[Unit] =
     get(id, user) match {
       case None => Failure(new CardDoesNotExist)
       case Some(_) =>
@@ -91,33 +90,30 @@ class CardDataRepository(implicit val ec: ExecutionContext) extends CardDataRepo
           .executeUpdate()
         Success(())
     }
-  }
 
   /**
     * Updates a card.
     */
-  def update(data: CardData, context: CardUpdateContext)(implicit c: Connection): Future[Try[Unit]] =
-    Future {
-      Try {
-        SQL("""
+  def update(data: CardData, context: CardUpdateContext)(implicit c: Connection): Try[Unit] =
+    Try {
+      SQL("""
         UPDATE cards SET title={title}, body={body}, updatedAt={now}
         WHERE id={id} AND userId={userId}
        """)
-          .on(
-            "title" -> data.title,
-            "body" -> data.body,
-            "id" -> data.id,
-            "userId" -> context.user.id,
-            "now" -> context.now
-          )
-          .executeUpdate()
-      }
+        .on(
+          "title" -> data.title,
+          "body" -> data.body,
+          "id" -> data.id,
+          "userId" -> context.user.id,
+          "now" -> context.now
+        )
+        .executeUpdate()
     }
 
   /**
     * Returns all tags for a given user.
     */
-  def getAllTags(user: User)(implicit c: Connection): Future[List[String]] = Future {
+  def getAllTags(user: User)(implicit c: Connection): List[String] = {
     import anorm.SqlParser._
     SQL"""
        SELECT tag
