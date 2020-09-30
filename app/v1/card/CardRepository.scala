@@ -30,6 +30,9 @@ final case class TagsFilterMiniLangSyntaxError(
 
 /**
   * A trait for a tags repository.
+  * 
+  * The TagsRepository's single responsibility is to store the tags and
+  * it's relations to the cards.
   */
 trait TagsRepositoryLike {
   def delete(cardId: String)(implicit c:Connection): Unit
@@ -45,6 +48,10 @@ trait TagsRepositoryLike {
 
 /**
   * A trait for card data repository.
+  * 
+  * The CardDataRepository is the persistance and retrival layer for
+  * the base data of a card, usually stored in the main SQL table if
+  * using an SQL layer.
   */
 trait CardDataRepositoryLike {
   def create(cardFormInput: CardFormInput, context: CardCreationContext)(implicit c: Connection): Unit
@@ -56,7 +63,7 @@ trait CardDataRepositoryLike {
 }
 
 /**
-  * The data for a Card.
+  * The basic representation for a Card.
   */
 final case class CardData(
   id: String,
@@ -70,29 +77,44 @@ final case class CardData(
 
 /**
   * The context for a card creation.
+  * 
+  * @param user the user that is creating the card.
+  * @param now the current datetime to consider.
+  * @param id the id to use for the new card.
+  * @param ref the ref to use for the new card.
   */
 case class CardCreationContext(user: User, now: DateTime, id: String, ref: Int)
 
 /**
   * The context for a card update.
+  * 
+  * @param user the user that is creating the card.
+  * @param now the current datetime to consider.
   */
 case class CardUpdateContext(user: User, now: DateTime)
 
 /**
-  * A result for a find query containing all ids found.
+  * A paged result with the matched ids for a query to find cards.
   * 
-  * @param ids the ids that are part of the page of results
+  * @param ids the ids of the cards that are part of this page of results
   * @param countOfItems the total number of items matched
   */
 final case class IdsFindResult(ids: Seq[String], countOfItems: Integer)
 
 /**
-  * The result of a find query.
+  * The result of for a query to find cards.
+  * 
+  * @param cards the cards on this page of results.
+  * @param countOfItems the total number of items matched.
   */
 final case class FindResult(cards: Seq[CardData], countOfItems: Int)
 
 /**
   * The base trait for a CardRepository.
+  * 
+  * A `CardRepository` is responsible for the persistence and retrival
+  * of every data related to a card. This include tags and queries
+  * using specialized services (e.g. ElasticSearch).
   */
 trait CardRepositoryLike {
   def create(cardFormInput: CardFormInput, user: User): Future[String]
@@ -104,13 +126,20 @@ trait CardRepositoryLike {
 }
 
 /**
-  * The base trait for a card id query 
+  * The base trait for a a card query service like ElasticSearch.
+  * 
+  * It's single responsibility is to store data in a text search
+  * optimized way, so we can use the `findIds` method to run a
+  * query and find the matched ids.
+  * 
+  * All other method exists so we can ensure the data on this service
+  * is in sync with the data in the other persistance services for
+  * cards.
   */
 trait CardElasticClientLike {
 
   /**
-    * Creates a new entry on ElasticSearch for a new cardFormInput, with a given id created at
-    *  a specific time.
+    * Creates a new entry on ElasticSearch for a new card.
     */
   def create(cardFormInput: CardFormInput, context: CardCreationContext): Unit
 
