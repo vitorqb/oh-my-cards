@@ -1,5 +1,4 @@
-//!!!! TODO v1.card.elasticclient
-package v1.card
+package v1.card.elasticclient
 
 import com.google.inject.Inject
 import com.sksamuel.elastic4s.ElasticClient
@@ -23,41 +22,19 @@ import com.sksamuel.elastic4s.requests.searches.sort.FieldSort
 import com.sksamuel.elastic4s.requests.searches.sort.ScoreSort
 import com.sksamuel.elastic4s.requests.searches.sort.SortOrder
 
+import v1.card.{CardFormInput,CardData,CardCreationContext,CardUpdateContext,CardListRequest,IdsFindResult,TagsFilterMiniLangSyntaxError,CardElasticClientLike}
+
 final case class CardElasticClientException(
   val message: String = "Something went wrong on ElasticSearch",
   val cause: Throwable = None.orNull
 ) extends Exception(message, cause)
 
 
-trait CardElasticClient {
-
-  /**
-    * Creates a new entry on ElasticSearch for a new cardFormInput, with a given id created at
-    *  a specific time.
-    */
-  def create(cardFormInput: CardFormInput, context: CardCreationContext): Unit
-
-  /**
-    * Updates an entry on ElasticSearch for an existing cardData.
-    */
-  def update(cardData: CardData, context: CardUpdateContext): Unit
-
-  /**
-    * Deletes an entry from ElasticSearch for an existing cardData.
-    */
-  def delete(id: String): Unit
-
-  /**
-    * Returns a seq of ids from ElasticSearch that matches a CardListRequest.
-    */
-  def findIds(cardListReq: CardListRequest): Future[IdsFindResult]
-}
-
 /**
   * A mocked implementation of the CardElasticClient for tests.
   *  @pram idsFound the ids to return when findIds is called.
   */
-class CardElasticClientMock() extends CardElasticClient {
+class CardElasticClientMock() extends CardElasticClientLike {
 
   import CardElasticClientMock._
 
@@ -110,7 +87,7 @@ object CardElasticClientMock {
 class CardElasticClientImpl @Inject()(
   elasticClient: ElasticClient)(
   implicit val ec: ExecutionContext
-) extends CardElasticClient {
+) extends CardElasticClientLike {
 
   import com.sksamuel.elastic4s.ElasticDsl._
 

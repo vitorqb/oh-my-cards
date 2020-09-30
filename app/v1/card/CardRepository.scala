@@ -118,12 +118,39 @@ trait CardRepositoryLike {
 }
 
 /**
+  * The base trait for a card id query 
+  */
+trait CardElasticClientLike {
+
+  /**
+    * Creates a new entry on ElasticSearch for a new cardFormInput, with a given id created at
+    *  a specific time.
+    */
+  def create(cardFormInput: CardFormInput, context: CardCreationContext): Unit
+
+  /**
+    * Updates an entry on ElasticSearch for an existing cardData.
+    */
+  def update(cardData: CardData, context: CardUpdateContext): Unit
+
+  /**
+    * Deletes an entry from ElasticSearch for an existing cardData.
+    */
+  def delete(id: String): Unit
+
+  /**
+    * Returns a seq of ids from ElasticSearch that matches a CardListRequest.
+    */
+  def findIds(cardListReq: CardListRequest): Future[IdsFindResult]
+}
+
+/**
   * The implementation
   */
 class CardRepository(
   dataRepo: CardDataRepositoryLike,
   tagsRepo: TagsRepositoryLike,
-  esClient: CardElasticClient,
+  esClient: CardElasticClientLike,
   components: CardRepositoryComponentsLike
 )(
   implicit ec: ExecutionContext

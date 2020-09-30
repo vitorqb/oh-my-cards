@@ -27,6 +27,7 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.Span
 import org.scalatest.time.Millis
 import scala.concurrent.Future
+import v1.card.elasticclient.CardElasticClientImpl
 
 class FindResultSpec extends PlaySpec {
 
@@ -60,7 +61,7 @@ class CardRepositorySpec
   case class TestContext(
     val dataRepo: CardDataRepositoryLike,
     val tagsRepo: TagsRepositoryLike,
-    val esClient: CardElasticClient,
+    val esClient: CardElasticClientLike,
     val repo: CardRepositoryLike
   )
 
@@ -77,7 +78,7 @@ class CardRepositorySpec
   def testContext(block: TestContext => Any): Any = {
     val dataRepo = mock[CardDataRepositoryLike]
     val tagsRepo = mock[TagsRepositoryLike]
-    val esClient = mock[CardElasticClient]
+    val esClient = mock[CardElasticClientLike]
     val repo = new CardRepository(dataRepo, tagsRepo, esClient, components)
     val testContext = TestContext(dataRepo, tagsRepo, esClient, repo)
     block(testContext)
@@ -184,6 +185,7 @@ class CardRepositoryIntegrationSpec
       val repo = new CardRepository(dataRepo, tagsRepo, esClient, components)
       val testContext = TestContext(components, repo)
       try {
+        TestUtils.cleanupDb(db)
         block(testContext)
       } finally {
         cleanIndex(index)

@@ -35,7 +35,7 @@ case class TestContext(
   val components: CardRepositoryComponentsLike,
   val cardRepo: CardRepositoryLike,
   val tagsRepo: TagsRepositoryLike,
-  val cardElasticClient: CardElasticClient,
+  val cardElasticClient: CardElasticClientLike,
   val cardFixtures: CardFixtureRepository,
   val user: User
 ) extends ScalaFutures

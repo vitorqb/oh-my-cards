@@ -171,7 +171,7 @@ class CardResourceHandlerSpec
           val uuidGenerator = new UUIDGenerator
           val dataRepo = new CardDataRepository
           val tagsRepo = new TagsRepository
-          val elasticClient = mock[CardElasticClient]
+          val elasticClient = mock[CardElasticClientLike]
           val clock = mock[SilhouetteClock]
           val user = User("userId", "userEmail")
           val cardRefGenerator = mock[CardRefGeneratorLike]

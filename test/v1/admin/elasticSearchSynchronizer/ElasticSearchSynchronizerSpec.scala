@@ -16,13 +16,13 @@ import play.api.inject.guice.GuiceApplicationBuilder
 import com.sksamuel.elastic4s.ElasticClient
 import test.utils.FunctionalTestsTag
 import org.scalatest.BeforeAndAfter
-import v1.card.CardElasticClient
 import play.api.inject.bind
-import v1.card.CardElasticClientImpl
 import v1.card.testUtils.CardFixture
 import v1.card.CardFormInput
 import v1.card.CardRepositoryLike
 import org.scalatest.concurrent.ScalaFutures
+import v1.card.CardElasticClientLike
+import v1.card.elasticclient.CardElasticClientImpl
 
 class ElasticSearchSynchronizerSpec
     extends PlaySpec
@@ -39,7 +39,7 @@ class ElasticSearchSynchronizerSpec
   override def fakeApplication: Application =
     new GuiceApplicationBuilder()
       .overrides(new TestEsFakeModule)
-      .overrides(bind[CardElasticClient].to[CardElasticClientImpl])
+      .overrides(bind[CardElasticClientLike].to[CardElasticClientImpl])
       .build()
 
   before {

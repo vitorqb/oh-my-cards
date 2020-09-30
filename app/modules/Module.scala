@@ -14,9 +14,7 @@ import v1.auth.TokenEncrypter
 import com.sksamuel.elastic4s.ElasticClient
 import com.sksamuel.elastic4s.ElasticProperties
 import com.sksamuel.elastic4s.http.JavaClient
-import v1.card.CardElasticClientMock
-import v1.card.CardElasticClientImpl
-import v1.card.CardElasticClient
+import v1.card.elasticclient.{CardElasticClientMock,CardElasticClientImpl}
 import services.SendgridMailServiceImpl
 import v1.card.CardRefGenerator.CardRefGenerator
 import v1.card.CardRefGenerator.CardRefGeneratorLike
@@ -29,6 +27,7 @@ import v1.card.CardRepositoryLike
 import v1.card.CardDataRepositoryLike
 import v1.card.CardRepository
 import v1.card.CardDataRepository
+import v1.card.CardElasticClientLike
 import com.mohiva.play.silhouette.api.util.{Clock=>SilhouetteClock}
 import services.UUIDGenerator
 
@@ -91,7 +90,7 @@ class Module extends AbstractModule with ScalaModule {
     elasticClient: ElasticClient
   )(
     implicit ec: ExecutionContext
-  ): CardElasticClient = {
+  ): CardElasticClientLike = {
     if (conf.get[String]("test") == "1")
       new CardElasticClientMock()
     else
@@ -108,7 +107,7 @@ class Module extends AbstractModule with ScalaModule {
   def cardRepository(
     dataRepo: CardDataRepositoryLike,
     tagsRepo: TagsRepositoryLike,
-    esClient: CardElasticClient,
+    esClient: CardElasticClientLike,
     components: CardRepositoryComponentsLike
   )(
     implicit ec: ExecutionContext

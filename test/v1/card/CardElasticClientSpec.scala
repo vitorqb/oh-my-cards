@@ -1,4 +1,4 @@
-package v1.card
+package v1.card.elasticclient
 
 import v1.card.tagsrepository._
 
@@ -37,6 +37,11 @@ import scala.concurrent.ExecutionContext
 import v1.card.CardRefGenerator.CardRefGenerator
 import v1.card.cardrepositorycomponents.CardRepositoryComponentsLike
 import v1.card.cardrepositorycomponents.CardRepositoryComponents
+import v1.card.CardListRequest
+import v1.card.CardFormInput
+import v1.card.CardDataRepository
+import v1.card.CardRepository
+import v1.card.TagsFilterMiniLangSyntaxError
 
 class CardElasticIdFinderSpec extends PlaySpec with MockitoSugar with ScalaFutures {
 

@@ -18,6 +18,7 @@ import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import scala.concurrent.Future
 import play.api.mvc.Result
+import v1.card.elasticclient.CardElasticClientMock
 
 trait CardListRequestParserTestUtils extends JsonUtils {
   import CardListRequestParser._
