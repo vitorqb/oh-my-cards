@@ -1,3 +1,4 @@
+//!!!! TODO v1.card.elasticclient
 package v1.card
 
 import com.google.inject.Inject
@@ -49,7 +50,7 @@ trait CardElasticClient {
   /**
     * Returns a seq of ids from ElasticSearch that matches a CardListRequest.
     */
-  def findIds(cardListReq: CardListRequest): Future[CardElasticIdFinder.Result]
+  def findIds(cardListReq: CardListRequest): Future[IdsFindResult]
 }
 
 /**
@@ -58,7 +59,6 @@ trait CardElasticClient {
   */
 class CardElasticClientMock() extends CardElasticClient {
 
-  import CardElasticIdFinder._
   import CardElasticClientMock._
 
   val logger = Logger(getClass)
@@ -75,9 +75,9 @@ class CardElasticClientMock() extends CardElasticClient {
     logger.info(s"Mocked delete for $id")
   }
 
-  override def findIds(cardListReq: CardListRequest): Future[Result] = {
+  override def findIds(cardListReq: CardListRequest): Future[IdsFindResult] = {
     logger.info(s"Mocked findIds for $cardListReq")
-    Future.successful(Result(idsFound, countOfItems))
+    Future.successful(IdsFindResult(idsFound, countOfItems))
   }
   
 }
@@ -154,7 +154,7 @@ class CardElasticClientImpl @Inject()(
     elasticClient.execute(deleteById(index, id)).onComplete(handleResponse)
   }
 
-  override def findIds(cardListReq: CardListRequest): Future[CardElasticIdFinder.Result] =
+  override def findIds(cardListReq: CardListRequest): Future[IdsFindResult] =
     new CardElasticIdFinder(elasticClient, index).findIds(cardListReq)
 
 }
@@ -166,19 +166,17 @@ class CardElasticIdFinder(
   implicit val ec: ExecutionContext
 ) {
 
-  import CardElasticIdFinder._
-
   import com.sksamuel.elastic4s.ElasticDsl._  
   val logger = Logger(getClass)
 
   /**
     * Handles a success ES query.
     */
-  def onSuccess(response: RequestSuccess[SearchResponse]): Future[Result] = {
+  def onSuccess(response: RequestSuccess[SearchResponse]): Future[IdsFindResult] = {
     logger.info("Response: " + response)
     Future.successful {
-      Result (
-        response.result.hits.hits.map(x => x.id).toIndexedSeq,
+      IdsFindResult(
+        response.result.hits.hits.map(x => x.id).toSeq,
         response.result.hits.total.value.intValue()
       )
   }
@@ -197,7 +195,7 @@ class CardElasticIdFinder(
     * Find all ids matching a query.
     * The result has the matching ids and the count of total matches.
     */
-  def findIds(cardListReq: CardListRequest): Future[Result] = Future {
+  def findIds(cardListReq: CardListRequest): Future[IdsFindResult] = Future {
     logger.info(s"Getting ids for $cardListReq")
 
     var queries : List[Query] = List(matchAllQuery())
@@ -247,16 +245,5 @@ class CardElasticIdFinder(
     }
 
   }.flatten
-
-}
-
-object CardElasticIdFinder {
-
-  /**
-    * Auxiliar class to host results of a find. `ids` contain matched ids taking
-    * pagination into account. `countOfIds` is an integer with the total count of
-    * matching elements, disconsidering pagination.
-    */
-  case class Result(ids: Seq[String], countOfIds: Integer)
 
 }

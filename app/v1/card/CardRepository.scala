@@ -49,7 +49,7 @@ trait TagsRepositoryLike {
 trait CardDataRepositoryLike {
   def create(cardFormInput: CardFormInput, context: CardCreationContext)(implicit c: Connection): Unit
   def get(id: String, user: User)(implicit c: Connection): Option[CardData]
-  def find(request: CardListRequest, idsResult: CardElasticIdFinder.Result)(implicit c: Connection): FindResult
+  def find(request: CardListRequest, idsResult: IdsFindResult)(implicit c: Connection): FindResult
   def delete(id: String, user: User)(implicit c: Connection): Unit
   def update(data: CardData, context: CardUpdateContext)(implicit c: Connection): Unit
   def getAllTags(user: User)(implicit c: Connection): List[String]
@@ -79,6 +79,14 @@ case class CardCreationContext(user: User, now: DateTime, id: String, ref: Int)
 case class CardUpdateContext(user: User, now: DateTime)
 
 /**
+  * A result for a find query containing all ids found.
+  * 
+  * @param ids the ids that are part of the page of results
+  * @param countOfItems the total number of items matched
+  */
+final case class IdsFindResult(ids: Seq[String], countOfItems: Integer)
+
+/**
   * The result of a find query.
   */
 final case class FindResult(cards: Seq[CardData], countOfItems: Int)
@@ -89,13 +97,10 @@ object FindResult {
     * Alternative constructor from the results of the query for the IDs and the query for
     * the data.
     */
-  def fromQueryResults(
-    cardData: Seq[CardData],
-    idsResult: CardElasticIdFinder.Result
-  ): FindResult = {
+  def fromQueryResults(cardData: Seq[CardData], idsResult: IdsFindResult): FindResult = {
     val cardDataById = cardData.map(x => (x.id, x)).toMap
     val sortedCardData = idsResult.ids.map(x => cardDataById.get(x)).flatten
-    FindResult(sortedCardData, idsResult.countOfIds)
+    FindResult(sortedCardData, idsResult.countOfItems)
   }
 
 }

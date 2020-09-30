@@ -146,7 +146,7 @@ class CardDataRepositorySpec extends PlaySpec
       CardListRequest(0, 10, c.user.id, List(), List(), None)
 
     def mockEsResult(c: TestContext) = {
-      val esResult = CardElasticIdFinder.Result(ids(c), count)
+      val esResult = IdsFindResult(ids(c), count)
       when(c.cardElasticClient.findIds(cardListRequest(c))).thenReturn(Future.successful(esResult))
     }
 
