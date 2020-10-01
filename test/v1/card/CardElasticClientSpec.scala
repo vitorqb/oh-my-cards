@@ -205,9 +205,6 @@ class CardElasticClientFunctionalSpec
 
       val id = c.createCardInDb(fixture)
       refreshIdx(index)
-      waitUntil { () =>
-        client.execute(queryByTitleAndBody).await.result.hits.total.value > 0
-      }
       val cardData = c.cardRepo.get(id, c.user).futureValue.get
 
       val resultAfter = client.execute(queryByTitleAndBody).await.result
@@ -222,9 +219,7 @@ class CardElasticClientFunctionalSpec
 
       c.cardRepo.delete(id, user).await
       refreshIdx(index)
-      waitUntil { () =>
-        client.execute(queryByTitleAndBody).await.result.hits.total.value == 0
-      }
+      client.execute(queryByTitleAndBody).await.result.hits.total.value == 0
 
       val resultAfterDelete = client.execute(queryByTitleAndBody).await.result
       resultAfterDelete.hits.total.value mustEqual 0

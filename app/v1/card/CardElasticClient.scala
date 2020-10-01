@@ -23,6 +23,8 @@ import com.sksamuel.elastic4s.requests.searches.sort.ScoreSort
 import com.sksamuel.elastic4s.requests.searches.sort.SortOrder
 
 import v1.card.{CardFormInput,CardData,CardCreationContext,CardUpdateContext,CardListRequest,IdsFindResult,TagsFilterMiniLangSyntaxError,CardElasticClientLike}
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
 
 final case class CardElasticClientException(
   val message: String = "Something went wrong on ElasticSearch",
@@ -94,6 +96,8 @@ class CardElasticClientImpl @Inject()(
   val index = "cards"
   val logger = Logger(getClass)
 
+  def wait[A](future: Future[A]): Unit = Await.ready(future, Duration("10 s"))
+
   def handleResponse[T](response: Try[Response[T]]) = response match {
     case Failure(exception) => logger.error("Elastic Search failed!", exception)
     case Success(value) => logger.info(s"Success: $value")
@@ -101,34 +105,40 @@ class CardElasticClientImpl @Inject()(
 
   override def create(cardFormInput: CardFormInput, context: CardCreationContext): Unit = {
     logger.info(s"Creating elastic search entry for $cardFormInput with $context")
-    elasticClient.execute {
-      indexInto(index).id(context.id).fields(
-        "title" -> cardFormInput.getTitle(),
-        "body" -> cardFormInput.getBody(),
-        "updatedAt" -> context.now,
-        "createdAt" -> context.now,
-        "userId" -> context.user.id,
-        "tags" -> cardFormInput.getTags().map(_.toLowerCase())
-      )
-    }.onComplete(handleResponse)
+    wait {
+      elasticClient.execute {
+        indexInto(index).id(context.id).fields(
+          "title" -> cardFormInput.getTitle(),
+          "body" -> cardFormInput.getBody(),
+          "updatedAt" -> context.now,
+          "createdAt" -> context.now,
+          "userId" -> context.user.id,
+          "tags" -> cardFormInput.getTags().map(_.toLowerCase())
+        )
+      }.andThen(handleResponse(_))
+    }
   }
 
   override def update(cardData: CardData, context: CardUpdateContext): Unit = {
     logger.info(s"Updating elastic search entry for $cardData with $context")
-    elasticClient.execute {
-      updateById(index, cardData.id).doc(
-        "title" -> cardData.title,
-        "body" -> cardData.body,
-        "updatedAt" -> context.now,
-        "userId" -> context.user.id,
-        "tags" -> cardData.tags.map(_.toLowerCase())
-      )
-    }.onComplete(handleResponse)
+    wait {
+      elasticClient.execute {
+        updateById(index, cardData.id).doc(
+          "title" -> cardData.title,
+          "body" -> cardData.body,
+          "updatedAt" -> context.now,
+          "userId" -> context.user.id,
+          "tags" -> cardData.tags.map(_.toLowerCase())
+        )
+      }.andThen(handleResponse(_))
+    }
   }
 
   override def delete(id: String): Unit = {
     logger.info(s"Deleting elastic search entry for $id")
-    elasticClient.execute(deleteById(index, id)).onComplete(handleResponse)
+    wait {
+      elasticClient.execute(deleteById(index, id)).andThen(handleResponse(_))
+    }
   }
 
   override def findIds(cardListReq: CardListRequest): Future[IdsFindResult] =

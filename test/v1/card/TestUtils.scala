@@ -15,6 +15,8 @@ import play.api.db.TransactionIsolationLevel
 import java.sql.Connection
 import com.mohiva.play.silhouette.api.util.{Clock=>SilhouetteClock}
 import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.time.Span
+import org.scalatest.time.Millis
 
 /**
   * A data class for the data that a fixture of a card needs.
@@ -40,6 +42,8 @@ case class TestContext(
   val user: User
 ) extends ScalaFutures
 {
+
+  override implicit def patienceConfig = new PatienceConfig(Span(1000, Millis))
 
   /**
     * Save all card fixtures to the db

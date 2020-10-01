@@ -144,6 +144,7 @@ class CardRepositoryIntegrationSpec
 
   val index = "cards"
   val user = User("A", "A@B.com")
+  val otherUser = User("otherUser", "other@user.com")
   val now = new DateTime(2000, 1, 1, 0, 0, 0)
   val createContext = CardCreationContext(user, now, "1", 1)
   val baseCardInput = CardFormInput("Title", Some("Body"), Some(List("Tag1", "TagTwo")))
@@ -177,9 +178,17 @@ class CardRepositoryIntegrationSpec
 
   "Functional tests for card creation and deletion" should {
 
+    "create and get c card without tag not body" taggedAs(FunctionalTestsTag) in testContext { c =>
+      val input = baseCardInput.copy(tags=None, body=None)
+      c.repo.create(input, user).futureValue mustEqual "1"
+      val expectedData = baseExpectedCardData.copy(body="", tags=List())
+      c.repo.get("1", user).futureValue mustEqual Some(expectedData)
+    }
+
     "create and get a card" taggedAs(FunctionalTestsTag) in testContext { c =>
       c.repo.create(baseCardInput, user).futureValue mustEqual "1"
       c.repo.get("1", user).futureValue mustEqual Some(baseExpectedCardData)
+      c.repo.get("1", otherUser).futureValue mustEqual None
     }
 
     "create and find 2 cards" taggedAs(FunctionalTestsTag) in testContext { c =>
@@ -218,6 +227,12 @@ class CardRepositoryIntegrationSpec
       c.repo.delete("1", user).failed.futureValue mustBe a[CardDoesNotExist]
     }
 
+    "deletes a card from other user" taggedAs(FunctionalTestsTag) in testContext { c =>
+      c.repo.create(baseCardInput, user).futureValue
+      refreshIdx()
+      c.repo.delete("1", otherUser).failed.futureValue mustBe a[CardDoesNotExist]
+    }
+
     "create three cards and find 2 with search term" taggedAs(FunctionalTestsTag) in testContext { c =>
       val input_1 = baseCardInput.copy(title="SomeLongWord")
       val input_2 = baseCardInput.copy(title="SomeLongWo")
@@ -252,6 +267,43 @@ class CardRepositoryIntegrationSpec
       val response2 = c.repo.find(listRequest2).futureValue
       response2.countOfItems mustEqual 2
       response2.cards.length mustEqual 1
+    }
+  }
+
+  "Functional tests for find" should {
+
+    "Match by tag" taggedAs(FunctionalTestsTag) in testContext { c =>
+      val cardOne = CardFormInput("Title", Some("Body"), Some(List("Tag1", "Tag2")))
+      val cardTwo = CardFormInput("Title", Some("Body"), Some(List("Tag2", "Tag3")))
+      c.repo.create(cardOne, user).futureValue
+      c.repo.create(cardTwo, user).futureValue
+      val findRequest = CardListRequest(1, 10, user.id, List("Tag3"), List(), None)
+      refreshIdx()
+
+      val result = c.repo.find(findRequest).futureValue
+
+      val cardTwoData = cardTwo.asCardData("2", Some(now), Some(now), 2)
+      val expResult = FindResult(Seq(cardTwoData), 1)
+      result mustEqual expResult
+    }
+
+    "Match by search term returning in order" in testContext { c =>
+      val cardOne = CardFormInput("Title", Some("Body"), Some(List("Tag1", "Tag2")))
+      val cardTwo = cardOne.copy(title="Titlee")
+      val cardThree = cardTwo.copy(title="Tilleee")
+      c.repo.create(cardOne, user).futureValue
+      c.repo.create(cardTwo, user).futureValue
+      c.repo.create(cardThree, user).futureValue
+      refreshIdx()
+
+      val findRequest = CardListRequest(1, 10, user.id, List(), List(), None, Some("Titleee"))
+      val result = c.repo.find(findRequest).futureValue
+
+      val cardOneData = cardOne.asCardData("1", Some(now), Some(now), 1)
+      val cardTwoData = cardTwo.asCardData("2", Some(now), Some(now), 2)
+      val cardThreeData = cardThree.asCardData("3", Some(now), Some(now), 3)
+      val expResult = FindResult(Seq(cardThreeData, cardTwoData, cardOneData), 3)
+      result mustEqual expResult
     }
   }
 
