@@ -43,7 +43,7 @@ case class TestContext(
 ) extends ScalaFutures
 {
 
-  override implicit def patienceConfig = new PatienceConfig(Span(1000, Millis))
+  override implicit def patienceConfig = new PatienceConfig(Span(5000, Millis))
 
   /**
     * Save all card fixtures to the db
