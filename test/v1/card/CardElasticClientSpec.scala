@@ -200,9 +200,6 @@ class CardElasticClientFunctionalSpec
         )
       )
 
-      val resultBefore = client.execute(queryByTitleAndBody).await.result
-      resultBefore.hits.total.value mustEqual 0
-
       val id = c.createCardInDb(fixture)
       refreshIdx(index)
       val cardData = c.cardRepo.get(id, c.user).futureValue.get
