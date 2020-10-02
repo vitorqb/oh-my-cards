@@ -56,7 +56,7 @@ trait TagsRepositoryLike {
 trait CardDataRepositoryLike {
   def create(cardFormInput: CardFormInput, context: CardCreationContext)(implicit c: Connection): Unit
   def get(id: String, user: User)(implicit c: Connection): Option[CardData]
-  def find(request: CardListRequest, idsResult: IdsFindResult)(implicit c: Connection): FindResult
+  def find(idsResult: IdsFindResult)(implicit c: Connection): FindResult
   def delete(id: String, user: User)(implicit c: Connection): Unit
   def update(data: CardData, context: CardUpdateContext)(implicit c: Connection): Unit
   def getAllTags(user: User)(implicit c: Connection): List[String]
@@ -197,7 +197,7 @@ class CardRepository(
   override def find(request: CardListRequest): Future[FindResult] =
     esClient.findIds(request).map { idsResult =>
       components.db.withConnection { implicit c =>
-        val findResult = dataRepo.find(request, idsResult)
+        val findResult = dataRepo.find(idsResult)
         val cardsWithTags = findResult.cards.map(x => tagsRepo.fill(x))
         findResult.copy(cards=cardsWithTags)
       }

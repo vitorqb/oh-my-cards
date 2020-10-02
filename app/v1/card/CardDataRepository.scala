@@ -71,7 +71,7 @@ class CardDataRepository extends CardDataRepositoryLike {
   /**
     * Finds a list of cards for a given user.
     */
-  def find(request: CardListRequest, idsResult: IdsFindResult)(implicit c: Connection): FindResult = {
+  def find(idsResult: IdsFindResult)(implicit c: Connection): FindResult = {
     val ids = idsResult.ids
     val cards = SQL(s"${sqlGetStatement} WHERE id IN ({ids})")
       .on("ids" -> ids)
