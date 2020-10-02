@@ -287,7 +287,7 @@ class CardRepositoryIntegrationSpec
       result mustEqual expResult
     }
 
-    "Match by search term returning in order" in testContext { c =>
+    "Match by search term returning in order" taggedAs(FunctionalTestsTag) in testContext { c =>
       val cardOne = CardFormInput("Title", Some("Body"), Some(List("Tag1", "Tag2")))
       val cardTwo = cardOne.copy(title="Titlee")
       val cardThree = cardTwo.copy(title="Tilleee")
