@@ -17,6 +17,7 @@ class CardDataRepository extends CardDataRepositoryLike {
     */
   val sqlGetStatement: String = s"SELECT id, title, body, updatedAt, createdAt, ref FROM cards "
 
+  //!!!! TODO REMOVE CONNECTION
   /**
     * A parser for CardData.
     */

@@ -76,6 +76,16 @@ final case class CardData(
 )
 
 /**
+  * A genetic context for a card event, like update, create or delete.
+  * @param user the user that is creating the card.
+  * @param now the current datetime to consider.
+  */
+trait CardEventContextLike {
+  val user: User
+  val now: DateTime
+}
+
+/**
   * The context for a card creation.
   * 
   * @param user the user that is creating the card.
@@ -83,7 +93,12 @@ final case class CardData(
   * @param id the id to use for the new card.
   * @param ref the ref to use for the new card.
   */
-case class CardCreationContext(user: User, now: DateTime, id: String, ref: Int)
+case class CardCreationContext(
+  user: User,
+  now: DateTime,
+  id: String,
+  ref: Int
+) extends CardEventContextLike
 
 /**
   * The context for a card update.
@@ -91,7 +106,10 @@ case class CardCreationContext(user: User, now: DateTime, id: String, ref: Int)
   * @param user the user that is creating the card.
   * @param now the current datetime to consider.
   */
-case class CardUpdateContext(user: User, now: DateTime)
+case class CardUpdateContext(
+  user: User,
+  now: DateTime
+) extends CardEventContextLike
 
 /**
   * A paged result with the matched ids for a query to find cards.
@@ -157,6 +175,24 @@ trait CardElasticClientLike {
     * Returns a seq of ids from ElasticSearch that matches a CardListRequest.
     */
   def findIds(cardListReq: CardListRequest): Future[IdsFindResult]
+}
+
+/**
+  * A manager for card history, keeping tack of historical events like
+  * card creation, deletion and update.
+  */
+trait CardHistoryRecorderLike {
+
+  /**
+    * Register the creation of a card.
+    */
+  def registerCreation(context: CardCreationContext)(implicit c: Connection): Unit
+
+  /**
+    * Register the deletion of a card.
+    */
+  def registerDeletion(cardId: String, context: CardUpdateContext)(implicit c: Connection): Unit
+
 }
 
 /**
