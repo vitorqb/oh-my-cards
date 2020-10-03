@@ -53,3 +53,9 @@ val elastic4sVersion = "7.6.1"
 libraryDependencies ++= Seq(
   "com.sksamuel.elastic4s" %% "elastic4s-client-esjava" % elastic4sVersion
 )
+
+
+//For Scalafix
+semanticdbEnabled := true // enable SemanticDB
+semanticdbVersion := scalafixSemanticdb.revision // use Scalafix compatible version
+scalacOptions += "-Wunused:imports" // required by `RemoveUnused` rule

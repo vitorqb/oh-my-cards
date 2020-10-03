@@ -3,7 +3,6 @@ package v1.auth
 import javax.crypto.Cipher
 import javax.crypto.spec.SecretKeySpec
 import com.google.inject.Inject
-import tyrex.tm.impl.UserTransactionImpl
 import scala.util.Try
 
 /**

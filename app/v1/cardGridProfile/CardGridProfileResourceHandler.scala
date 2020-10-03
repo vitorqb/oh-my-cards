@@ -2,12 +2,9 @@ package v1.cardGridProfile
 
 import v1.auth.User
 
-import scala.util.Try
 import scala.concurrent.Future
 import com.google.inject.Inject
 import scala.concurrent.ExecutionContext
-import play.api.libs.json.Format
-import play.api.libs.json.Json
 import play.api.libs.json.Writes
 
 /**

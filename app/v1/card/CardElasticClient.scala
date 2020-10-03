@@ -7,14 +7,11 @@ import scala.concurrent.Future
 import scala.concurrent.ExecutionContext
 import scala.util.Failure
 import scala.util.Success
-import org.joda.time.DateTime
 import scala.util.Try
 import com.sksamuel.elastic4s.Response
 import com.sksamuel.elastic4s.RequestSuccess
 import com.sksamuel.elastic4s.RequestFailure
 import com.sksamuel.elastic4s.requests.searches.SearchResponse
-import com.sksamuel.elastic4s.requests.searches.queries.matches.MultiMatchQuery
-import v1.auth.User
 import com.sksamuel.elastic4s.requests.searches.queries.Query
 import services.TagsFilterMiniLang.TagsFilterMiniLang
 import services.TagsFilterMiniLang.ParsingError

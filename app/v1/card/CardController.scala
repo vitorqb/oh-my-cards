@@ -1,6 +1,5 @@
 package v1.card
  
-import scala.util.{Try,Success,Failure}
 
 import javax.inject.Inject
 import play.api.mvc._
@@ -14,7 +13,6 @@ import v1.auth.User
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext
 import services.InputParser
-import play.api.libs.json.JsPath.json
 import play.api.i18n.MessagesProvider
 import utils.StringUtils
 import org.joda.time.DateTime
@@ -34,7 +32,7 @@ case class CardFormInput(title: String, body: Option[String], tags: Option[List[
 
 object CardFormInput {
   val form: Form[CardFormInput] = {
-    import play.api.data.Forms.{list => fList, _}
+    import play.api.data.Forms.{list => _, _}
     import utils.TagsUtils.Forms._
     Form(
       mapping(
@@ -82,7 +80,6 @@ class CardController @Inject()(
     */
   def list() = silhouette.SecuredAction.async {
     implicit request =>
-    import CardListRequestParser._
 
     logger.info(s"Getting cards for user ${request.identity}")
     CardListRequestParser.parse() match {

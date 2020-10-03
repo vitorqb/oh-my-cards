@@ -4,17 +4,12 @@ import services.MailService
 import com.mohiva.play.silhouette.api._
 import play.api.mvc._
 import play.api.mvc.Request
-import play.api.mvc.AnyContent
 import scala.concurrent.Future
 import com.google.inject.Inject
 import scala.concurrent.ExecutionContext
-import scala.util.Try
 import scala.util.Success
 import scala.util.Failure
-import _root_.services.RandomStringGenerator
 import play.api.libs.json.Json
-import play.api.libs.json.JsObject
-import play.api.libs.json.JsString
 import java.{util => ju}
 
 /**

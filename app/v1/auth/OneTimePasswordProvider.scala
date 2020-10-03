@@ -5,7 +5,6 @@ import com.mohiva.play.silhouette.api.LoginInfo
 import play.api.Logger
 import scala.concurrent.Future
 import com.google.inject.Inject
-import com.mohiva.play.silhouette.api.repositories.AuthInfoRepository
 import scala.concurrent.ExecutionContextExecutor
 import scala.util.Try
 import scala.util.Failure

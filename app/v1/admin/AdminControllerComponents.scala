@@ -9,18 +9,9 @@ import play.api.i18n.MessagesApi
 import play.api.mvc.PlayBodyParsers
 import com.mohiva.play.silhouette.api.Silhouette
 import v1.auth.DefaultEnv
-import play.api.mvc.DefaultActionBuilder
-import play.api.mvc.ActionBuilderImpl
-import play.api.mvc.BodyParsers
-import play.api.mvc.Request
 import scala.concurrent.Future
 import play.api.mvc.Result
 import com.mohiva.play.silhouette.api.actions.SecuredRequest
-import com.mohiva.play.silhouette.api.actions.SecuredAction
-import com.mohiva.play.silhouette.api.{Env, Environment}
-import com.mohiva.play.silhouette.api.actions.SecuredActionBuilder
-import play.api.mvc.AnyContent
-import play.api.mvc.ActionBuilder
 import play.api.mvc.ActionFilter
 
 import v1.admin.elasticSearchSynchronizer.ElasticSearchSynchornizer

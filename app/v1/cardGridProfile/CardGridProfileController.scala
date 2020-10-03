@@ -2,18 +2,12 @@ package v1.cardGridProfile
 
 import play.api.mvc.BaseController
 import com.google.inject.Inject
-import com.mohiva.play.silhouette.api.Silhouette
-import v1.auth.DefaultEnv
-import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import play.api.data.Form
-import play.api.i18n.{MessagesProvider, I18nSupport}
+import play.api.i18n.I18nSupport
 import play.api.mvc.Request
 import play.api.mvc.AnyContent
-import com.mohiva.play.silhouette.api.actions.SecuredRequest
 import play.api.mvc.Result
-import scala.util.Success
-import scala.util.Failure
 import play.api.libs.json.Json
 import play.api.Logger
 
@@ -132,7 +126,7 @@ case class CardGridProfileInput(name: String, config: CardGridConfigInput) {
 object CardGridProfileInput {
 
   val form: Form[CardGridProfileInput] = {
-    import play.api.data.Forms.{list => fList, _}
+    import play.api.data.Forms.{list => _, _}
     import utils.TagsUtils.Forms._
     Form(
       mapping(

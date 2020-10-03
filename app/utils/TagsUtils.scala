@@ -1,9 +1,7 @@
 package utils
 
-import play.api.data.Form
 import play.api.data.Mapping
 import play.api.data.validation._
-import play.api.data.FormError
 
 object TagsUtils {
   private val tagMinLength = 1
