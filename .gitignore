@@ -15,3 +15,4 @@ target
 test.sqlite
 /devops/build
 /.dir-locals.el
+test.sqlite-journal

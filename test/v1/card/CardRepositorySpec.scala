@@ -1,319 +1,310 @@
-package v1.card
+package v1.card.cardrepositoryspec
 
-import scala.language.reflectiveCalls
-
-import org.scalatest._
-import org.scalatestplus.play._
-import org.scalatestplus.mockito.MockitoSugar
-
+import v1.card._
+import org.scalatestplus.play.PlaySpec
+import org.mockito.MockitoSugar
 import org.mockito.Mockito._
-
-import scala.concurrent.ExecutionContext
-import org.scalatest.concurrent.ScalaFutures
 import v1.auth.User
-import services.UUIDGenerator
-import scala.util.Failure
+import v1.card.testUtils.ComponentsBuilder
 import play.api.db.Database
-import test.utils.TestUtils
-import services.Clock
-import org.joda.time.DateTime
-import scala.concurrent.Await
-import scala.concurrent.duration._
-import scala.language.postfixOps
-import scala.concurrent.Future
 import scala.util.Success
+import java.sql.Connection
+import org.mockito.{ ArgumentMatchersSugar }
+import v1.card.testUtils.MockDb
+import scala.util.Failure
+import org.joda.time.DateTime
+import v1.card.CardRefGenerator.{CardRefGeneratorLike,CardRefGenerator}
+import v1.card.cardrepositorycomponents.CardRepositoryComponents
+import test.utils.TestUtils
+import v1.card.cardrepositorycomponents.CardRepositoryComponentsLike
+import v1.card.tagsrepository.TagsRepository
+import v1.admin.testUtils.TestEsClient
+import scala.concurrent.ExecutionContext
+import test.utils.FunctionalTestsTag
+import services.CounterUUIDGenerator
+import services.FrozenClock
+import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.time.Span
+import org.scalatest.time.Millis
+import scala.concurrent.Future
+import v1.card.elasticclient.CardElasticClientImpl
 
-import v1.card.testUtils._
-import v1.card.CardRefGenerator.CardRefGenerator
+class CardRepositorySpec
+    extends PlaySpec
+    with MockitoSugar
+    with ArgumentMatchersSugar
+    with ScalaFutures
+{
 
-class FindResultSpec extends PlaySpec {
+  implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
+  
+  case class TestContext(
+    val dataRepo: CardDataRepositoryLike,
+    val tagsRepo: TagsRepositoryLike,
+    val esClient: CardElasticClientLike,
+    val repo: CardRepositoryLike
+  )
 
-  "fromQueryResults" should {
-    val cardData1 = CardData("id1", "ONE", "TWO", List("a", "b"), ref=1)
-    val cardData2 = CardData("id2", "one", "two", List("A", "B", "D"), ref=2)
-    val cardData = List(cardData1, cardData2)
-    val idsResult = CardElasticIdFinder.Result(Seq("id2", "id1"), 5)
-    val findResult = FindResult.fromQueryResults(cardData, idsResult)
+  val user = User("A", "A@B.com")
+  val now = new DateTime(2000, 1, 1, 0, 0, 0)
+  val context = CardCreationContext(user, now, "id", 1)
+  val connection = mock[Connection]
+  val db = new MockDb {
+    override def withTransaction[A](block: Connection => A): A = block(connection)
+    override def withConnection[A](block: Connection => A): A = block(connection)
+  }
+  val components = ComponentsBuilder().withDb(db).withContext(context).build()
 
-    "have the same countOfids from idsResult" in {
-      findResult.countOfItems mustEqual 5
+  def testContext(block: TestContext => Any): Any = {
+    val dataRepo = mock[CardDataRepositoryLike]
+    val tagsRepo = mock[TagsRepositoryLike]
+    val esClient = mock[CardElasticClientLike]
+    val repo = new CardRepository(dataRepo, tagsRepo, esClient, components)
+    val testContext = TestContext(dataRepo, tagsRepo, esClient, repo)
+    block(testContext)
+  }
+
+  "create" should {
+
+    "send create msg to card data repository" in testContext { c =>
+      val formInput = CardFormInput("title", Some("body"), None)
+      c.repo.create(formInput, user).futureValue
+      verify(c.dataRepo).create(formInput, context)(connection)
     }
 
-    "sort the sequence of card data by the ids in the idsResult" in {
-      findResult.cards mustEqual Seq(cardData2, cardData1)
+    "send create msg to tags repo" in testContext { c =>
+      val formInput = CardFormInput("title", Some("body"), Some(List("A")))
+      c.repo.create(formInput, user).futureValue
+      verify(c.tagsRepo).create("id", List("A"))(connection)
+    }
+
+    "send create data to es client" in testContext { c =>
+      val formInput = CardFormInput("title", Some("body"), Some(List("A")))
+      c.repo.create(formInput, user).futureValue
+      verify(c.esClient).create(formInput, context)
+    }
+
+    "returns created id" in testContext { c =>
+      val formInput = CardFormInput("title", Some("body"), None)
+      c.repo.create(formInput, user).futureValue mustEqual "id"
+    }
+
+  }
+
+  "delete" should {
+    
+    "send delete msg to card data repository" in testContext { c =>
+      c.repo.delete("1", user).futureValue
+      verify(c.dataRepo).delete("1", user)(connection)
+    }
+
+    "send delete msg to tags repository" in testContext { c =>
+      c.repo.delete("1", user).futureValue
+      verify(c.tagsRepo).delete("1")(connection)
+    }
+
+    "send delete msg to es client" in testContext { c =>
+      c.repo.delete("1", user).futureValue
+      verify(c.esClient).delete("1")
+    }
+
+  }
+
+  "update" should {
+
+    val data = CardData("1", "t", "b", List("A"), Some(now), Some(now), 1)
+    val context = CardUpdateContext(user, now)
+
+    "send update msg to card data repository" in testContext { c =>
+      c.repo.update(data, user).futureValue
+      verify(c.dataRepo).update(data, context)(connection)
+    }
+
+    "send update msg to tags repository" in testContext { c =>
+      c.repo.update(data, user).futureValue
+      verify(c.tagsRepo).update(data)(connection)
+    }
+
+    "send update msg to es client" in testContext { c =>
+      c.repo.update(data, user).futureValue
+      verify(c.esClient).update(data, context)
     }
   }
 
 }
 
-class CardRepositorySpec extends PlaySpec
-    with MockitoSugar
-    with ScalaFutures
-    with BeforeAndAfterAll {
+class CardRepositoryIntegrationSpec
+    extends PlaySpec
+    with TestEsClient
+    with ScalaFutures {
 
   implicit val ec: ExecutionContext = ExecutionContext.global
-  var db: Database = null
 
-  override def beforeAll(): Unit = {
-    println("STARTING DB")
-    db = TestUtils.getDb()
-  }
+  override implicit def patienceConfig = new PatienceConfig(Span(1000, Millis))
 
-  override def afterAll(): Unit = {
-    println("CLOSING DB")
-    db.shutdown()
-  }
+  val index = "cards"
+  val user = User("A", "A@B.com")
+  val otherUser = User("otherUser", "other@user.com")
+  val now = new DateTime(2000, 1, 1, 0, 0, 0)
+  val createContext = CardCreationContext(user, now, "1", 1)
+  val baseCardInput = CardFormInput("Title", Some("Body"), Some(List("Tag1", "TagTwo")))
+  val baseExpectedCardData = baseCardInput.asCardData("1", Some(now), Some(now), 1)
 
-  val cardFixtures = new CardFixtureRepository() {
-    def f1 = CardFixture(
-      "id1",
-      CardFormInput("ONE", Some("TWO"), Some(List("a", "b"))),
-      new DateTime(2000, 1, 1, 1, 1, 1)
-    )
+  case class TestContext(components: CardRepositoryComponentsLike, repo: CardRepositoryLike)
 
-    def f2 = CardFixture(
-      "id2",
-      CardFormInput("one", Some("two"), Some(List("A", "B", "D"))),
-      new DateTime(2000, 1, 1, 1, 1, 1)
-    )
-
-    def f3 = CardFixture(
-      "id3",
-      CardFormInput("THREE", Some("three"), Some(List("C"))),
-      new DateTime(2000, 1, 1, 1, 1, 1)
-    )
-
-    def allFixtures = Seq(f1, f2, f3)
-  }
-
-  /**
-    * Initializes and provides context for the tests.
-    */
   def testContext(block: TestContext => Any): Any = {
-    val uuidGenerator = mock[UUIDGenerator]
-    val tagsRepo = new TagsRepository
-    val cardElasticClient = mock[CardElasticClient]
-    val clock = mock[Clock]
-    val cardRefGenerator = new CardRefGenerator(db)
-    val repository = new CardRepository(db, uuidGenerator, cardRefGenerator, tagsRepo, cardElasticClient, clock)
-    val testContext = TestContext(
-      db,
-      uuidGenerator,
-      cardRefGenerator,
-      repository,
-      tagsRepo,
-      cardElasticClient,
-      clock,
-      cardFixtures,
-      new User("userId", "user@email.com")
-    )
-    try {
-      block(testContext)
-    } finally {
-      TestUtils.cleanupDb(db)
-    }
-  }
-
-  //
-  //Tests
-  //
-  "CardRepository create and get" should {
-
-    val datetime = new DateTime(2000, 1, 1, 2, 2, 2)
-    val baseCardInput = CardFormInput("Title", Some("Body"), Some(List("Tag1", "TagTwo")))
-    val baseExpectedCardData = baseCardInput.asCardData("id", Some(datetime), Some(datetime), 1)
-
-    "Allow user to create and get a card without tags nor body" in testContext { c =>
-      val cardInput = baseCardInput.copy(body=None, tags=None)
-      c.createCardInDb(cardInput, "id", datetime) mustEqual "id"
-      c.cardRepo.get("id", c.user).get mustEqual baseExpectedCardData.copy(tags=List(), body="")
-    }
-
-    "Allow user to create and get a card with tags and body" in testContext { c =>
-      c.createCardInDb(baseCardInput, "id", datetime) mustEqual "id"
-      c.cardRepo.get("id", c.user).get mustEqual baseExpectedCardData
-    }
-
-    "User gets three cards" in testContext { c =>
-      c.saveCardsToDb()
-      val f1 = cardFixtures.f1
-      val f2 = cardFixtures.f2
-      val f3 = cardFixtures.f3
-
-      c.cardRepo.get(f1.id, c.user).get.title mustEqual f1.formInput.title
-      c.cardRepo.get(f2.id, c.user).get.body mustEqual f2.formInput.body.get
-      c.cardRepo.get(f3.id, c.user).get.tags mustEqual f3.formInput.tags.get
-    }
-
-    "elasticSearchClient is called for each card" in testContext { c =>
-      c.createCardInDb(baseCardInput, "id4", datetime) mustEqual "id4"
-      verify(c.cardElasticClient).create(baseCardInput, "id4", datetime, c.user)
-    }
-
-    "the createdAt is recorded properly" in testContext { c =>
-      val datetime = DateTime.parse("2020-11-23T00:00:00")
-      c.createCardInDb(baseCardInput, "id", datetime) mustEqual "id"
-      c.cardRepo.get("id", c.user).get.createdAt mustEqual Some(datetime)
-    }
-  }
-
-  "CardRepository.find" should {
-
-    def ids(c: TestContext) = Seq(cardFixtures.f3.id, cardFixtures.f1.id)
-    val count = 5
-    def cardListRequest(c: TestContext): CardListRequest =
-      CardListRequest(0, 10, c.user.id, List(), List(), None)
-
-    def mockEsResult(c: TestContext) = {
-      val esResult = CardElasticIdFinder.Result(ids(c), count)
-      when(c.cardElasticClient.findIds(cardListRequest(c))).thenReturn(Future.successful(esResult))
-    }
-
-    "query db to bring matching cards from ES and returns in correct order" in testContext { c =>
-      c.saveCardsToDb()
-      mockEsResult(c)
-
-      //Note: the order must be equal to the order in `ids`! That's part of the test.
-      val result = c.cardRepo.find(cardListRequest(c)).futureValue
-      val expectedCardData3 = cardFixtures.f3.formInput.asCardData(
-        cardFixtures.f3.id,
-        Some(cardFixtures.f3.datetime),
-        Some(cardFixtures.f3.datetime),
-        3
-      )
-      val expectedCardData1 = cardFixtures.f1.formInput.asCardData(
-        cardFixtures.f1.id,
-        Some(cardFixtures.f1.datetime),
-        Some(cardFixtures.f1.datetime),
-        1
-      )
-      val expectedResult = FindResult(Seq(expectedCardData3, expectedCardData1), count)
-      result mustEqual expectedResult
-    }
-
-  }
-
-  "TagsRepository" should {
-
-    "create and get tags for cards" in testContext { c =>
-      db.withTransaction { implicit t =>
-        c.tagsRepo.get("id") mustEqual List()
-        c.tagsRepo.create("id", List("A", "B")) mustEqual ()
-        c.tagsRepo.get("id") mustEqual List("A", "B")
+    TestUtils.testDB { db =>
+      val components = ComponentsBuilder()
+        .withDb(db)
+        .withUUIDGenerator(new CounterUUIDGenerator)
+        .withRefGenerator(new CardRefGenerator(db))
+        .withClock(new FrozenClock(now))
+        .build()
+      val tagsRepo = new TagsRepository()
+      val esClient = new CardElasticClientImpl(client)
+      val dataRepo = new CardDataRepository
+      val repo = new CardRepository(dataRepo, tagsRepo, esClient, components)
+      val testContext = TestContext(components, repo)
+      try {
+        TestUtils.cleanupDb(db)
+        block(testContext)
+      } finally {
+        cleanIndex(index)
+        TestUtils.cleanupDb(db)
       }
     }
 
-    "create and delete tags for a card" in testContext { c =>
-      db.withConnection { implicit t =>
-        c.tagsRepo.delete("id1")
-        c.tagsRepo.delete("id2")
+  }
 
-        c.tagsRepo.get("id1") mustEqual List()
-        c.tagsRepo.get("id2") mustEqual List()
+  "Functional tests for card creation and deletion" should {
 
-        c.tagsRepo.create("id1", List("Bar", "Foo"))
-        c.tagsRepo.create("id2", List("Baz", "Buz"))
+    "create and get c card without tag not body" taggedAs(FunctionalTestsTag) in testContext { c =>
+      val input = baseCardInput.copy(tags=None, body=None)
+      c.repo.create(input, user).futureValue mustEqual "1"
+      val expectedData = baseExpectedCardData.copy(body="", tags=List())
+      c.repo.get("1", user).futureValue mustEqual Some(expectedData)
+    }
 
-        c.tagsRepo.get("id1") mustEqual List("Bar", "Foo")
-        c.tagsRepo.get("id2") mustEqual List("Baz", "Buz")
+    "create and get a card" taggedAs(FunctionalTestsTag) in testContext { c =>
+      c.repo.create(baseCardInput, user).futureValue mustEqual "1"
+      c.repo.get("1", user).futureValue mustEqual Some(baseExpectedCardData)
+      c.repo.get("1", otherUser).futureValue mustEqual None
+    }
 
-        c.tagsRepo.delete("id1")
+    "create and find 2 cards" taggedAs(FunctionalTestsTag) in testContext { c =>
+      c.repo.create(baseCardInput, user).futureValue
+      c.repo.create(baseCardInput, user).futureValue
+      refreshIdx()
 
-        c.tagsRepo.get("id1") mustEqual List()
-        c.tagsRepo.get("id2") mustEqual List("Baz", "Buz")
-      }
+      val listRequest = CardListRequest(1, 2, user.id, List(), List(), None, None)
+      val response = c.repo.find(listRequest).futureValue
+
+      response.countOfItems mustEqual 2
+      response.cards.length mustEqual 2
+      response.cards(0) mustEqual baseExpectedCardData.copy(id="1", ref=1)
+      response.cards(1) mustEqual baseExpectedCardData.copy(id="2", ref=2)
+    }
+
+    "update a card" taggedAs(FunctionalTestsTag) in testContext { c =>
+      c.repo.create(baseCardInput, user).futureValue
+      refreshIdx()
+
+      val newCardData = baseExpectedCardData.copy(title="A", body="B", tags=List())
+      c.repo.update(newCardData, user).futureValue
+
+      c.repo.get("1", user).futureValue mustEqual Some(newCardData)
+    }
+
+    "create and delete a card" taggedAs(FunctionalTestsTag) in testContext { c =>
+      c.repo.create(baseCardInput, user).futureValue
+      refreshIdx()
+      c.repo.delete("1", user).futureValue
+
+      c.repo.get("1", user).futureValue mustEqual None
+    }
+
+    "deletes a card that does not exist" taggedAs(FunctionalTestsTag) in testContext { c =>
+      c.repo.delete("1", user).failed.futureValue mustBe a[CardDoesNotExist]
+    }
+
+    "deletes a card from other user" taggedAs(FunctionalTestsTag) in testContext { c =>
+      c.repo.create(baseCardInput, user).futureValue
+      refreshIdx()
+      c.repo.delete("1", otherUser).failed.futureValue mustBe a[CardDoesNotExist]
+    }
+
+    "create three cards and find 2 with search term" taggedAs(FunctionalTestsTag) in testContext { c =>
+      val input_1 = baseCardInput.copy(title="SomeLongWord")
+      val input_2 = baseCardInput.copy(title="SomeLongWo")
+      val input_3 = baseCardInput.copy(title="Nothing to do with the others")
+
+      c.repo.create(input_1, user).futureValue
+      c.repo.create(input_2, user).futureValue
+      c.repo.create(input_3, user).futureValue
+      refreshIdx()
+
+      val listRequest = CardListRequest(1, 3, user.id, List(), List(), None, Some("SomeLongWord"))
+      val response = c.repo.find(listRequest).futureValue
+
+      val expected_1 = baseExpectedCardData.copy(title="SomeLongWord")
+      val expected_2 = baseExpectedCardData.copy(id="2", title="SomeLongWo", ref=2)
+
+      response.countOfItems mustEqual 2
+      response.cards mustEqual Seq(expected_1, expected_2)
+    }
+
+    "get with pagination" taggedAs(FunctionalTestsTag) in testContext { c =>
+      c.repo.create(baseCardInput, user).futureValue
+      c.repo.create(baseCardInput, user).futureValue
+      refreshIdx()
+
+      val listRequest1 = CardListRequest(1, 1, user.id, List(), List(), None, None)
+      val response1 = c.repo.find(listRequest1).futureValue
+      response1.countOfItems mustEqual 2
+      response1.cards.length mustEqual 1
+
+      val listRequest2 = CardListRequest(2, 1, user.id, List(), List(), None, None)
+      val response2 = c.repo.find(listRequest2).futureValue
+      response2.countOfItems mustEqual 2
+      response2.cards.length mustEqual 1
     }
   }
 
-  "CardRepository.delete" should {
+  "Functional tests for find" should {
 
-    "deletes related tags" in testContext { c =>
-        c.saveCardsToDb()
-        val id = cardFixtures.f1.id
+    "Match by tag" taggedAs(FunctionalTestsTag) in testContext { c =>
+      val cardOne = CardFormInput("Title", Some("Body"), Some(List("Tag1", "Tag2")))
+      val cardTwo = CardFormInput("Title", Some("Body"), Some(List("Tag2", "Tag3")))
+      c.repo.create(cardOne, user).futureValue
+      c.repo.create(cardTwo, user).futureValue
+      val findRequest = CardListRequest(1, 10, user.id, List("Tag3"), List(), None)
+      refreshIdx()
 
-      db.withConnection { implicit con =>
-        c.tagsRepo.get(id) mustEqual List("a", "b")
-        c.cardRepo.delete(id, c.user).futureValue
-        c.tagsRepo.get(id) mustEqual List()
-      }
+      val result = c.repo.find(findRequest).futureValue
+
+      val cardTwoData = cardTwo.asCardData("2", Some(now), Some(now), 2)
+      val expResult = FindResult(Seq(cardTwoData), 1)
+      result mustEqual expResult
     }
 
-    "fail if the card does not exist" in testContext { c =>
-      c.cardRepo.delete("FOO", mock[User]).futureValue mustEqual Failure(new CardDoesNotExist)
+    "Match by search term returning in order" taggedAs(FunctionalTestsTag) in testContext { c =>
+      val cardOne = CardFormInput("Title", Some("Body"), Some(List("Tag1", "Tag2")))
+      val cardTwo = cardOne.copy(title="Titlee")
+      val cardThree = cardTwo.copy(title="Tilleee")
+      c.repo.create(cardOne, user).futureValue
+      c.repo.create(cardTwo, user).futureValue
+      c.repo.create(cardThree, user).futureValue
+      refreshIdx()
+
+      val findRequest = CardListRequest(1, 10, user.id, List(), List(), None, Some("Titleee"))
+      val result = c.repo.find(findRequest).futureValue
+
+      val cardOneData = cardOne.asCardData("1", Some(now), Some(now), 1)
+      val cardTwoData = cardTwo.asCardData("2", Some(now), Some(now), 2)
+      val cardThreeData = cardThree.asCardData("3", Some(now), Some(now), 3)
+      val expResult = FindResult(Seq(cardThreeData, cardTwoData, cardOneData), 3)
+      result mustEqual expResult
     }
-
-    "fail if the card does not exist for a specific user" in testContext { c =>
-      c.saveCardsToDb()
-      val id = cardFixtures.f1.id
-      val otherUser = User("bar", "b@b.b")
-
-      c.cardRepo.get(id, c.user).get.id mustEqual id
-      c.cardRepo.delete(id, otherUser).futureValue mustEqual Failure(new CardDoesNotExist)
-    }
-
-    "find and delete card that exists" in testContext { c =>
-      c.saveCardsToDb()
-      val id = cardFixtures.f2.id
-
-      c.cardRepo.delete(id, c.user).futureValue mustEqual Success(())
-      c.cardRepo.get(id, c.user) mustEqual None
-    }
-
-    "calls elastic client to delete the entry" in testContext { c =>
-      c.saveCardsToDb()
-      Await.ready(c.cardRepo.delete(cardFixtures.f1.id, c.user), 5000 millis)
-      verify(c.cardElasticClient).delete(cardFixtures.f1.id)
-    }
-
-  }
-
-  "CardRepository.update" should {
-
-    val datetime = new DateTime(2000, 1, 1, 1, 1, 1)
-    val laterDatetime = datetime.plusDays(1)
-
-    "Update a card including the tags" in testContext { c =>
-      val fixture = cardFixtures.f1
-      val id = c.createCardInDb(fixture)
-      val cardData = c.cardRepo.get(id, c.user).get
-      val newCardData = cardData.copy(
-        tags=List("D"),
-        createdAt=Some(datetime),
-        updatedAt=Some(laterDatetime)
-      )
-      when(c.clock.now()).thenReturn(laterDatetime)
-
-      c.cardRepo.update(newCardData, c.user).futureValue
-
-      c.cardRepo.get(id, c.user).get mustEqual newCardData
-    }
-
-    "set's the updatedAt" in testContext { c =>
-      val fixture = cardFixtures.f2
-      c.createCardInDb(fixture)
-      val cardData = c.cardRepo.get(fixture.id, c.user).get
-      when(c.clock.now()).thenReturn(laterDatetime)
-
-      Await.ready(c.cardRepo.update(cardData, c.user), 5000 millis)
-
-      c.cardRepo.get(fixture.id, c.user).get.updatedAt.get mustEqual laterDatetime
-
-    }
-
-  }
-
-  "CardRepository.getAllTags" should {
-
-    "Return all tags for an user" in testContext { c =>
-      c.saveCardsToDb()
-      c.cardRepo.getAllTags(c.user).futureValue must contain allOf ("a", "A", "b", "B", "C", "D")
-    }
-
-    "Do not return tags for other users" in testContext { c =>
-      val otherUser = User("other", "other@user")
-      c.cardRepo.getAllTags(otherUser).futureValue mustEqual List()
-    }
-
   }
 
 }

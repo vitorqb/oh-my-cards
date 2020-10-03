@@ -1,5 +1,7 @@
 package v1.card
 
+import v1.card.tagsrepository._
+
 import org.scalatest._
 import org.scalatestplus.play._
 import org.scalatestplus.mockito.MockitoSugar
@@ -14,10 +16,12 @@ import scala.util.Success
 import v1.auth.User
 import scala.util.Failure
 import scala.concurrent.Future
-import services.UUIDGenerator
-import services.Clock
 import org.joda.time.DateTime
 import v1.card.CardRefGenerator.CardRefGeneratorLike
+import v1.card.cardrepositorycomponents.CardRepositoryComponentsLike
+import v1.card.cardrepositorycomponents.CardRepositoryComponents
+import com.mohiva.play.silhouette.api.util.{Clock=>SilhouetteClock}
+import services.UUIDGenerator
 
 class CardResourceSpec extends PlaySpec {
 
@@ -85,14 +89,14 @@ class CardResourceHandlerSpec
       val id = "1"
       val createdCardData = cardFormInput.asCardData(id, date1, date1, 0)
       val user = mock[User]
-      val repository = mock[CardRepository]
-      when(repository.create(cardFormInput, user)).thenReturn(Try{ id })
-      when(repository.get(id, user)).thenReturn(Some(createdCardData))
+      val repository = mock[CardRepositoryLike]
+      when(repository.create(cardFormInput, user)).thenReturn(Future.successful(id))
+      when(repository.get(id, user)).thenReturn(Future.successful(Some(createdCardData)))
       val handler = new CardResourceHandler(repository)
 
-      val resource = handler.create(cardFormInput, user)
+      val resource = handler.create(cardFormInput, user).futureValue
 
-      (resource mustEqual Success(CardResource.fromCardData(createdCardData))) 
+      (resource mustEqual CardResource.fromCardData(createdCardData))
     }
 
   }
@@ -110,7 +114,7 @@ class CardResourceHandlerSpec
 
       val cardListReq = CardListRequest(1, 2, "userid", List(), List(), None)
 
-      val repository = mock[CardRepository]
+      val repository = mock[CardRepositoryLike]
       when(repository.find(cardListReq)).thenReturn(Future.successful(findResult))
 
       val handler = new CardResourceHandler(repository)
@@ -135,27 +139,27 @@ class CardResourceHandlerSpec
       val id = "FOO"
       val input = CardFormInput("title2", Some("body2"), None)
       val user = mock[User]
-      val repository = mock[CardRepository]
+      val repository = mock[CardRepositoryLike]
       val handler = new CardResourceHandler(repository)
       val cardData = CardData(id, "title1", "body1", List(), ref=1)
       
       "Fails if card not found" in {
-        when(repository.get(id, user)).thenReturn(None)
-        handler.update(id, input, user).futureValue mustEqual Failure(new CardDoesNotExist)
+        when(repository.get(id, user)).thenReturn(Future.successful(None))
+        handler.update(id, input, user).failed.futureValue mustEqual new CardDoesNotExist
       }
 
       "Fail if card can not be updated with inputs" in {
         //empty title -> error
         val input_ = input.copy(title="", body=Some(""))
-        when(repository.get(id, user)).thenReturn(Some(cardData))
-        handler.update(id, input_, user).futureValue mustEqual Failure(InvalidCardData.emptyTitle)
+        when(repository.get(id, user)).thenReturn(Future.successful(Some(cardData)))
+        handler.update(id, input_, user).failed.futureValue mustEqual InvalidCardData.emptyTitle
       }
 
       "Fail if card update fails" in {
         val e = new Exception
-        when(repository.get(id, user)).thenReturn(Some(cardData))
-        when(repository.update(any, eqTo(user))).thenReturn(Future(Failure(e)))
-        handler.update(id, input, user).futureValue mustEqual Failure(e)
+        when(repository.get(id, user)).thenReturn(Future.successful(Some(cardData)))
+        when(repository.update(any, eqTo(user))).thenReturn(Future.failed(e))
+        handler.update(id, input, user).failed.futureValue mustEqual e
       }
     }
 
@@ -165,22 +169,24 @@ class CardResourceHandlerSpec
         test.utils.TestUtils.testDB { implicit db =>
           //Creates a card
           val uuidGenerator = new UUIDGenerator
+          val dataRepo = new CardDataRepository
           val tagsRepo = new TagsRepository
-          val elasticClient = mock[CardElasticClient]
-          val clock = mock[Clock]
+          val elasticClient = mock[CardElasticClientLike]
+          val clock = mock[SilhouetteClock]
           val user = User("userId", "userEmail")
           val cardRefGenerator = mock[CardRefGeneratorLike]
           val input = CardFormInput("title", Some("body"), None)
-          val repository = new CardRepository(db, uuidGenerator, cardRefGenerator, tagsRepo, elasticClient, clock)
+          val components = new CardRepositoryComponents(db, uuidGenerator, cardRefGenerator, clock)
+          val repository = new CardRepository(dataRepo, tagsRepo, elasticClient, components)
           val handler = new CardResourceHandler(repository)
-          val created = handler.create(input, user).get
+          val created = handler.create(input, user).futureValue
 
           //Updates it
           val updateInput = input.copy(title="title2", body=Some("body2"))
-          val updated = handler.update(created.id, updateInput, user).futureValue.get
+          val updated = handler.update(created.id, updateInput, user).futureValue
 
           updated mustEqual created.copy(title="title2", body="body2")
-          updated mustEqual handler.get(created.id, user).get
+          updated mustEqual handler.get(created.id, user).futureValue.get
         }
       }
 
@@ -194,7 +200,7 @@ class CardResourceHandlerSpec
       val tags = List("FOO", "BAR")
       val user = mock[User]
 
-      val repository = mock[CardRepository]
+      val repository = mock[CardRepositoryLike]
       when(repository.getAllTags(user)).thenReturn(Future.successful(tags))
 
       val exp = CardMetadataResource(tags)

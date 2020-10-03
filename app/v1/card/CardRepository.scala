@@ -1,29 +1,16 @@
 package v1.card
 
-import javax.inject.Inject
-import java.util.UUID.randomUUID
-import scala.util.{Try,Success,Failure}
-import anorm.{SQL,RowParser,Macro,SqlParser,SeqParameter}
-import play.api.db.Database
-import v1.auth.User
-import services.UUIDGenerator
-import anorm.`package`.SqlStringInterpolation
-import scala.concurrent.Future
-import scala.concurrent.ExecutionContext
 import java.sql.Connection
-import anorm.SimpleSql
-import anorm.Row
-import services.Clock
 import org.joda.time.DateTime
-import anorm.JodaParameterMetaData._
-import v1.card.CardRefGenerator.CardRefGeneratorLike
-
+import v1.auth.User
+import scala.concurrent.Future
+import v1.card.cardrepositorycomponents.CardRepositoryComponentsLike
+import scala.concurrent.ExecutionContext
 
 /**
   * A trait for all known user exceptions.
   */
 sealed trait CardRepositoryUserException { val message: String }
-
 
 /**
   * Custom exception signaling that a card does not exist.
@@ -42,7 +29,41 @@ final case class TagsFilterMiniLangSyntaxError(
 ) extends Exception(message, cause) with CardRepositoryUserException
 
 /**
-  * The data for a Card.
+  * A trait for a tags repository.
+  * 
+  * The TagsRepository's single responsibility is to store the tags and
+  * it's relations to the cards.
+  */
+trait TagsRepositoryLike {
+  def delete(cardId: String)(implicit c:Connection): Unit
+  def create(cardId: String, tags: List[String])(implicit c: Connection): Unit
+  def get(cardId: String)(implicit c: Connection): List[String]
+  def fill(card: CardData)(implicit c: Connection): CardData
+
+  def update(card: CardData)(implicit c: Connection): Unit = {
+    delete(card.id)
+    create(card.id, card.tags)
+  }
+}
+
+/**
+  * A trait for card data repository.
+  * 
+  * The CardDataRepository is the persistance and retrival layer for
+  * the base data of a card, usually stored in the main SQL table if
+  * using an SQL layer.
+  */
+trait CardDataRepositoryLike {
+  def create(cardFormInput: CardFormInput, context: CardCreationContext)(implicit c: Connection): Unit
+  def get(id: String, user: User)(implicit c: Connection): Option[CardData]
+  def find(idsResult: IdsFindResult)(implicit c: Connection): FindResult
+  def delete(id: String, user: User)(implicit c: Connection): Unit
+  def update(data: CardData, context: CardUpdateContext)(implicit c: Connection): Unit
+  def getAllTags(user: User)(implicit c: Connection): List[String]
+}
+
+/**
+  * The basic representation for a Card.
   */
 final case class CardData(
   id: String,
@@ -55,193 +76,154 @@ final case class CardData(
 )
 
 /**
-  * The result of a find query.
+  * The context for a card creation.
+  * 
+  * @param user the user that is creating the card.
+  * @param now the current datetime to consider.
+  * @param id the id to use for the new card.
+  * @param ref the ref to use for the new card.
+  */
+case class CardCreationContext(user: User, now: DateTime, id: String, ref: Int)
+
+/**
+  * The context for a card update.
+  * 
+  * @param user the user that is creating the card.
+  * @param now the current datetime to consider.
+  */
+case class CardUpdateContext(user: User, now: DateTime)
+
+/**
+  * A paged result with the matched ids for a query to find cards.
+  * 
+  * @param ids the ids of the cards that are part of this page of results
+  * @param countOfItems the total number of items matched
+  */
+final case class IdsFindResult(ids: Seq[String], countOfItems: Integer)
+
+/**
+  * The result of for a query to find cards.
+  * 
+  * @param cards the cards on this page of results.
+  * @param countOfItems the total number of items matched.
   */
 final case class FindResult(cards: Seq[CardData], countOfItems: Int)
 
-object FindResult {
-
-  /**
-    * Alternative constructor from the results of the query for the IDs and the query for
-    * the data.
-    */
-  def fromQueryResults(
-    cardData: Seq[CardData],
-    idsResult: CardElasticIdFinder.Result
-  ): FindResult = {
-    val cardDataById = cardData.map(x => (x.id, x)).toMap
-    val sortedCardData = idsResult.ids.map(x => cardDataById.get(x)).flatten
-    FindResult(sortedCardData, idsResult.countOfIds)
-  }
-
+/**
+  * The base trait for a CardRepository.
+  * 
+  * A `CardRepository` is responsible for the persistence and retrival
+  * of every data related to a card. This include tags and queries
+  * using specialized services (e.g. ElasticSearch).
+  */
+trait CardRepositoryLike {
+  def create(cardFormInput: CardFormInput, user: User): Future[String]
+  def get(id: String, user: User): Future[Option[CardData]]
+  def find(request: CardListRequest): Future[FindResult]
+  def delete(id: String, user: User): Future[Unit]
+  def update(data: CardData, user: User): Future[Unit]
+  def getAllTags(user: User): Future[List[String]]
 }
 
 /**
-  * An implementation for a card repository.
+  * The base trait for a a card query service like ElasticSearch.
+  * 
+  * It's single responsibility is to store data in a text search
+  * optimized way, so we can use the `findIds` method to run a
+  * query and find the matched ids.
+  * 
+  * All other method exists so we can ensure the data on this service
+  * is in sync with the data in the other persistance services for
+  * cards.
   */
-class CardRepository @Inject()(
-  db: Database,
-  uuidGenerator: UUIDGenerator,
-  refGenerator: CardRefGeneratorLike,
-  tagsRepo: TagsRepository,
-  cardElasticClient: CardElasticClient,
-  clock: Clock)(
-  implicit val ec: ExecutionContext
-) {
+trait CardElasticClientLike {
 
   /**
-    * The statement used to get a card.
+    * Creates a new entry on ElasticSearch for a new card.
     */
-  val sqlGetStatement: String = s"SELECT id, title, body, updatedAt, createdAt, ref FROM cards "
+  def create(cardFormInput: CardFormInput, context: CardCreationContext): Unit
 
   /**
-    * A parser for CardData that also queries for the tags from TagsRepo.
+    * Updates an entry on ElasticSearch for an existing cardData.
     */
-  private def cardDataParser()(implicit c: Connection): RowParser[CardData] = {
-    import anorm._
+  def update(cardData: CardData, context: CardUpdateContext): Unit
 
-    (
-      SqlParser.str("id") ~
-        SqlParser.str("title") ~
-        SqlParser.str("body") ~
-        SqlParser.get[Option[DateTime]]("createdAt") ~
-        SqlParser.get[Option[DateTime]]("updatedAt") ~
-        SqlParser.int("ref")
-    ) map {
-      case id ~ title ~ body ~ createdAt ~ updatedAt ~ ref =>
-        CardData(id, title, body, tagsRepo.get(id), createdAt, updatedAt, ref)
+  /**
+    * Deletes an entry from ElasticSearch for an existing cardData.
+    */
+  def delete(id: String): Unit
+
+  /**
+    * Returns a seq of ids from ElasticSearch that matches a CardListRequest.
+    */
+  def findIds(cardListReq: CardListRequest): Future[IdsFindResult]
+}
+
+/**
+  * The implementation
+  */
+class CardRepository(
+  dataRepo: CardDataRepositoryLike,
+  tagsRepo: TagsRepositoryLike,
+  esClient: CardElasticClientLike,
+  components: CardRepositoryComponentsLike
+)(
+  implicit ec: ExecutionContext
+) extends CardRepositoryLike {
+
+  override def create(cardFormInput: CardFormInput, user: User): Future[String] = Future {
+    components.db.withTransaction { implicit c =>
+      val now = components.clock.now
+      val id = components.uuidGenerator.generate()
+      val ref = components.refGenerator.nextRef()
+      val context = CardCreationContext(user, now, id, ref)
+
+      dataRepo.create(cardFormInput, context)
+      tagsRepo.create(id, cardFormInput.getTags())
+      esClient.create(cardFormInput, context)
+
+      id
     }
   }
 
-  //!!!! TODO Return Future
-  def create(cardFormInput: CardFormInput, user: User): Try[String] = {
-    val now = clock.now()
-    val id = uuidGenerator.generate
-    val title = cardFormInput.getTitle()
-    val body = cardFormInput.getBody()
-    val tags = cardFormInput.getTags()
-    val ref = refGenerator.nextRef()
-
-    db.withTransaction { implicit c =>
-      SQL(
-        """INSERT INTO cards(id, userId, title, body, createdAt, updatedAt, ref)
-             VALUES ({id}, {userId}, {title}, {body}, {now}, {now}, {ref})"""
-      ).on(
-        "id" -> id,
-        "userId" -> user.id,
-        "title" -> title,
-        "body" -> body,
-        "now" -> now,
-        "ref" -> ref
-      ).executeInsert()
-      tagsRepo.create(id, tags)
-      cardElasticClient.create(cardFormInput, id, now, user)
-      Success(id)
-    }
-  }
-
-  def get(id: String, user: User): Option[CardData] = db.withConnection { implicit c =>
-    SQL(s"${sqlGetStatement} WHERE userId = {userId} AND id = {id}")
-      .on("id" -> id, "userId" -> user.id)
-      .as(cardDataParser.*)
-      .headOption
-  }
-
-  /**
-    * Finds a list of cards for a given user.
-    */
-  def find(request: CardListRequest): Future[FindResult] = {
-    for {
-      esIdsResult <- cardElasticClient.findIds(request)
-      query = SQL(s"${sqlGetStatement} WHERE id IN ({ids})").on("ids" -> esIdsResult.ids)
-    } yield {
-      db.withConnection { implicit c =>
-        val sqlQueryResult = query.as(cardDataParser.*)
-        FindResult.fromQueryResults(sqlQueryResult, esIdsResult)
+  override def get(id: String, user: User): Future[Option[CardData]] = Future {
+    components.db.withTransaction { implicit c =>
+      dataRepo.get(id, user).map { data =>
+        tagsRepo.fill(data)
       }
     }
   }
 
-  /**
-    * Deletes a card by it's id.
-    */
-  def delete(id: String, user: User): Future[Try[Unit]] = Future {
-    get(id, user) match {
-      case None => Failure(new CardDoesNotExist)
-      case Some(_) => db.withTransaction { implicit c =>
-        SQL(s"DELETE FROM cards WHERE userId = {userId} AND id = {id}")
-          .on("id" -> id, "userId" -> user.id)
-          .executeUpdate()
-        tagsRepo.delete(id)
-        cardElasticClient.delete(id)
-        Success(())
+  override def find(request: CardListRequest): Future[FindResult] =
+    esClient.findIds(request).map { idsResult =>
+      components.db.withConnection { implicit c =>
+        val findResult = dataRepo.find(idsResult)
+        val cardsWithTags = findResult.cards.map(x => tagsRepo.fill(x))
+        findResult.copy(cards=cardsWithTags)
       }
     }
-  }
 
-  /**
-    * Updates a card.
-    */
-  def update(data: CardData, user: User): Future[Try[Unit]] = Future { Try { db.withTransaction {
-    implicit c =>
-    val now = clock.now()
-    SQL("""
-        UPDATE cards SET title={title}, body={body}, updatedAt={now}
-        WHERE id={id} AND userId={userId}
-       """)
-      .on(
-        "title" -> data.title,
-        "body" -> data.body,
-        "id" -> data.id,
-        "userId" -> user.id,
-        "now" -> now
-      )
-      .executeUpdate()
-    tagsRepo.delete(data.id)
-    tagsRepo.create(data.id, data.tags)
-    cardElasticClient.update(data, now, user)
-  }}}
-
-  /**
-    * Returns all tags for a given user.
-    */
-  def getAllTags(user: User): Future[List[String]] = Future { db.withTransaction { implicit c =>
-    import anorm.SqlParser._
-    SQL"""
-       SELECT tag
-       FROM cardsTags
-       JOIN cards ON cards.id = cardId
-       WHERE cards.userId = ${user.id}
-    """.as(str(1).*)
-  }}
-}
-
-/**
-  * Helper object manage cards tags.
-  */
-protected class TagsRepository {
-
-  /**
-    * Delets all tags for a given card id.
-    */
-  def delete(cardId: String)(implicit c:Connection): Unit = {
-    SQL"DELETE FROM cardsTags WHERE cardId = ${cardId}".execute()
-  }
-
-  /**
-    * Create all tags for a given card id.
-    */
-  def create(cardId: String, tags: List[String])(implicit c: Connection): Unit = {
-    tags.foreach { tag =>
-      SQL"INSERT INTO cardsTags(cardId, tag) VALUES (${cardId}, ${tag})".executeInsert()
+  override def delete(id: String, user: User): Future[Unit] = Future {
+    components.db.withTransaction { implicit c =>
+      dataRepo.delete(id, user)
+      tagsRepo.delete(id)
+      esClient.delete(id)
     }
   }
 
-  /**
-    * Returns all tags for a given card id.
-    */
-  def get(cardId: String)(implicit c: Connection): List[String] = {
-    SQL"SELECT tag FROM cardsTags WHERE cardId = ${cardId} ORDER BY tag"
-      .as(SqlParser.scalar[String].*)
+  override def update(data: CardData, user: User): Future[Unit] = Future {
+    val context = CardUpdateContext(user, components.clock.now)
+    components.db.withTransaction { implicit c =>
+      dataRepo.update(data, context)
+      tagsRepo.update(data)
+      esClient.update(data, context)
+    }
   }
+
+  override def getAllTags(user: User): Future[List[String]] = Future {
+    components.db.withConnection { implicit c =>
+      dataRepo.getAllTags(user)
+    }
+  }
+
 }

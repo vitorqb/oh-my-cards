@@ -8,9 +8,7 @@ import v1.card.CardData
 import org.joda.time.DateTime
 import org.scalatestplus.mockito.MockitoSugar
 import org.mockito.Mockito._
-import services.UUIDGenerator
-import v1.card.CardRepository
-import v1.card.TagsRepository
+import v1.card.CardDataRepository
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import v1.auth.User
 import play.api.Application
@@ -18,17 +16,21 @@ import play.api.inject.guice.GuiceApplicationBuilder
 import com.sksamuel.elastic4s.ElasticClient
 import test.utils.FunctionalTestsTag
 import org.scalatest.BeforeAndAfter
-import v1.card.CardElasticClient
 import play.api.inject.bind
-import v1.card.CardElasticClientImpl
 import v1.card.testUtils.CardFixture
 import v1.card.CardFormInput
+import v1.card.CardRepositoryLike
+import org.scalatest.concurrent.ScalaFutures
+import v1.card.CardElasticClientLike
+import v1.card.elasticclient.CardElasticClientImpl
 
 class ElasticSearchSynchronizerSpec
     extends PlaySpec
     with GuiceOneAppPerSuite
     with TestEsClient
-    with BeforeAndAfter {
+    with BeforeAndAfter
+    with ScalaFutures
+{
 
   import com.sksamuel.elastic4s.ElasticDsl._
 
@@ -37,7 +39,7 @@ class ElasticSearchSynchronizerSpec
   override def fakeApplication: Application =
     new GuiceApplicationBuilder()
       .overrides(new TestEsFakeModule)
-      .overrides(bind[CardElasticClient].to[CardElasticClientImpl])
+      .overrides(bind[CardElasticClientLike].to[CardElasticClientImpl])
       .build()
 
   before {
@@ -61,10 +63,10 @@ class ElasticSearchSynchronizerSpec
     lazy val user = User("a", "b")
 
     def createThreeCardsOnDb() = {
-      val repository: CardRepository = app.injector.instanceOf[CardRepository]
-      val idOne = repository.create(cardInput1, user).get
-      val idTwo = repository.create(cardInput2, user).get
-      val idThree = repository.create(cardInput3, user).get
+      val repository: CardRepositoryLike = app.injector.instanceOf[CardRepositoryLike]
+      val idOne = repository.create(cardInput1, user).futureValue
+      val idTwo = repository.create(cardInput2, user).futureValue
+      val idThree = repository.create(cardInput3, user).futureValue
       (idOne, idTwo, idThree)
     }
 

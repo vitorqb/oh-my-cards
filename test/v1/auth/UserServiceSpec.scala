@@ -7,7 +7,7 @@ import org.scalatestplus.mockito.MockitoSugar
 import scala.concurrent.Future
 import org.scalatest.concurrent.ScalaFutures
 import com.mohiva.play.silhouette.api.LoginInfo
-import services.UUIDGenerator
+import services.UUIDGeneratorLike
 
 class UserServiceSpec extends PlaySpec with MockitoSugar with ScalaFutures {
 
@@ -20,7 +20,7 @@ class UserServiceSpec extends PlaySpec with MockitoSugar with ScalaFutures {
       val userRepositoryMock = mock[UserRepository]
       when(userRepositoryMock.findByEmail(user.email)).thenReturn(Future.successful(Some(user)))
 
-      val uuidGeneratorMock = mock[UUIDGenerator]
+      val uuidGeneratorMock = mock[UUIDGeneratorLike]
       when(uuidGeneratorMock.generate).thenReturn("foo")
 
       ((new UserService(userRepositoryMock, uuidGeneratorMock)).retrieve(loginInfo).futureValue
@@ -35,7 +35,7 @@ class UserServiceSpec extends PlaySpec with MockitoSugar with ScalaFutures {
       val user = User("1", "a@b.com")
       val loginInfo = LoginInfo(OneTimePasswordProvider.ID, user.email)
 
-      val uuidGeneratorMock = mock[UUIDGenerator]
+      val uuidGeneratorMock = mock[UUIDGeneratorLike]
       when(uuidGeneratorMock.generate).thenReturn(user.id)
 
       val userRepositoryMock = mock[UserRepository]

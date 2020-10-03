@@ -2,7 +2,7 @@ package modules
 
 import com.google.inject.AbstractModule
 import net.codingwell.scalaguice.ScalaModule
-import services.{RandomStringGenerator, UUIDGenerator, Clock}
+import services.{RandomStringGenerator, UUIDGeneratorLike, Clock}
 import java.util.UUID
 import services.MailService
 import scala.concurrent.ExecutionContext
@@ -14,13 +14,22 @@ import v1.auth.TokenEncrypter
 import com.sksamuel.elastic4s.ElasticClient
 import com.sksamuel.elastic4s.ElasticProperties
 import com.sksamuel.elastic4s.http.JavaClient
-import v1.card.CardElasticClientMock
-import v1.card.CardElasticClientImpl
-import v1.card.CardElasticClient
+import v1.card.elasticclient.{CardElasticClientMock,CardElasticClientImpl}
 import services.SendgridMailServiceImpl
 import v1.card.CardRefGenerator.CardRefGenerator
 import v1.card.CardRefGenerator.CardRefGeneratorLike
 import play.api.db.Database
+import v1.card.cardrepositorycomponents.CardRepositoryComponentsLike
+import v1.card.cardrepositorycomponents.CardRepositoryComponents
+import v1.card.tagsrepository.TagsRepository
+import v1.card.TagsRepositoryLike
+import v1.card.CardRepositoryLike
+import v1.card.CardDataRepositoryLike
+import v1.card.CardRepository
+import v1.card.CardDataRepository
+import v1.card.CardElasticClientLike
+import com.mohiva.play.silhouette.api.util.{Clock=>SilhouetteClock}
+import services.UUIDGenerator
 
 class Module extends AbstractModule with ScalaModule {
 
@@ -29,8 +38,8 @@ class Module extends AbstractModule with ScalaModule {
     */
   override def configure() = {
     bind[RandomStringGenerator].toInstance(new RandomStringGenerator)
-    bind[UUIDGenerator].toInstance(new UUIDGenerator)
-    bind[Clock].toInstance(new Clock)
+    bind[UUIDGeneratorLike].toInstance(new UUIDGenerator)
+    bind[SilhouetteClock].toInstance(new Clock)
   }
 
   /**
@@ -81,7 +90,7 @@ class Module extends AbstractModule with ScalaModule {
     elasticClient: ElasticClient
   )(
     implicit ec: ExecutionContext
-  ): CardElasticClient = {
+  ): CardElasticClientLike = {
     if (conf.get[String]("test") == "1")
       new CardElasticClientMock()
     else
@@ -91,6 +100,32 @@ class Module extends AbstractModule with ScalaModule {
   @Provides
   def cardRefGenerator(db: Database): CardRefGeneratorLike = new CardRefGenerator(db)
 
+  @Provides
+  def tagsRepository(): TagsRepositoryLike = new TagsRepository()
+
+  @Provides
+  def cardRepository(
+    dataRepo: CardDataRepositoryLike,
+    tagsRepo: TagsRepositoryLike,
+    esClient: CardElasticClientLike,
+    components: CardRepositoryComponentsLike
+  )(
+    implicit ec: ExecutionContext
+  ): CardRepositoryLike =
+    new CardRepository(dataRepo, tagsRepo, esClient, components)
+
+  @Provides
+  def cardRepositoryComponents(
+    db: Database,
+    uuidGenerator: UUIDGeneratorLike,
+    refGenerator: CardRefGeneratorLike,
+    clock: SilhouetteClock
+  ): CardRepositoryComponentsLike =
+    new CardRepositoryComponents(db, uuidGenerator, refGenerator, clock)
+
+  @Provides
+  def cardDataRepository()(implicit ec: ExecutionContext): CardDataRepositoryLike =
+    new CardDataRepository
 }
 
 protected object Helpers {

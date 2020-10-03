@@ -98,13 +98,14 @@ class CardController @Inject()(
   /**
     * Endpoint used to create a new card.
     */
-  def create = silhouette.SecuredAction { implicit request =>
+  def create = silhouette.SecuredAction.async { implicit request =>
     logger.info("Handling create card action...")
     CardFormInput.form.bindFromRequest().fold(
-      f => BadRequest(f.errorsAsJson),
-      cardFormInput => resourceHandler.create(cardFormInput, request.identity) match {
-        case Success(card) => Ok(Json.toJson(card))
-        case Failure(e) => handleError(e)
+      f => Future.successful(BadRequest(f.errorsAsJson)),
+      cardFormInput => resourceHandler.create(cardFormInput, request.identity) map {
+        card => Ok(Json.toJson(card))
+      } recover {
+        e => handleError(e)
       }
     )
   }
@@ -119,9 +120,10 @@ class CardController @Inject()(
       case Bad(x) => Future(NotFound)
       case Good(id) => CardFormInput.form.bindFromRequest().fold(
         f => Future(BadRequest(f.errorsAsJson)),
-        cardFormInput => resourceHandler.update(id, cardFormInput, request.identity).map {
-          case Failure(e) => handleError(e)
-          case Success(card) => Ok(Json.toJson(card))
+        cardFormInput => resourceHandler.update(id, cardFormInput, request.identity) map {
+          card => Ok(Json.toJson(card))
+        } recover {
+          e => handleError(e)
         }
       )
     }
@@ -136,8 +138,9 @@ class CardController @Inject()(
     parseUUID(id) match {
       case Bad(x) => Future(NotFound(x))
       case Good(x) => resourceHandler.delete(x, request.identity).map {
-        case Success(_) => NoContent
-        case Failure(e) => handleError(e)
+        _ => NoContent
+      } recover {
+        e => handleError(e)
       }
     }
   }
@@ -170,8 +173,8 @@ class CardController @Inject()(
     }
   }
 
-  def get(id: String) = silhouette.SecuredAction { implicit request =>
-    resourceHandler.get(id, request.identity) match {
+  def get(id: String) = silhouette.SecuredAction.async { implicit request =>
+    resourceHandler.get(id, request.identity) map {
       case Some(card) => Ok(Json.toJson(card))
       case None => NotFound
     }

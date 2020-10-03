@@ -1,4 +1,4 @@
-package v1.card
+package v1.card.elasticclient
 
 import com.google.inject.Inject
 import com.sksamuel.elastic4s.ElasticClient
@@ -22,62 +22,41 @@ import com.sksamuel.elastic4s.requests.searches.sort.FieldSort
 import com.sksamuel.elastic4s.requests.searches.sort.ScoreSort
 import com.sksamuel.elastic4s.requests.searches.sort.SortOrder
 
+import v1.card.{CardFormInput,CardData,CardCreationContext,CardUpdateContext,CardListRequest,IdsFindResult,TagsFilterMiniLangSyntaxError,CardElasticClientLike}
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
+
 final case class CardElasticClientException(
   val message: String = "Something went wrong on ElasticSearch",
   val cause: Throwable = None.orNull
 ) extends Exception(message, cause)
 
 
-trait CardElasticClient {
-
-  /**
-    * Creates a new entry on ElasticSearch for a new cardFormInput, with a given id created at
-    *  a specific time.
-    */
-  def create(cardFormInput: CardFormInput, id: String, createdAt: DateTime, user: User): Unit
-
-  /**
-    * Updates an entry on ElasticSearch for an existing cardData.
-    */
-  def update(cardData: CardData, updatedAt: DateTime, user: User): Unit
-
-  /**
-    * Deletes an entry from ElasticSearch for an existing cardData.
-    */
-  def delete(id: String): Unit
-
-  /**
-    * Returns a seq of ids from ElasticSearch that matches a CardListRequest.
-    */
-  def findIds(cardListReq: CardListRequest): Future[CardElasticIdFinder.Result]
-}
-
 /**
   * A mocked implementation of the CardElasticClient for tests.
   *  @pram idsFound the ids to return when findIds is called.
   */
-class CardElasticClientMock() extends CardElasticClient {
+class CardElasticClientMock() extends CardElasticClientLike {
 
-  import CardElasticIdFinder._
   import CardElasticClientMock._
 
   val logger = Logger(getClass)
 
-  override def create(cardFormInput: CardFormInput, id: String, createdAt: DateTime, user: User): Unit = {
-    logger.info(s"Mocked create for $cardFormInput with id $id at $createdAt for $user")
+  override def create(cardFormInput: CardFormInput, context: CardCreationContext): Unit = {
+    logger.info(s"Mocked create for $cardFormInput with $context")
   }
 
-  override def update(cardData: CardData, updatedAt: DateTime, user: User): Unit = {
-    logger.info(s"Mocked update for $cardData at $updatedAt for $user")
+  override def update(cardData: CardData, context: CardUpdateContext): Unit = {
+    logger.info(s"Mocked update for $cardData with $context")
   }
 
   override def delete(id: String): Unit = {
     logger.info(s"Mocked delete for $id")
   }
 
-  override def findIds(cardListReq: CardListRequest): Future[Result] = {
+  override def findIds(cardListReq: CardListRequest): Future[IdsFindResult] = {
     logger.info(s"Mocked findIds for $cardListReq")
-    Future.successful(Result(idsFound, countOfItems))
+    Future.successful(IdsFindResult(idsFound, countOfItems))
   }
   
 }
@@ -110,51 +89,59 @@ object CardElasticClientMock {
 class CardElasticClientImpl @Inject()(
   elasticClient: ElasticClient)(
   implicit val ec: ExecutionContext
-) extends CardElasticClient {
+) extends CardElasticClientLike {
 
   import com.sksamuel.elastic4s.ElasticDsl._
 
   val index = "cards"
   val logger = Logger(getClass)
 
+  def wait[A](future: Future[A]): Unit = Await.ready(future, Duration("10 s"))
+
   def handleResponse[T](response: Try[Response[T]]) = response match {
     case Failure(exception) => logger.error("Elastic Search failed!", exception)
     case Success(value) => logger.info(s"Success: $value")
   }
 
-  override def create(cardFormInput: CardFormInput, id: String, createdAt: DateTime, user: User): Unit = {
-    logger.info(s"Creating elastic search entry for $cardFormInput and $id at $createdAt for $user")
-    elasticClient.execute {
-      indexInto(index).id(id).fields(
-        "title" -> cardFormInput.getTitle(),
-        "body" -> cardFormInput.getBody(),
-        "updatedAt" -> createdAt,
-        "createdAt" -> createdAt,
-        "userId" -> user.id,
-        "tags" -> cardFormInput.getTags().map(_.toLowerCase())
-      )
-    }.onComplete(handleResponse)
+  override def create(cardFormInput: CardFormInput, context: CardCreationContext): Unit = {
+    logger.info(s"Creating elastic search entry for $cardFormInput with $context")
+    wait {
+      elasticClient.execute {
+        indexInto(index).id(context.id).fields(
+          "title" -> cardFormInput.getTitle(),
+          "body" -> cardFormInput.getBody(),
+          "updatedAt" -> context.now,
+          "createdAt" -> context.now,
+          "userId" -> context.user.id,
+          "tags" -> cardFormInput.getTags().map(_.toLowerCase())
+        )
+      }.andThen(handleResponse(_))
+    }
   }
 
-  override def update(cardData: CardData, updatedAt: DateTime, user: User): Unit = {
-    logger.info(s"Updating elastic search entry for $cardData at $updatedAt for $user")
-    elasticClient.execute {
-      updateById(index, cardData.id).doc(
-        "title" -> cardData.title,
-        "body" -> cardData.body,
-        "updatedAt" -> updatedAt,
-        "userId" -> user.id,
-        "tags" -> cardData.tags.map(_.toLowerCase())
-      )
-    }.onComplete(handleResponse)
+  override def update(cardData: CardData, context: CardUpdateContext): Unit = {
+    logger.info(s"Updating elastic search entry for $cardData with $context")
+    wait {
+      elasticClient.execute {
+        updateById(index, cardData.id).doc(
+          "title" -> cardData.title,
+          "body" -> cardData.body,
+          "updatedAt" -> context.now,
+          "userId" -> context.user.id,
+          "tags" -> cardData.tags.map(_.toLowerCase())
+        )
+      }.andThen(handleResponse(_))
+    }
   }
 
   override def delete(id: String): Unit = {
     logger.info(s"Deleting elastic search entry for $id")
-    elasticClient.execute(deleteById(index, id)).onComplete(handleResponse)
+    wait {
+      elasticClient.execute(deleteById(index, id)).andThen(handleResponse(_))
+    }
   }
 
-  override def findIds(cardListReq: CardListRequest): Future[CardElasticIdFinder.Result] =
+  override def findIds(cardListReq: CardListRequest): Future[IdsFindResult] =
     new CardElasticIdFinder(elasticClient, index).findIds(cardListReq)
 
 }
@@ -166,19 +153,17 @@ class CardElasticIdFinder(
   implicit val ec: ExecutionContext
 ) {
 
-  import CardElasticIdFinder._
-
   import com.sksamuel.elastic4s.ElasticDsl._  
   val logger = Logger(getClass)
 
   /**
     * Handles a success ES query.
     */
-  def onSuccess(response: RequestSuccess[SearchResponse]): Future[Result] = {
+  def onSuccess(response: RequestSuccess[SearchResponse]): Future[IdsFindResult] = {
     logger.info("Response: " + response)
     Future.successful {
-      Result (
-        response.result.hits.hits.map(x => x.id).toIndexedSeq,
+      IdsFindResult(
+        response.result.hits.hits.map(x => x.id).toSeq,
         response.result.hits.total.value.intValue()
       )
   }
@@ -197,7 +182,7 @@ class CardElasticIdFinder(
     * Find all ids matching a query.
     * The result has the matching ids and the count of total matches.
     */
-  def findIds(cardListReq: CardListRequest): Future[Result] = Future {
+  def findIds(cardListReq: CardListRequest): Future[IdsFindResult] = Future {
     logger.info(s"Getting ids for $cardListReq")
 
     var queries : List[Query] = List(matchAllQuery())
@@ -247,16 +232,5 @@ class CardElasticIdFinder(
     }
 
   }.flatten
-
-}
-
-object CardElasticIdFinder {
-
-  /**
-    * Auxiliar class to host results of a find. `ids` contain matched ids taking
-    * pagination into account. `countOfIds` is an integer with the total count of
-    * matching elements, disconsidering pagination.
-    */
-  case class Result(ids: Seq[String], countOfIds: Integer)
 
 }

@@ -7,9 +7,10 @@ import org.joda.time.DateTime
 import org.mockito.Mockito._
 
 import services.RandomStringGenerator
-import services.Clock
 import org.scalatest.PrivateMethodTester
 import scala.concurrent.Future
+import com.mohiva.play.silhouette.api.util.{Clock=>SilhouetteClock}
+
 
 
 class TokenServiceSpec
@@ -23,7 +24,7 @@ class TokenServiceSpec
   "TokenService.generateTokenForUser" should {
 
     "Delegate to userTokenRepository.add" in {
-      val clockMock = mock[Clock]
+      val clockMock = mock[SilhouetteClock]
       when(clockMock.now).thenReturn(DateTime.parse("2020-01-01T00:00:00"))
 
       val randomStringGeneratorMock = mock[RandomStringGenerator]
@@ -49,7 +50,7 @@ class TokenServiceSpec
   "TokenService.nowTokenFor" should {
 
     "generate a new token for an user" in {
-      val clockMock = mock[Clock]
+      val clockMock = mock[SilhouetteClock]
       when(clockMock.now).thenReturn(DateTime.parse("2020-01-01T00:00:00"))
 
       val randomStringGeneratorMock = mock[RandomStringGenerator]

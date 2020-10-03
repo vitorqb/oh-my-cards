@@ -4,11 +4,11 @@ import com.mohiva.play.silhouette.api.services.IdentityService
 import com.mohiva.play.silhouette.api.LoginInfo
 import scala.concurrent.Future
 import com.google.inject.Inject
-import services.UUIDGenerator
+import services.UUIDGeneratorLike
 
 class UserService @Inject()(
   userRepository: UserRepository,
-  uuidGenerator: UUIDGenerator)
+  uuidGenerator: UUIDGeneratorLike)
     extends IdentityService[User] {
 
   def retrieve(loginInfo: LoginInfo): Future[Option[User]] = {

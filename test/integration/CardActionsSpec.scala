@@ -14,14 +14,14 @@ import v1.admin.testUtils.TestEsClient
 import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.inject.bind
-import v1.card.CardElasticClient
-import v1.card.CardElasticClientImpl
 import test.utils.FunctionalTestsTag
 import test.utils.TestUtils
 import org.scalatest.BeforeAndAfter
 import org.scalatestplus.play.guice.GuiceOneServerPerSuite
 import test.utils.WaitUntil
 import org.scalatest.BeforeAndAfterEach
+import v1.card.CardElasticClientLike
+import v1.card.elasticclient.CardElasticClientImpl
 
 
 /**
@@ -80,7 +80,7 @@ class CardActionsSpec
   override def fakeApplication: Application =
     new GuiceApplicationBuilder()
       .overrides(new TestEsFakeModule)
-      .overrides(bind[CardElasticClient].to[CardElasticClientImpl])
+      .overrides(bind[CardElasticClientLike].to[CardElasticClientImpl])
       .build()
 
   def wsClient: WSClient = app.injector.instanceOf[WSClient]

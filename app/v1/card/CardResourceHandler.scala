@@ -116,7 +116,8 @@ object CardListResponse {
   * A resource handler for Cards.
   */
 class CardResourceHandler @Inject()(
-  val repository: CardRepository)(
+  val repository: CardRepositoryLike
+)(
   implicit val ec: ExecutionContext){
 
   def find(cardListReq: CardListRequest): Future[CardListResponse] = for {
@@ -127,36 +128,33 @@ class CardResourceHandler @Inject()(
     cardListResponse = CardListResponse.fromRequest(cardListReq, cardResourceList, countOfCards)
   } yield cardListResponse
 
-  def create(input: CardFormInput, user: User): Try[CardResource] = {
+  def create(input: CardFormInput, user: User): Future[CardResource] = {
     repository.create(input, user).flatMap(createdDataId =>
-      get(createdDataId, user) match {
-        case Some(cardResource) => Success(cardResource)
-        case None => Failure(new Exception("Could not find created resource!"))
+      get(createdDataId, user).map {
+        case Some(cardResource) => cardResource
+        case None => throw new RuntimeException("Could not find created resource!")
       }
     )
   }
 
-  def delete(id: String, user: User): Future[Try[Unit]] = {
+  def delete(id: String, user: User): Future[Unit] = {
     repository.delete(id, user)
   }
 
-  def get(id: String, user: User): Option[CardResource] = {
-    repository.get(id, user).map(CardResource.fromCardData)
+  def get(id: String, user: User): Future[Option[CardResource]] = {
+    repository.get(id, user).map(_.map(CardResource.fromCardData))
   }
 
-  def update(id: String, input: CardFormInput, user: User): Future[Try[CardResource]] = {
-
-    get(id, user) match {
+  def update(id: String, input: CardFormInput, user: User): Future[CardResource] =
+    get(id, user).flatMap {
       case Some(cardResource) => cardResource.updateWith(input) match {
-        case Success(cardResource) => repository.update(cardResource.asCardData, user).map {
-          case Success(_) => Success(get(id, user).get)
-          case Failure(e) => Failure(e)
+        case Success(cardResource) => repository.update(cardResource.asCardData, user).flatMap { _ =>
+          get(id, user).map(_.get)
         }
-        case Failure(e) => Future(Failure(e))
+        case Failure(e) => throw e
       }
-      case None => Future(Failure(new CardDoesNotExist))
+      case None => throw new CardDoesNotExist
     }
-  }
 
   def getMetadata(user: User): Future[CardMetadataResource] = {
     repository.getAllTags(user).map(CardMetadataResource(_))

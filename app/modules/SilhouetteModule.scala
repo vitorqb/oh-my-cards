@@ -17,6 +17,8 @@ import com.mohiva.play.silhouette.api.SilhouetteProvider
 import com.mohiva.play.silhouette.impl.authenticators.DummyAuthenticatorService
 import v1.auth.UserTokenRepository
 import services.Clock
+import com.mohiva.play.silhouette.api.util.{Clock=>SilhouetteClock}
+
 
 /**
   * The Guice module for Silhouette
@@ -33,7 +35,7 @@ class SilhouetteModule extends AbstractModule with ScalaModule {
   }
 
   @Provides
-  def providesBearerTokenRequestProvider(userTokenRepository: UserTokenRepository, clock: Clock) = {
+  def providesBearerTokenRequestProvider(userTokenRepository: UserTokenRepository, clock: SilhouetteClock) = {
     new BearerTokenRequestProvider(userTokenRepository, clock)
   }
 
