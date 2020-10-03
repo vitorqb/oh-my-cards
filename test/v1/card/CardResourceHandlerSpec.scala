@@ -2,7 +2,6 @@ package v1.card
 
 import v1.card.tagsrepository._
 
-import org.scalatest._
 import org.scalatestplus.play._
 import org.scalatestplus.mockito.MockitoSugar
 
@@ -11,14 +10,10 @@ import org.mockito.{ ArgumentMatchersSugar }
 
 import scala.concurrent.ExecutionContext
 import org.scalatest.concurrent.ScalaFutures
-import scala.util.Try
-import scala.util.Success
 import v1.auth.User
-import scala.util.Failure
 import scala.concurrent.Future
 import org.joda.time.DateTime
 import v1.card.CardRefGenerator.CardRefGeneratorLike
-import v1.card.cardrepositorycomponents.CardRepositoryComponentsLike
 import v1.card.cardrepositorycomponents.CardRepositoryComponents
 import com.mohiva.play.silhouette.api.util.{Clock=>SilhouetteClock}
 import services.UUIDGenerator

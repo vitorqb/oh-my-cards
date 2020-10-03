@@ -10,14 +10,11 @@ import v1.card.testUtils.TestContext
 import test.utils.TestUtils
 import v1.card.CardDataRepository
 import org.scalatestplus.mockito.MockitoSugar
-import org.mockito.Mockito._
 import scala.concurrent.ExecutionContext
 import v1.card.testUtils.CardFixtureRepository
 import v1.card.testUtils.CardFixture
 import org.joda.time.DateTime
 import v1.auth.User
-import v1.card.cardrepositorycomponents.CardRepositoryComponentsLike
-import v1.card.cardrepositorycomponents.CardRepositoryComponents
 import v1.card.testUtils.ComponentsBuilder
 
 

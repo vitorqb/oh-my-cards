@@ -7,7 +7,6 @@ import org.scalatestplus.play.PlaySpec
 import test.utils.TestUtils
 import v1.auth.User
 import org.joda.time.DateTime
-import java.sql.Connection
 
 
 class CardDataRepositorySpec extends PlaySpec {

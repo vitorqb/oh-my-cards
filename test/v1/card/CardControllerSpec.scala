@@ -21,7 +21,6 @@ import play.api.mvc.Result
 import v1.card.elasticclient.CardElasticClientMock
 
 trait CardListRequestParserTestUtils extends JsonUtils {
-  import CardListRequestParser._
 
   implicit class EnrichedResult[T](private val x: Either[CardListRequestInput, JsValue]) {
     def isBadWithJsKey(k: String) = x match {
@@ -184,7 +183,6 @@ class CardListRequestParserSpec
   val pageSize = Some(pageSizeVal.toString)
 
   "CardListRequestParser.parse with implicit request" should {
-    import CardListRequestParser._
 
     "Base" in {
       implicit val request = FakeRequest("GET", "/foo?page=1&pageSize=2")

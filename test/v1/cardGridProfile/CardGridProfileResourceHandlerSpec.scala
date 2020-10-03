@@ -3,7 +3,6 @@ package v1.cardGridProfile
 import org.scalatestplus.play.PlaySpec
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatestplus.mockito.MockitoSugar
-import org.joda.time.DateTime
 import org.mockito.Mockito._
 
 import scala.concurrent.ExecutionContext.Implicits.global

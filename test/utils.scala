@@ -20,7 +20,6 @@ import play.api.i18n.MessagesProvider
 import play.api.i18n.MessagesImpl
 import play.api.i18n.Lang
 import play.api.i18n.DefaultMessagesApi
-import com.google.inject.Provider
 import org.scalatest.Tag
 
 /**

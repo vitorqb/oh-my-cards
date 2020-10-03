@@ -16,7 +16,6 @@ import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.inject.bind
 import test.utils.FunctionalTestsTag
 import test.utils.TestUtils
-import org.scalatest.BeforeAndAfter
 import org.scalatestplus.play.guice.GuiceOneServerPerSuite
 import test.utils.WaitUntil
 import org.scalatest.BeforeAndAfterEach

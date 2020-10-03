@@ -1,7 +1,6 @@
 package v1.cardGridProfile
 
 import org.scalatestplus.play._
-import com.mohiva.play.silhouette.test._
 import play.api.test.{ FakeRequest }
 import play.api.libs.json.Json
 import play.api.mvc.Request
@@ -10,13 +9,7 @@ import play.api.test.Helpers._
 import play.api.inject.guice.GuiceApplicationBuilder
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.Application
-import org.mockito.Mockito._
 import org.mockito.MockitoSugar
-import play.api.i18n.MessagesProvider
-import play.api.data.Form
-import org.scalatest.PrivateMethodTester.PrivateMethod
-import scala.concurrent.Future
-import play.api.mvc.Result
 import test.utils._
 import play.api.db.Database
 import org.scalatest.concurrent.ScalaFutures

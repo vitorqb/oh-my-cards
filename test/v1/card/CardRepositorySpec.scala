@@ -3,18 +3,13 @@ package v1.card.cardrepositoryspec
 import v1.card._
 import org.scalatestplus.play.PlaySpec
 import org.mockito.MockitoSugar
-import org.mockito.Mockito._
 import v1.auth.User
 import v1.card.testUtils.ComponentsBuilder
-import play.api.db.Database
-import scala.util.Success
 import java.sql.Connection
 import org.mockito.{ ArgumentMatchersSugar }
 import v1.card.testUtils.MockDb
-import scala.util.Failure
 import org.joda.time.DateTime
-import v1.card.CardRefGenerator.{CardRefGeneratorLike,CardRefGenerator}
-import v1.card.cardrepositorycomponents.CardRepositoryComponents
+import v1.card.CardRefGenerator.CardRefGenerator
 import test.utils.TestUtils
 import v1.card.cardrepositorycomponents.CardRepositoryComponentsLike
 import v1.card.tagsrepository.TagsRepository
@@ -26,7 +21,6 @@ import services.FrozenClock
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.Span
 import org.scalatest.time.Millis
-import scala.concurrent.Future
 import v1.card.elasticclient.CardElasticClientImpl
 
 class CardRepositorySpec

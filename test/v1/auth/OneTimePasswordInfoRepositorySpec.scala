@@ -1,12 +1,9 @@
 package v1.auth
 
-import org.scalatest._
 import org.scalatestplus.play._
 
 import com.mohiva.play.silhouette.api.LoginInfo
-import play.api.db.Databases
 import org.joda.time.DateTime
-import scala.concurrent.ExecutionContext
 import org.scalatest.concurrent.ScalaFutures
 
 
