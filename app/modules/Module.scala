@@ -3,7 +3,6 @@ package modules
 import com.google.inject.AbstractModule
 import net.codingwell.scalaguice.ScalaModule
 import services.{RandomStringGenerator, UUIDGeneratorLike, Clock}
-import java.util.UUID
 import services.MailService
 import scala.concurrent.ExecutionContext
 import play.api.libs.ws.WSClient

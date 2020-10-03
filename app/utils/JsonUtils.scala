@@ -10,7 +10,6 @@ import play.api.libs.json.JsValue
 import play.api.libs.json.JsSuccess
 import play.api.libs.json.JsError
 import org.joda.time.format.DateTimeFormatterBuilder
-import org.joda.time.format.DateTimeFormat
 import org.joda.time.DateTimeZone
 
 object JodaToJsonUtils {

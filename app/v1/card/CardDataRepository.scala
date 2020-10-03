@@ -1,20 +1,11 @@
 package v1.card
 
-import javax.inject.Inject
-import java.util.UUID.randomUUID
-import scala.util.{Try,Success,Failure}
-import anorm.{SQL,RowParser,Macro,SqlParser,SeqParameter}
-import play.api.db.Database
+import anorm.{SQL,RowParser,SqlParser}
 import v1.auth.User
 import anorm.`package`.SqlStringInterpolation
-import scala.concurrent.Future
-import scala.concurrent.ExecutionContext
 import java.sql.Connection
-import anorm.SimpleSql
-import anorm.Row
 import org.joda.time.DateTime
 import anorm.JodaParameterMetaData._
-import v1.card.CardRefGenerator.CardRefGeneratorLike
 
 /**
   * An implementation for a card repository.

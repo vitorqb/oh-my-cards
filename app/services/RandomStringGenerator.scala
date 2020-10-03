@@ -1,7 +1,6 @@
 package services
 
 import scala.util.Random
-import com.google.inject.Provides
 
 /**
   * A helper service that generates a random string.

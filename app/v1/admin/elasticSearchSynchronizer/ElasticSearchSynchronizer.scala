@@ -9,7 +9,6 @@ import scala.concurrent.ExecutionContext
 import com.sksamuel.elastic4s.ElasticClient
 import scala.util.Failure
 import scala.util.Success
-import play.shaded.ahc.org.asynchttpclient.filter.RequestFilter
 import com.sksamuel.elastic4s.RequestFailure
 import com.sksamuel.elastic4s.RequestSuccess
 import com.sksamuel.elastic4s.Response

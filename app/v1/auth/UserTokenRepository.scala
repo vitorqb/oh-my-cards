@@ -1,7 +1,6 @@
 package v1.auth
 
 import scala.concurrent.Future
-import org.joda.time.DateTime
 import com.google.inject.Inject
 import scala.concurrent.ExecutionContext
 import play.api.db.Database
@@ -9,9 +8,6 @@ import play.api.Logger
 import anorm._
 import anorm.JodaParameterMetaData._
 import utils.anorm.{AnormUtils}
-import utils.anorm.RelatedObjectDoesNotExist
-import scala.concurrent.Await
-import scala.concurrent.duration.Duration
 import anorm.Macro.ColumnNaming
 
 class UserTokenRepository @Inject()(

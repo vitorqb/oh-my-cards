@@ -2,12 +2,10 @@ package services
 
 import javax.inject.Inject
 
-import scala.util.{Try,Success,Failure}
-import scala.concurrent.{Future,ExecutionContext}
+import scala.concurrent.ExecutionContext
 import play.api.libs.ws.{WSAuthScheme,WSClient}
 import play.api.Configuration
 import play.api.Logger
-import com.google.inject.Provides
 import play.api.libs.json.Json
 
 trait MailService {

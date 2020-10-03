@@ -2,7 +2,7 @@ package v1.card.tagsrepository
 
 import v1.card.TagsRepositoryLike
 import java.sql.Connection
-import anorm.{SQL,SqlParser}
+import anorm.SqlParser
 import anorm.`package`.SqlStringInterpolation
 import v1.card.CardData
 

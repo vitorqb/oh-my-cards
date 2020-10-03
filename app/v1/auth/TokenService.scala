@@ -4,7 +4,6 @@ import scala.concurrent.Future
 import com.google.inject.Inject
 import scala.concurrent.ExecutionContext
 import services.RandomStringGenerator
-import org.joda.time.DateTime
 import com.mohiva.play.silhouette.api.util.{Clock=>SilhouetteClock}
 
 

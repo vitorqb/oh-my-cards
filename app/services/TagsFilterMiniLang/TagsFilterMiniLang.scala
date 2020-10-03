@@ -4,7 +4,7 @@ import services.TagsFilterMiniLang.Nodes._
 import services.TagsFilterMiniLang.Helpers._
 
 import org.parboiled.scala._
-import org.parboiled.errors.{ErrorUtils, ParsingException}
+import org.parboiled.errors.ErrorUtils
 import scala.util.Try
 import scala.util.Failure
 import scala.util.Success

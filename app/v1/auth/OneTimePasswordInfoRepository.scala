@@ -7,7 +7,6 @@ import scala.reflect.ClassTag
 import com.mohiva.play.silhouette.api.{AuthInfo, LoginInfo}
 import scala.concurrent.Future
 import play.api.Logger
-import org.joda.time.DateTime
 import com.google.inject.Inject
 import scala.concurrent.ExecutionContext
 import play.api.db.Database

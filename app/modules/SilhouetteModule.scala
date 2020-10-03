@@ -2,7 +2,6 @@ package modules
 
 import com.google.inject.AbstractModule
 import net.codingwell.scalaguice.ScalaModule
-import com.mohiva.play.silhouette.api.Env
 import com.google.inject.Provides
 import com.mohiva.play.silhouette.api.services.IdentityService
 import v1.auth.{User,UserService,BearerTokenRequestProvider}
@@ -16,7 +15,6 @@ import com.mohiva.play.silhouette.api.Silhouette
 import com.mohiva.play.silhouette.api.SilhouetteProvider
 import com.mohiva.play.silhouette.impl.authenticators.DummyAuthenticatorService
 import v1.auth.UserTokenRepository
-import services.Clock
 import com.mohiva.play.silhouette.api.util.{Clock=>SilhouetteClock}
 
 
