@@ -27,6 +27,8 @@ trait TestEsClient {
     */
   lazy val client = ElasticClient(JavaClient(ElasticProperties(s"http://$elasticHost:$elasticPort")))
 
+  protected def cleanIndex(): Unit = cleanIndex("_all")
+
   /**
     * Deletes and then creates an index on the test client.
     */

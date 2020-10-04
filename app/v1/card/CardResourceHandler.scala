@@ -1,5 +1,5 @@
 package v1.card
-
+ 
 import javax.inject.Inject
 import scala.util.{Try,Success,Failure}
 import play.api.libs.json.{Json,Format}
@@ -138,7 +138,10 @@ class CardResourceHandler @Inject()(
   }
 
   def delete(id: String, user: User): Future[Unit] = {
-    repository.delete(id, user)
+    repository.get(id, user).map {
+      case Some(cardData) => repository.delete(cardData, user)
+      case None           => throw new CardDoesNotExist
+    }
   }
 
   def get(id: String, user: User): Future[Option[CardResource]] = {
@@ -147,9 +150,15 @@ class CardResourceHandler @Inject()(
 
   def update(id: String, input: CardFormInput, user: User): Future[CardResource] =
     get(id, user).flatMap {
-      case Some(cardResource) => cardResource.updateWith(input) match {
-        case Success(cardResource) => repository.update(cardResource.asCardData, user).flatMap { _ =>
-          get(id, user).map(_.get)
+      case Some(oldCardResource) => oldCardResource.updateWith(input) match {
+        case Success(newCardResource) => {
+          repository.update(
+            oldCardResource.asCardData,
+            newCardResource.asCardData,
+            user
+          ) flatMap { _ =>
+            get(id, user).map(_.get)
+          }
         }
         case Failure(e) => throw e
       }

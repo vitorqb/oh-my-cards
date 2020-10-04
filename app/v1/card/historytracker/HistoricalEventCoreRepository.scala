@@ -28,7 +28,7 @@ class HistoricalEventCoreRepository extends HistoricalEventCoreRepositoryLike {
         SqlParser.str("eventType")
     ) map {
       case id ~ cardId ~ userId ~ datetime ~ eventType =>
-        CoreHistoricalEventData(datetime, cardId, userId, eventType)
+        CoreHistoricalEventData(id, datetime, cardId, userId, eventType)
     }
   }
 

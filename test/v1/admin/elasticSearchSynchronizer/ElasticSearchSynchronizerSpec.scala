@@ -37,14 +37,14 @@ class ElasticSearchSynchronizerSpec
 
   before {
     TestUtils.cleanupDb(app.injector.instanceOf[Database])
-    cleanIndex(index)
-    refreshIdx(index)
+    cleanIndex()
+    refreshIdx()
   }
 
   after {
     TestUtils.cleanupDb(app.injector.instanceOf[Database])
-    cleanIndex(index)
-    refreshIdx(index)
+    cleanIndex()
+    refreshIdx()
   }
 
   "run" should {
@@ -65,13 +65,13 @@ class ElasticSearchSynchronizerSpec
 
     "Send all items to es client" taggedAs(FunctionalTestsTag) in {
       val (idOne, idTwo, idThree) = createThreeCardsOnDb()
-      cleanIndex(index)
-      refreshIdx(index)
+      cleanIndex()
+      refreshIdx()
 
       val synchronizer = app.injector.instanceOf[ElasticSearchSynchornizer]
       synchronizer.deleteStaleEntries().await
       synchronizer.updateAllEntries().await
-      refreshIdx(index)
+      refreshIdx()
 
       val hits = client.execute {
         search(index).matchAllQuery()
@@ -83,18 +83,18 @@ class ElasticSearchSynchronizerSpec
     }
 
     "Erases stale items that do not exist in the db" taggedAs(FunctionalTestsTag) in {
-      cleanIndex(index)
+      cleanIndex()
       client.execute {
         indexInto(index).id("FOO")
       }.await
-      refreshIdx(index)
+      refreshIdx()
 
       val getRequestBefore = client.execute(get(index, "FOO")).await.result
       getRequestBefore.found mustEqual true
 
       val synchronizer = app.injector.instanceOf[ElasticSearchSynchornizer]
       synchronizer.run().await
-      refreshIdx(index)
+      refreshIdx()
 
       val getRequestAfter = client.execute(get(index, "FOO")).await.result
       getRequestAfter.found mustEqual false

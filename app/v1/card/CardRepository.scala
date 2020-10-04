@@ -108,7 +108,8 @@ case class CardCreationContext(
   */
 case class CardUpdateContext(
   user: User,
-  now: DateTime
+  now: DateTime,
+  oldData: CardData
 ) extends CardEventContextLike
 
 /**
@@ -138,8 +139,8 @@ trait CardRepositoryLike {
   def create(cardFormInput: CardFormInput, user: User): Future[String]
   def get(id: String, user: User): Future[Option[CardData]]
   def find(request: CardListRequest): Future[FindResult]
-  def delete(id: String, user: User): Future[Unit]
-  def update(data: CardData, user: User): Future[Unit]
+  def delete(data: CardData, user: User): Future[Unit]
+  def update(oldData: CardData, data: CardData, user: User): Future[Unit]
   def getAllTags(user: User): Future[List[String]]
 }
 
@@ -191,7 +192,12 @@ trait CardHistoryRecorderLike {
   /**
     * Register the deletion of a card.
     */
-  def registerDeletion(cardId: String, context: CardUpdateContext)(implicit c: Connection): Unit
+  def registerDeletion(context: CardUpdateContext)(implicit c: Connection): Unit
+
+  /**
+    * Register the update of a card.
+    */
+  def registerUpdate(newCard: CardData, context: CardUpdateContext)(implicit c: Connection): Unit
 
 }
 
@@ -202,11 +208,13 @@ class CardRepository(
   dataRepo: CardDataRepositoryLike,
   tagsRepo: TagsRepositoryLike,
   esClient: CardElasticClientLike,
+  historyRecorder: CardHistoryRecorderLike,
   components: CardRepositoryComponentsLike
 )(
   implicit ec: ExecutionContext
 ) extends CardRepositoryLike {
 
+  //!!!! TODO -> Should we just pass the context as param?
   override def create(cardFormInput: CardFormInput, user: User): Future[String] = Future {
     components.db.withTransaction { implicit c =>
       val now = components.clock.now
@@ -217,6 +225,7 @@ class CardRepository(
       dataRepo.create(cardFormInput, context)
       tagsRepo.create(id, cardFormInput.getTags())
       esClient.create(cardFormInput, context)
+      historyRecorder.registerCreation(context)
 
       id
     }
@@ -239,20 +248,27 @@ class CardRepository(
       }
     }
 
-  override def delete(id: String, user: User): Future[Unit] = Future {
+  //!!!! TODO -> Should we just pass the context here, and in create/delete?
+  //!!!!         it feels weird to have to pass oldData.
+  override def delete(data: CardData, user: User): Future[Unit] = Future {
+    val context = CardUpdateContext(user, components.clock.now, data)
     components.db.withTransaction { implicit c =>
-      dataRepo.delete(id, user)
-      tagsRepo.delete(id)
-      esClient.delete(id)
+      dataRepo.delete(data.id, user)
+      tagsRepo.delete(data.id)
+      esClient.delete(data.id)
+      historyRecorder.registerDeletion(context)
     }
   }
 
-  override def update(data: CardData, user: User): Future[Unit] = Future {
-    val context = CardUpdateContext(user, components.clock.now)
+  //!!!! TODO -> Should we just pass the context here, and in create/delete?
+  //!!!!         it feels weird to have to pass oldData.
+  override def update(oldData: CardData, data: CardData, user: User): Future[Unit] = Future {
+    val context = CardUpdateContext(user, components.clock.now, oldData)
     components.db.withTransaction { implicit c =>
       dataRepo.update(data, context)
       tagsRepo.update(data)
       esClient.update(data, context)
+      historyRecorder.registerUpdate(data, context)
     }
   }
 

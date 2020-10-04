@@ -153,7 +153,7 @@ class CardResourceHandlerSpec
       "Fail if card update fails" in {
         val e = new Exception
         when(repository.get(id, user)).thenReturn(Future.successful(Some(cardData)))
-        when(repository.update(any, eqTo(user))).thenReturn(Future.failed(e))
+        when(repository.update(any, any, eqTo(user))).thenReturn(Future.failed(e))
         handler.update(id, input, user).failed.futureValue mustEqual e
       }
     }
@@ -172,7 +172,14 @@ class CardResourceHandlerSpec
           val cardRefGenerator = mock[CardRefGeneratorLike]
           val input = CardFormInput("title", Some("body"), None)
           val components = new CardRepositoryComponents(db, uuidGenerator, cardRefGenerator, clock)
-          val repository = new CardRepository(dataRepo, tagsRepo, elasticClient, components)
+          val historyTracker = mock[CardHistoryRecorderLike]
+          val repository = new CardRepository(
+            dataRepo,
+            tagsRepo,
+            elasticClient,
+            historyTracker,
+            components
+          )
           val handler = new CardResourceHandler(repository)
           val created = handler.create(input, user).futureValue
 

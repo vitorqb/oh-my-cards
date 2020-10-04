@@ -15,6 +15,7 @@ import org.joda.time.DateTime
   * The core data for a historical event, share among all events.
   */
 case class CoreHistoricalEventData(
+  id: String,
   datetime: DateTime,
   cardId: String,
   userId: String,
@@ -89,7 +90,8 @@ trait CardUpdateDataRepositoryLike {
   */
 class CardHistoryTracker(
   uuidGenerator: UUIDGeneratorLike,
-  coreRepo: HistoricalEventCoreRepositoryLike
+  coreRepo: HistoricalEventCoreRepositoryLike,
+  updateRepo: CardUpdateDataRepositoryLike
 ) extends CardHistoryRecorderLike {
 
   override def registerCreation(context: CardCreationContext)(implicit c: Connection): Unit = {
@@ -97,20 +99,30 @@ class CardHistoryTracker(
     coreRepo.create(id, context.id, context, EventTypes.creation)
   }
 
-  override def registerDeletion(
-    cardId: String,
-    context: CardUpdateContext
-  )(implicit c: Connection): Unit = {
+  override def registerDeletion(context: CardUpdateContext)(implicit c: Connection): Unit = {
     val id = uuidGenerator.generate()
-    coreRepo.create(id, cardId, context, EventTypes.deletion)
+    coreRepo.create(id, context.oldData.id, context, EventTypes.deletion)
+  }
+
+  override def registerUpdate(
+    newData: CardData,
+    context: CardUpdateContext
+  )(
+    implicit c: Connection
+  ): Unit = {
+    val id = uuidGenerator.generate()
+    coreRepo.create(id, context.oldData.id, context, EventTypes.update)
+    updateRepo.create(id, context.oldData, newData)
   }
 
   def getEvents(cardId: String)(implicit c: Connection): Seq[CardHistoricalEventLike] =
     coreRepo.list(cardId) map { 
-      case CoreHistoricalEventData(datetime, cardId, userId, EventTypes.creation) =>
+      case CoreHistoricalEventData(id, datetime, cardId, userId, EventTypes.creation) =>
         CardCreation(datetime, cardId, userId)
-      case CoreHistoricalEventData(datetime, cardId, userId, EventTypes.deletion) =>
+      case CoreHistoricalEventData(id, datetime, cardId, userId, EventTypes.deletion) =>
         CardDeletion(datetime, cardId, userId)
+      case CoreHistoricalEventData(id, datetime, cardId, userId, EventTypes.update) =>
+        CardUpdate(datetime, cardId, userId, updateRepo.getFieldsUpdates(id))
       case x =>
         throw new RuntimeException(f"Unknown historical card event type for x")
     }
@@ -123,4 +135,5 @@ class CardHistoryTracker(
 object EventTypes {
   val creation = "creation"
   val deletion = "deletion"
+  val update = "update"
 }

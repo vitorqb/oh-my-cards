@@ -68,7 +68,7 @@ class CardActionsSpec
   var token: String = ""
 
   override def beforeEach() = {
-    cleanIndex("cards")
+    cleanIndex()
     TestUtils.cleanupDb(app.injector.instanceOf[Database])
     token = (new TestTokenProviderSvc(app.injector.instanceOf[Database])).getToken()
   }

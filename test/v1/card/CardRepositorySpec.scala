@@ -22,6 +22,9 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.Span
 import org.scalatest.time.Millis
 import v1.card.elasticclient.CardElasticClientImpl
+import v1.card.historytracker.CardHistoryTracker
+import v1.card.historytracker.HistoricalEventCoreRepository
+import v1.card.historytracker.CardUpdateDataRepository
 
 class CardRepositorySpec
     extends PlaySpec
@@ -36,6 +39,7 @@ class CardRepositorySpec
     val dataRepo: CardDataRepositoryLike,
     val tagsRepo: TagsRepositoryLike,
     val esClient: CardElasticClientLike,
+    val historyRecorder: CardHistoryRecorderLike,
     val repo: CardRepositoryLike
   )
 
@@ -53,8 +57,9 @@ class CardRepositorySpec
     val dataRepo = mock[CardDataRepositoryLike]
     val tagsRepo = mock[TagsRepositoryLike]
     val esClient = mock[CardElasticClientLike]
-    val repo = new CardRepository(dataRepo, tagsRepo, esClient, components)
-    val testContext = TestContext(dataRepo, tagsRepo, esClient, repo)
+    val historyRecorder = mock[CardHistoryRecorderLike]
+    val repo = new CardRepository(dataRepo, tagsRepo, esClient, historyRecorder, components)
+    val testContext = TestContext(dataRepo, tagsRepo, esClient, historyRecorder, repo)
     block(testContext)
   }
 
@@ -78,6 +83,12 @@ class CardRepositorySpec
       verify(c.esClient).create(formInput, context)
     }
 
+    "send create data to history recorder" in testContext { c =>
+      val formInput = CardFormInput("title", Some("body"), Some(List("A")))
+      c.repo.create(formInput, user).futureValue
+      verify(c.historyRecorder).registerCreation(context)(connection)
+    }
+
     "returns created id" in testContext { c =>
       val formInput = CardFormInput("title", Some("body"), None)
       c.repo.create(formInput, user).futureValue mustEqual "id"
@@ -86,44 +97,57 @@ class CardRepositorySpec
   }
 
   "delete" should {
-    
+
+    val cardData = CardData("1", "title", "body", List("A"), Some(now), Some(now), 1)
+    val context = CardUpdateContext(user, now, cardData)
+
     "send delete msg to card data repository" in testContext { c =>
-      c.repo.delete("1", user).futureValue
+      c.repo.delete(cardData, user).futureValue
       verify(c.dataRepo).delete("1", user)(connection)
     }
 
     "send delete msg to tags repository" in testContext { c =>
-      c.repo.delete("1", user).futureValue
+      c.repo.delete(cardData, user).futureValue
       verify(c.tagsRepo).delete("1")(connection)
     }
 
     "send delete msg to es client" in testContext { c =>
-      c.repo.delete("1", user).futureValue
+      c.repo.delete(cardData, user).futureValue
       verify(c.esClient).delete("1")
     }
 
+    "send delete msg to history tracker" in testContext { c =>
+      c.repo.delete(cardData, user).futureValue
+      verify(c.historyRecorder).registerDeletion(context)(connection)
+    }
   }
 
   "update" should {
 
+    val oldData = CardData("1", "to", "bo", List("A", "O"), Some(now), Some(now), 1)
     val data = CardData("1", "t", "b", List("A"), Some(now), Some(now), 1)
-    val context = CardUpdateContext(user, now)
+    val context = CardUpdateContext(user, now, oldData)
 
     "send update msg to card data repository" in testContext { c =>
-      c.repo.update(data, user).futureValue
+      c.repo.update(oldData, data, user).futureValue
       verify(c.dataRepo).update(data, context)(connection)
     }
 
     "send update msg to tags repository" in testContext { c =>
-      c.repo.update(data, user).futureValue
+      c.repo.update(oldData, data, user).futureValue
       verify(c.tagsRepo).update(data)(connection)
     }
 
     "send update msg to es client" in testContext { c =>
-      c.repo.update(data, user).futureValue
+      c.repo.update(oldData, data, user).futureValue
       verify(c.esClient).update(data, context)
     }
-  }
+
+    "send update msg to history tracker" in testContext { c =>
+      c.repo.update(oldData, data, user).futureValue
+      verify(c.historyRecorder).registerUpdate(data, context)(connection)
+    }
+}
 
 }
 
@@ -157,13 +181,19 @@ class CardRepositoryIntegrationSpec
       val tagsRepo = new TagsRepository()
       val esClient = new CardElasticClientImpl(client)
       val dataRepo = new CardDataRepository
-      val repo = new CardRepository(dataRepo, tagsRepo, esClient, components)
+      //!!!! TODO Use builder
+      val historyRecorder = new CardHistoryTracker(
+        new CounterUUIDGenerator,
+        new HistoricalEventCoreRepository,
+        new CardUpdateDataRepository(new CounterUUIDGenerator)
+      )
+      val repo = new CardRepository(dataRepo, tagsRepo, esClient, historyRecorder, components)
       val testContext = TestContext(components, repo)
       try {
         TestUtils.cleanupDb(db)
         block(testContext)
       } finally {
-        cleanIndex(index)
+        cleanIndex()
         TestUtils.cleanupDb(db)
       }
     }
@@ -203,8 +233,9 @@ class CardRepositoryIntegrationSpec
       c.repo.create(baseCardInput, user).futureValue
       refreshIdx()
 
+      val oldCardData = baseExpectedCardData
       val newCardData = baseExpectedCardData.copy(title="A", body="B", tags=List())
-      c.repo.update(newCardData, user).futureValue
+      c.repo.update(oldCardData, newCardData, user).futureValue
 
       c.repo.get("1", user).futureValue mustEqual Some(newCardData)
     }
@@ -212,19 +243,19 @@ class CardRepositoryIntegrationSpec
     "create and delete a card" taggedAs(FunctionalTestsTag) in testContext { c =>
       c.repo.create(baseCardInput, user).futureValue
       refreshIdx()
-      c.repo.delete("1", user).futureValue
+      c.repo.delete(baseExpectedCardData, user).futureValue
 
       c.repo.get("1", user).futureValue mustEqual None
     }
 
     "deletes a card that does not exist" taggedAs(FunctionalTestsTag) in testContext { c =>
-      c.repo.delete("1", user).failed.futureValue mustBe a[CardDoesNotExist]
+      c.repo.delete(baseExpectedCardData, user).failed.futureValue mustBe a[CardDoesNotExist]
     }
 
     "deletes a card from other user" taggedAs(FunctionalTestsTag) in testContext { c =>
       c.repo.create(baseCardInput, user).futureValue
       refreshIdx()
-      c.repo.delete("1", otherUser).failed.futureValue mustBe a[CardDoesNotExist]
+      c.repo.delete(baseExpectedCardData, otherUser).failed.futureValue mustBe a[CardDoesNotExist]
     }
 
     "create three cards and find 2 with search term" taggedAs(FunctionalTestsTag) in testContext { c =>

@@ -21,7 +21,23 @@ import org.scalatest.time.Millis
 /**
   * A data class for the data that a fixture of a card needs.
   */
-case class CardFixture(val id: String, val formInput: CardFormInput, val datetime: DateTime)
+case class CardFixture(
+  val id: String,
+  val formInput: CardFormInput,
+  val datetime: DateTime,
+  val ref: Int = 1
+) {
+  def asCardData(): CardData =
+    CardData(
+      id,
+      formInput.getTitle(),
+      formInput.getBody(),
+      formInput.getTags(),
+      Some(datetime),
+      Some(datetime),
+      ref
+    )
+}
 
 /**
   * A trait for a Repository of card fixtures
