@@ -31,6 +31,7 @@ object TestUtils {
 
   val dbDriver = "org.sqlite.JDBC"
   val dbUrl = "jdbc:sqlite:test.sqlite"
+  lazy val db = Databases(dbDriver, dbUrl)
 
   def getDb(): Database = {
     val out = Databases(dbDriver, dbUrl)
@@ -60,17 +61,15 @@ object TestUtils {
     * Used as a context manager for tests with db.
     */
   def testDB[T](block: Database => T) = {
-    Databases.withDatabase(dbDriver, dbUrl) { db =>
-      if (! dbInitialized) {
-        Evolutions.cleanupEvolutions(db)
-        Evolutions.applyEvolutions(db)
-        dbInitialized = true
-      }
-      try {
-        block(db)
-      } finally {
-        cleanupDb(db)
-      }
+    if (! dbInitialized) {
+      Evolutions.cleanupEvolutions(db)
+      Evolutions.applyEvolutions(db)
+      dbInitialized = true
+    }
+    try {
+      block(db)
+    } finally {
+      cleanupDb(db)
     }
   }
 
