@@ -64,5 +64,37 @@ class CardUpdateDataRepositorySpec extends PlaySpec {
         repo.getFieldsUpdates("2").toSet mustEqual exp.toSet
       }
     }
+
+    "create and retrieve an update for tags" in testContext { c =>
+      c.db.withTransaction { implicit t =>
+        val oldData = CardData("1", "title", "", List("A", "B"), None, None, 1)
+        val newData = CardData("1", "title", "", List("B", "C"), None, None, 1)
+        val repo = new CardUpdateDataRepository(new CounterUUIDGenerator)
+
+        repo.create("2", oldData, newData)
+
+        val expUpdate = TagsFieldUpdate("tags", List("A", "B"), List("B", "C"))
+        repo.getFieldsUpdates("2") mustEqual Seq(expUpdate)
+      }
+    }
+
+    "all together" in testContext { c =>
+      c.db.withTransaction { implicit t =>
+        val oldData = CardData("1", "OldTitle", "OldBody", List("A"), None, None, 1)
+        val newData = CardData("1", "NewTitle", "NewBody", List("B"), None, None, 1)
+        val repo = new CardUpdateDataRepository(new CounterUUIDGenerator)
+
+        repo.create("2", oldData, newData)
+
+        val expUpdates = Seq(
+          StringFieldUpdate("title", "OldTitle", "NewTitle"),
+          StringFieldUpdate("body", "OldBody", "NewBody"),
+          TagsFieldUpdate("tags", List("A"), List("B")),
+        )
+        repo.getFieldsUpdates("2") mustEqual expUpdates
+
+      }
+    }
+
   }
 }

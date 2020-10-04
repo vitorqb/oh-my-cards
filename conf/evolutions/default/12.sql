@@ -19,6 +19,14 @@ CREATE TABLE cardStringFieldUpdates (
   newValue TEXT NOT NULL
 );
 
+CREATE TABLE cardTagsFieldUpdates (
+  id TEXT NOT NULL UNIQUE PRIMARY KEY,
+  coreEventId TEXT NOT NULL,
+  fieldName TEXT NOT NULL,
+  oldOrNew TEXT NOT NULL,
+  tag TEXT NOT NULL
+);
+
 COMMIT;
 
 
@@ -27,5 +35,6 @@ BEGIN TRANSACTION;
 
 DROP TABLE cardHistoricalEvents;
 DROP TABLE cardStringFieldUpdates;
+DROP TABLE cardTagsFieldUpdates;
 
 COMMIT;

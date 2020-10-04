@@ -56,6 +56,7 @@ object TestUtils {
       SQL("DELETE FROM cardGridProfiles").execute()
       SQL("DELETE FROM cardHistoricalEvents").execute()
       SQL("DELETE FROM cardStringFieldUpdates").execute()
+      SQL("DELETE FROM cardTagsFieldUpdates").execute()
     }
   }
 
