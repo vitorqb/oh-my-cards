@@ -57,6 +57,7 @@ object TestUtils {
       SQL("DELETE FROM cardHistoricalEvents").execute()
       SQL("DELETE FROM cardStringFieldUpdates").execute()
       SQL("DELETE FROM cardTagsFieldUpdates").execute()
+      SQL("UPDATE counters SET value = 1000 WHERE id = 'baseCounter'").execute()
     }
   }
 

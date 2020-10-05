@@ -5,11 +5,10 @@ import services.UUIDGeneratorLike
 import v1.auth.User
 import org.mockito.Mockito._
 import v1.card._
-import v1.card.CardRefGenerator.CardRefGenerator
 import v1.card.cardrepositorycomponents.CardRepositoryComponentsLike
 import v1.card.cardrepositorycomponents.CardRepositoryComponents
+import services.referencecounter.{ReferenceCounterLike,ReferenceCounter}
 import org.mockito.MockitoSugar
-import v1.card.CardRefGenerator.CardRefGeneratorLike
 import javax.sql.DataSource
 import play.api.db.TransactionIsolationLevel
 import java.sql.Connection
@@ -93,13 +92,13 @@ case class TestContext(
 case class ComponentsBuilder(
   val db: Option[Database] = None,
   val uuidGenerator: Option[UUIDGeneratorLike] = None,
-  val refGenerator: Option[CardRefGeneratorLike] = None,
+  val refGenerator: Option[ReferenceCounterLike] = None,
   val clock: Option[SilhouetteClock] = None
 ) extends MockitoSugar {
 
   def withDb(db: Database) = copy(db=Some(db))
   def withUUIDGenerator(uuidGenerator: UUIDGeneratorLike) = copy(uuidGenerator=Some(uuidGenerator))
-  def withRefGenerator(refGenerator: CardRefGeneratorLike) = copy(refGenerator=Some(refGenerator))
+  def withRefGenerator(refGenerator: ReferenceCounterLike) = copy(refGenerator=Some(refGenerator))
   def withClock(clock: SilhouetteClock) = copy(clock=Some(clock))
 
   /**
@@ -108,7 +107,7 @@ case class ComponentsBuilder(
   def withContext(context: CardCreationContext) = {
     val uuidGenerator_ = mock[UUIDGeneratorLike]
     when(uuidGenerator_.generate()).thenReturn(context.id)
-    val refGenerator_ = mock[CardRefGenerator]
+    val refGenerator_ = mock[ReferenceCounterLike]
     when(refGenerator_.nextRef()).thenReturn(context.ref)
     val clock_ = mock[SilhouetteClock]
     when(clock_.now).thenReturn(context.now)
@@ -121,7 +120,7 @@ case class ComponentsBuilder(
     new CardRepositoryComponents(
       db_,
       uuidGenerator.getOrElse(mock[UUIDGeneratorLike]),
-      refGenerator.getOrElse(new CardRefGenerator(db_)),
+      refGenerator.getOrElse(new ReferenceCounter(db_)),
       clock.getOrElse(mock[SilhouetteClock])
     )
   }

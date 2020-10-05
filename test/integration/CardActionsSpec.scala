@@ -118,7 +118,7 @@ class CardActionsSpec
       val card = cardActionWsHelper.getCard(id)
 
       (card \ "id").as[String] mustEqual id
-      (card \ "ref").as[Int] mustEqual 1
+      (card \ "ref").as[Int] mustEqual 1001
       (card \ "createdAt").as[String].length() > 10
       (card \ "updatedAt").as[String] mustEqual (card \ "createdAt").as[String]
       (card \ "title").as[String] mustEqual "FOO"

@@ -9,7 +9,6 @@ import java.sql.Connection
 import org.mockito.{ ArgumentMatchersSugar }
 import v1.card.testUtils.MockDb
 import org.joda.time.DateTime
-import v1.card.CardRefGenerator.CardRefGenerator
 import test.utils.TestUtils
 import v1.card.cardrepositorycomponents.CardRepositoryComponentsLike
 import v1.card.tagsrepository.TagsRepository
@@ -25,6 +24,7 @@ import v1.card.elasticclient.CardElasticClientImpl
 import v1.card.historytracker.CardHistoryTracker
 import v1.card.historytracker.HistoricalEventCoreRepository
 import v1.card.historytracker.CardUpdateDataRepository
+import services.referencecounter.ReferenceCounter
 
 class CardRepositorySpec
     extends PlaySpec
@@ -166,7 +166,7 @@ class CardRepositoryIntegrationSpec
   val now = new DateTime(2000, 1, 1, 0, 0, 0)
   val createContext = CardCreationContext(user, now, "1", 1)
   val baseCardInput = CardFormInput("Title", Some("Body"), Some(List("Tag1", "TagTwo")))
-  val baseExpectedCardData = baseCardInput.asCardData("1", Some(now), Some(now), 1)
+  val baseExpectedCardData = baseCardInput.asCardData("1", Some(now), Some(now), 1001)
 
   case class TestContext(components: CardRepositoryComponentsLike, repo: CardRepositoryLike)
 
@@ -175,7 +175,7 @@ class CardRepositoryIntegrationSpec
       val components = ComponentsBuilder()
         .withDb(db)
         .withUUIDGenerator(new CounterUUIDGenerator)
-        .withRefGenerator(new CardRefGenerator(db))
+        .withRefGenerator(new ReferenceCounter(db))
         .withClock(new FrozenClock(now))
         .build()
       val tagsRepo = new TagsRepository()
@@ -225,8 +225,8 @@ class CardRepositoryIntegrationSpec
 
       response.countOfItems mustEqual 2
       response.cards.length mustEqual 2
-      response.cards(0) mustEqual baseExpectedCardData.copy(id="1", ref=1)
-      response.cards(1) mustEqual baseExpectedCardData.copy(id="2", ref=2)
+      response.cards(0) mustEqual baseExpectedCardData.copy(id="1", ref=1001)
+      response.cards(1) mustEqual baseExpectedCardData.copy(id="2", ref=1002)
     }
 
     "update a card" taggedAs(FunctionalTestsTag) in testContext { c =>
@@ -272,7 +272,7 @@ class CardRepositoryIntegrationSpec
       val response = c.repo.find(listRequest).futureValue
 
       val expected_1 = baseExpectedCardData.copy(title="SomeLongWord")
-      val expected_2 = baseExpectedCardData.copy(id="2", title="SomeLongWo", ref=2)
+      val expected_2 = baseExpectedCardData.copy(id="2", title="SomeLongWo", ref=1002)
 
       response.countOfItems mustEqual 2
       response.cards mustEqual Seq(expected_1, expected_2)
@@ -307,7 +307,7 @@ class CardRepositoryIntegrationSpec
 
       val result = c.repo.find(findRequest).futureValue
 
-      val cardTwoData = cardTwo.asCardData("2", Some(now), Some(now), 2)
+      val cardTwoData = cardTwo.asCardData("2", Some(now), Some(now), 1002)
       val expResult = FindResult(Seq(cardTwoData), 1)
       result mustEqual expResult
     }
@@ -324,9 +324,9 @@ class CardRepositoryIntegrationSpec
       val findRequest = CardListRequest(1, 10, user.id, List(), List(), None, Some("Titleee"))
       val result = c.repo.find(findRequest).futureValue
 
-      val cardOneData = cardOne.asCardData("1", Some(now), Some(now), 1)
-      val cardTwoData = cardTwo.asCardData("2", Some(now), Some(now), 2)
-      val cardThreeData = cardThree.asCardData("3", Some(now), Some(now), 3)
+      val cardOneData = cardOne.asCardData("1", Some(now), Some(now), 1001)
+      val cardTwoData = cardTwo.asCardData("2", Some(now), Some(now), 1002)
+      val cardThreeData = cardThree.asCardData("3", Some(now), Some(now), 1003)
       val expResult = FindResult(Seq(cardThreeData, cardTwoData, cardOneData), 3)
       result mustEqual expResult
     }

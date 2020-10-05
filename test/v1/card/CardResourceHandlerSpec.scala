@@ -13,10 +13,10 @@ import org.scalatest.concurrent.ScalaFutures
 import v1.auth.User
 import scala.concurrent.Future
 import org.joda.time.DateTime
-import v1.card.CardRefGenerator.CardRefGeneratorLike
 import v1.card.cardrepositorycomponents.CardRepositoryComponents
 import com.mohiva.play.silhouette.api.util.{Clock=>SilhouetteClock}
 import services.UUIDGenerator
+import services.referencecounter.ReferenceCounterLike
 
 class CardResourceSpec extends PlaySpec {
 
@@ -169,7 +169,7 @@ class CardResourceHandlerSpec
           val elasticClient = mock[CardElasticClientLike]
           val clock = mock[SilhouetteClock]
           val user = User("userId", "userEmail")
-          val cardRefGenerator = mock[CardRefGeneratorLike]
+          val cardRefGenerator = mock[ReferenceCounterLike]
           val input = CardFormInput("title", Some("body"), None)
           val components = new CardRepositoryComponents(db, uuidGenerator, cardRefGenerator, clock)
           val historyTracker = mock[CardHistoryRecorderLike]

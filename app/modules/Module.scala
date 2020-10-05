@@ -15,8 +15,6 @@ import com.sksamuel.elastic4s.ElasticProperties
 import com.sksamuel.elastic4s.http.JavaClient
 import v1.card.elasticclient.{CardElasticClientMock,CardElasticClientImpl}
 import services.SendgridMailServiceImpl
-import v1.card.CardRefGenerator.CardRefGenerator
-import v1.card.CardRefGenerator.CardRefGeneratorLike
 import play.api.db.Database
 import v1.card.cardrepositorycomponents.CardRepositoryComponentsLike
 import v1.card.cardrepositorycomponents.CardRepositoryComponents
@@ -35,6 +33,7 @@ import v1.card.historytracker.HistoricalEventCoreRepositoryLike
 import v1.card.historytracker.CardUpdateDataRepositoryLike
 import v1.card.historytracker.HistoricalEventCoreRepository
 import v1.card.historytracker.CardUpdateDataRepository
+import services.referencecounter.{ReferenceCounter,ReferenceCounterLike}
 
 class Module extends AbstractModule with ScalaModule {
 
@@ -103,7 +102,7 @@ class Module extends AbstractModule with ScalaModule {
   }
 
   @Provides
-  def cardRefGenerator(db: Database): CardRefGeneratorLike = new CardRefGenerator(db)
+  def cardRefGenerator(db: Database): ReferenceCounterLike = new ReferenceCounter(db)
 
   @Provides
   def tagsRepository(): TagsRepositoryLike = new TagsRepository()
@@ -142,7 +141,7 @@ class Module extends AbstractModule with ScalaModule {
   def cardRepositoryComponents(
     db: Database,
     uuidGenerator: UUIDGeneratorLike,
-    refGenerator: CardRefGeneratorLike,
+    refGenerator: ReferenceCounterLike,
     clock: SilhouetteClock
   ): CardRepositoryComponentsLike =
     new CardRepositoryComponents(db, uuidGenerator, refGenerator, clock)
