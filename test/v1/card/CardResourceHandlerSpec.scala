@@ -81,13 +81,19 @@ class CardResourceHandlerSpec
 
     "Delegate to repository.create" in {
       val cardFormInput = CardFormInput("foo", Some("bar"), None)
-      val id = "1"
-      val createdCardData = cardFormInput.asCardData(id, date1, date1, 0)
+      val createdCardData = cardFormInput.asCardData("1", date1, date1, 1)
       val user = mock[User]
       val repository = mock[CardRepositoryLike]
-      when(repository.create(cardFormInput, user)).thenReturn(Future.successful(id))
-      when(repository.get(id, user)).thenReturn(Future.successful(Some(createdCardData)))
-      val handler = new CardResourceHandler(repository)
+      val context = CardCreationContext(user, date1.get, "1", 1)
+      when(repository.create(cardFormInput, context)).thenReturn(Future.successful("1"))
+      when(repository.get("1", user)).thenReturn(Future.successful(Some(createdCardData)))
+      val clock = mock[SilhouetteClock]
+      when(clock.now).thenReturn(date1.get)
+      val refCounter = mock[ReferenceCounterLike]
+      when(refCounter.nextRef()).thenReturn(1)
+      val uuidGenerator = mock[UUIDGenerator]
+      when(uuidGenerator.generate()).thenReturn("1")
+      val handler = new CardResourceHandler(repository, clock, refCounter, uuidGenerator)
 
       val resource = handler.create(cardFormInput, user).futureValue
 
@@ -112,7 +118,10 @@ class CardResourceHandlerSpec
       val repository = mock[CardRepositoryLike]
       when(repository.find(cardListReq)).thenReturn(Future.successful(findResult))
 
-      val handler = new CardResourceHandler(repository)
+      val clock = mock[SilhouetteClock]
+      val refCounter = mock[ReferenceCounterLike]
+      val uuidGenerator = mock[UUIDGenerator]
+      val handler = new CardResourceHandler(repository, clock, refCounter, uuidGenerator)
 
       val user = mock[User]
       when(user.id).thenReturn("userid")
@@ -135,7 +144,10 @@ class CardResourceHandlerSpec
       val input = CardFormInput("title2", Some("body2"), None)
       val user = mock[User]
       val repository = mock[CardRepositoryLike]
-      val handler = new CardResourceHandler(repository)
+      val clock = mock[SilhouetteClock]
+      val refCounter = mock[ReferenceCounterLike]
+      val uuidGenerator = mock[UUIDGenerator]
+      val handler = new CardResourceHandler(repository, clock, refCounter, uuidGenerator)
       val cardData = CardData(id, "title1", "body1", List(), ref=1)
       
       "Fails if card not found" in {
@@ -169,9 +181,9 @@ class CardResourceHandlerSpec
           val elasticClient = mock[CardElasticClientLike]
           val clock = mock[SilhouetteClock]
           val user = User("userId", "userEmail")
-          val cardRefGenerator = mock[ReferenceCounterLike]
+          val refCounter = mock[ReferenceCounterLike]
           val input = CardFormInput("title", Some("body"), None)
-          val components = new CardRepositoryComponents(db, uuidGenerator, cardRefGenerator, clock)
+          val components = new CardRepositoryComponents(db, uuidGenerator, refCounter, clock)
           val historyTracker = mock[CardHistoryRecorderLike]
           val repository = new CardRepository(
             dataRepo,
@@ -180,7 +192,7 @@ class CardResourceHandlerSpec
             historyTracker,
             components
           )
-          val handler = new CardResourceHandler(repository)
+          val handler = new CardResourceHandler(repository, clock, refCounter, uuidGenerator)
           val created = handler.create(input, user).futureValue
 
           //Updates it
@@ -201,12 +213,15 @@ class CardResourceHandlerSpec
     "get the tags from the repository and transforms to a resource" in {
       val tags = List("FOO", "BAR")
       val user = mock[User]
-
+      val clock = mock[SilhouetteClock]
+      val refCounter = mock[ReferenceCounterLike]
+      val uuidGenerator = mock[UUIDGenerator]
       val repository = mock[CardRepositoryLike]
       when(repository.getAllTags(user)).thenReturn(Future.successful(tags))
+      val handler = new CardResourceHandler(repository, clock, refCounter, uuidGenerator)
 
       val exp = CardMetadataResource(tags)
-      val res = new CardResourceHandler(repository).getMetadata(user).futureValue
+      val res = handler.getMetadata(user).futureValue
       exp mustEqual res
     }
 

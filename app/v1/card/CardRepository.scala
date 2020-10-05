@@ -136,7 +136,7 @@ final case class FindResult(cards: Seq[CardData], countOfItems: Int)
   * using specialized services (e.g. ElasticSearch).
   */
 trait CardRepositoryLike {
-  def create(cardFormInput: CardFormInput, user: User): Future[String]
+  def create(cardFormInput: CardFormInput, context: CardCreationContext): Future[String]
   def get(id: String, user: User): Future[Option[CardData]]
   def find(request: CardListRequest): Future[FindResult]
   def delete(data: CardData, user: User): Future[Unit]
@@ -205,6 +205,7 @@ trait CardHistoryRecorderLike {
   * The implementation
   */
 class CardRepository(
+  //!!!! TODO After passing context as param, we don't need `components` anymore.
   dataRepo: CardDataRepositoryLike,
   tagsRepo: TagsRepositoryLike,
   esClient: CardElasticClientLike,
@@ -214,20 +215,14 @@ class CardRepository(
   implicit ec: ExecutionContext
 ) extends CardRepositoryLike {
 
-  //!!!! TODO -> Should we just pass the context as param?
-  override def create(cardFormInput: CardFormInput, user: User): Future[String] = Future {
+  override def create(cardFormInput: CardFormInput, context: CardCreationContext): Future[String] = Future {
     components.db.withTransaction { implicit c =>
-      val now = components.clock.now
-      val id = components.uuidGenerator.generate()
-      val ref = components.refGenerator.nextRef()
-      val context = CardCreationContext(user, now, id, ref)
-
       dataRepo.create(cardFormInput, context)
-      tagsRepo.create(id, cardFormInput.getTags())
+      tagsRepo.create(context.id, cardFormInput.getTags())
       esClient.create(cardFormInput, context)
       historyRecorder.registerCreation(context)
 
-      id
+      context.id
     }
   }
 

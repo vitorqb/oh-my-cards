@@ -8,6 +8,9 @@ import scala.concurrent.Future
 import scala.concurrent.ExecutionContext
 import org.joda.time.DateTime
 import utils.JodaToJsonUtils._
+import com.mohiva.play.silhouette.api.util.{Clock=>SilhouetteClock}
+import services.referencecounter.ReferenceCounterLike
+import services.UUIDGeneratorLike
 
 /**
   * Custom exceptions.
@@ -116,7 +119,10 @@ object CardListResponse {
   * A resource handler for Cards.
   */
 class CardResourceHandler @Inject()(
-  val repository: CardRepositoryLike
+  val repository: CardRepositoryLike,
+  val clock: SilhouetteClock,
+  val refCounter: ReferenceCounterLike,
+  val uuidGenerator: UUIDGeneratorLike
 )(
   implicit val ec: ExecutionContext){
 
@@ -129,7 +135,8 @@ class CardResourceHandler @Inject()(
   } yield cardListResponse
 
   def create(input: CardFormInput, user: User): Future[CardResource] = {
-    repository.create(input, user).flatMap(createdDataId =>
+    val context = CardCreationContext(user, clock.now, uuidGenerator.generate(), refCounter.nextRef())
+    repository.create(input, context).flatMap(createdDataId =>
       get(createdDataId, user).map {
         case Some(cardResource) => cardResource
         case None => throw new RuntimeException("Could not find created resource!")

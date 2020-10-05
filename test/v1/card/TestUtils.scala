@@ -1,9 +1,6 @@
 package v1.card.testUtils
-import org.joda.time.DateTime
 import play.api.db.Database
 import services.UUIDGeneratorLike
-import v1.auth.User
-import org.mockito.Mockito._
 import v1.card._
 import v1.card.cardrepositorycomponents.CardRepositoryComponentsLike
 import v1.card.cardrepositorycomponents.CardRepositoryComponents
@@ -13,78 +10,6 @@ import javax.sql.DataSource
 import play.api.db.TransactionIsolationLevel
 import java.sql.Connection
 import com.mohiva.play.silhouette.api.util.{Clock=>SilhouetteClock}
-import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.time.Span
-import org.scalatest.time.Millis
-
-/**
-  * A data class for the data that a fixture of a card needs.
-  */
-case class CardFixture(
-  val id: String,
-  val formInput: CardFormInput,
-  val datetime: DateTime,
-  val ref: Int = 1
-) {
-  def asCardData(): CardData =
-    CardData(
-      id,
-      formInput.getTitle(),
-      formInput.getBody(),
-      formInput.getTags(),
-      Some(datetime),
-      Some(datetime),
-      ref
-    )
-}
-
-/**
-  * A trait for a Repository of card fixtures
-  */
-trait CardFixtureRepository {
-  def allFixtures(): Seq[CardFixture]
-}
-
-/**
-  * All fixtures for the test
-  */
-case class TestContext(
-  val components: CardRepositoryComponentsLike,
-  val cardRepo: CardRepositoryLike,
-  val tagsRepo: TagsRepositoryLike,
-  val cardElasticClient: CardElasticClientLike,
-  val cardFixtures: CardFixtureRepository,
-  val user: User
-) extends ScalaFutures
-{
-
-  override implicit def patienceConfig = new PatienceConfig(Span(5000, Millis))
-
-  /**
-    * Save all card fixtures to the db
-    */
-  def saveCardsToDb(): Unit = {
-    for (cardFixture <- cardFixtures.allFixtures) yield {
-      createCardInDb(cardFixture)
-    }
-  }
-
-  /**
-    * Performs the creation of a card.
-    */
-  def createCardInDb(formInput: CardFormInput, id: String, now: DateTime): String = {
-    when(components.uuidGenerator.generate).thenReturn(id)
-    when(components.clock.now).thenReturn(now)
-    val result = cardRepo.create(formInput, user).futureValue
-    reset(components.uuidGenerator)
-    reset(components.clock)
-    result
-  }
-
-  def createCardInDb(cardFixture: CardFixture): String = {
-    createCardInDb(cardFixture.formInput, cardFixture.id, cardFixture.datetime)
-  }
-}
 
 /**
   * A fixture factory for the CardRepositoryComponentsLike that defaults to mock everything.
