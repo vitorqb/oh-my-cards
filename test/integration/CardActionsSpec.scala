@@ -26,9 +26,12 @@ class CardActionsSpec
   var token: String = ""
 
   override def beforeEach() = {
+    token = (new TestTokenProviderSvc(app.injector.instanceOf[Database])).getToken()
+  }
+
+  override def afterEach() = {
     cleanIndex()
     TestUtils.cleanupDb(app.injector.instanceOf[Database])
-    token = (new TestTokenProviderSvc(app.injector.instanceOf[Database])).getToken()
   }
 
   /**
@@ -44,9 +47,9 @@ class CardActionsSpec
   val index = "cards"
 
   "test create and get two cards paginated" taggedAs(FunctionalTestsTag) in {
-    val cardOneId:   String = cardActionWsHelper.postCardData("Foo1", "Bar1")
-    val cardTwoId:   String = cardActionWsHelper.postCardData("Foo2", "Bar2")
-    val cardThreeId: String = cardActionWsHelper.postCardData("Foo3", "Bar3")
+    val cardOneId:   String = cardActionWsHelper.postNewCard("Foo1", "Bar1")
+    val cardTwoId:   String = cardActionWsHelper.postNewCard("Foo2", "Bar2")
+    val cardThreeId: String = cardActionWsHelper.postNewCard("Foo3", "Bar3")
 
     refreshIdx(index)
 
@@ -68,7 +71,7 @@ class CardActionsSpec
 
   "Card creationg" should {
     "create a card with ref, updatedAt, createdAt" taggedAs(FunctionalTestsTag) in {
-      val id = cardActionWsHelper.postCardData("FOO", "BAR")
+      val id = cardActionWsHelper.postNewCard("FOO", "BAR")
       refreshIdx(index)
       val card = cardActionWsHelper.getCard(id)
 

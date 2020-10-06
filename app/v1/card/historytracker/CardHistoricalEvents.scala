@@ -1,7 +1,8 @@
 package v1.card.historytracker
 
 import org.joda.time.DateTime
-
+import play.api.libs.json.Writes
+import play.api.libs.json.Json
 
 /**
   * Represents a historical event for a card (creation, update, deletion)
@@ -10,6 +11,29 @@ sealed trait CardHistoricalEventLike {
   val datetime: DateTime
   val cardId: String
   val userId: String
+}
+
+object CardHistoricalEventLike {
+
+  import utils.JodaToJsonUtils._
+
+  implicit val writes: Writes[CardHistoricalEventLike] = new Writes[CardHistoricalEventLike] {
+    override def writes(x: CardHistoricalEventLike) = x match {
+      case CardCreation(datetime,_,_) => Json.obj(
+        "datetime" -> datetime,
+        "eventType" -> "creation"
+      )
+      case CardUpdate(datetime,_,_,fieldsUpdates) => Json.obj(
+        "datetime" -> datetime,
+        "eventType" -> "update",
+        "fieldUpdates" -> fieldsUpdates
+      )
+      case CardDeletion(datetime,_,_) => Json.obj(
+        "datetime" -> datetime,
+        "eventType" -> "deletion"
+      )
+    }
+  }
 }
 
 case class CardCreation(
@@ -40,6 +64,26 @@ sealed trait CardFieldUpdateLike {
     * The Name of the field being updated.
     */
   val fieldName: String
+}
+
+object CardFieldUpdateLike {
+
+  implicit val writes: Writes[CardFieldUpdateLike] = new Writes[CardFieldUpdateLike] {
+    override def writes(x: CardFieldUpdateLike) = x match {
+      case StringFieldUpdate(fieldName, oldValue, newValue) => Json.obj(
+        "fieldName" -> fieldName,
+        "fieldType" -> "string",
+        "oldValue" -> oldValue,
+        "newValue" -> newValue
+      )
+      case TagsFieldUpdate(fieldName, oldValue, newValue) => Json.obj(
+        "fieldName" -> fieldName,
+        "fieldType" -> "tags",
+        "oldValue" -> oldValue,
+        "newValue" -> newValue
+      )
+    }
+  }
 }
 
 /**

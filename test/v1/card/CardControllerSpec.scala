@@ -19,6 +19,17 @@ import play.api.inject.guice.GuiceApplicationBuilder
 import scala.concurrent.Future
 import play.api.mvc.Result
 import v1.card.elasticclient.CardElasticClientMock
+import v1.card.historytracker.CardCreation
+import v1.card.historytracker.CardUpdate
+import org.joda.time.DateTime
+import v1.card.historytracker.StringFieldUpdate
+import v1.card.historytracker.TagsFieldUpdate
+import play.api.mvc.ControllerComponents
+import org.mockito.MockitoSugar
+import v1.card.historytrackerhandler.HistoryTrackerHandlerLike
+import scala.concurrent.ExecutionContext
+import v1.auth.SilhouetteEnvWrapper
+import v1.card.historytracker.CardHistoricalEventLike
 
 trait CardListRequestParserTestUtils extends JsonUtils {
 
@@ -49,7 +60,8 @@ class CardControllerSpec
     with GuiceOneAppPerSuite
     with LoggedInUserAuthContext
     with BeforeAndAfter
-    with ScalaFutures {
+    with ScalaFutures
+    with MockitoSugar {
 
   var controller: CardController = null
   var db: Database = null
@@ -131,6 +143,62 @@ class CardControllerSpec
       //Expects the two tags to be on the response
       status(response) mustEqual 200
       contentAsJson(response) mustEqual Json.obj("tags" -> Seq("Tag1", "Tag2"))
+    }
+
+  }
+
+  "getHistory" should {
+
+    "returns the history from the history tracker handler" in {
+      val datetime = DateTime.parse("2021-10-10T12:00:00Z")
+      val createEvent = CardCreation(datetime, "1", user.id)
+      val bodyUpdate = StringFieldUpdate("body", "old", "new")
+      val tagUpdate = TagsFieldUpdate("tags", List("A"), List("B"))
+      val fieldUpdates = Seq(bodyUpdate, tagUpdate)
+      val updateEvent = CardUpdate(datetime, "1", user.id, fieldUpdates)
+      val updates: Seq[CardHistoricalEventLike] = Seq(createEvent, updateEvent)
+      val historyTrackerHandler = mock[HistoryTrackerHandlerLike]
+      when(historyTrackerHandler.get("1")).thenReturn(Future.successful(updates))
+
+      val controller = new CardController(
+        app.injector.instanceOf[ControllerComponents],
+        app.injector.instanceOf[CardResourceHandler],
+        app.injector.instanceOf[SilhouetteEnvWrapper].silhouette,
+        historyTrackerHandler
+      )(
+        app.injector.instanceOf[ExecutionContext]
+      )
+      val request = FakeRequest()
+
+      val response = controller.getHistory("1")(request)
+      status(response) mustEqual 200
+      contentAsJson(response) mustEqual Json.obj(
+        "history" -> Seq(
+          Json.obj(
+            "datetime" -> "2021-10-10T12:00:00.000Z",
+            "eventType" -> "creation"
+          ),
+          Json.obj(
+            "datetime" -> "2021-10-10T12:00:00.000Z",
+            "eventType" -> "update",
+            "fieldUpdates" -> Seq(
+              Json.obj(
+                "fieldName" -> "body",
+                "fieldType" -> "string",
+                "oldValue" -> "old",
+                "newValue" -> "new"
+              ),
+              Json.obj(
+                "fieldName" -> "tags",
+                "fieldType" -> "tags",
+                "oldValue" -> Seq("A"),
+                "newValue" -> Seq("B")
+              )
+            )
+          )
+        )
+      )
+
     }
 
   }

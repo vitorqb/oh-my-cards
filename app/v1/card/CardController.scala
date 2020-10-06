@@ -10,6 +10,7 @@ import com.mohiva.play.silhouette.api.Silhouette
 
 import v1.auth.{DefaultEnv}
 import v1.auth.User
+import v1.card.historytrackerhandler.HistoryTrackerHandlerLike
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext
 import services.InputParser
@@ -71,8 +72,11 @@ case class CardListRequestInput(
 class CardController @Inject()(
   val controllerComponents: ControllerComponents,
   val resourceHandler: CardResourceHandler,
-  val silhouette: Silhouette[DefaultEnv])(
-  implicit val ec: ExecutionContext)
+  val silhouette: Silhouette[DefaultEnv],
+  val historyTrackerHandler: HistoryTrackerHandlerLike
+)(
+  implicit val ec: ExecutionContext
+)
     extends BaseController with play.api.i18n.I18nSupport {
 
   private val logger = Logger(getClass)
@@ -137,7 +141,10 @@ class CardController @Inject()(
     parseUUID(id) match {
       case Bad(x) => Future(NotFound(x))
       case Good(x) => resourceHandler.delete(x, request.identity).map {
-        _ => NoContent
+        _ => {
+          logger.info(s"Deleted id $id!")
+          NoContent
+        }
       } recover {
         e => handleError(e)
       }
@@ -153,6 +160,19 @@ class CardController @Inject()(
     def serialize(m: CardMetadataResource) = Ok(Json.toJson(m))
 
     resourceHandler.getMetadata(request.identity).map(serialize _).recover(handleError _)
+  }
+
+  /**
+    * Returns the history for a card.
+    */
+  def getHistory(id: String) = silhouette.SecuredAction.async { implicit request =>
+    {
+      //!!!! TODO - WE NEED TO DOUBLE CHECK THE USER HAS ACCESS TO THIS HISTORY
+      historyTrackerHandler
+        .get(id)
+        .map(x => Ok(Json.obj("history" -> Json.toJson(x))))
+        .recover(handleError _)
+    }
   }
 
   /**

@@ -145,7 +145,7 @@ class CardResourceHandler @Inject()(
   }
 
   def delete(id: String, user: User): Future[Unit] = {
-    repository.get(id, user).map {
+    repository.get(id, user).flatMap {
       case Some(cardData) =>
         repository.delete(cardData, CardUpdateContext(user, clock.now, cardData))
 

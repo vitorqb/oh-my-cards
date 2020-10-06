@@ -24,13 +24,21 @@ class CardActionsWsHelper(wsClient: WSClient, port: Int, token: String) extends 
   def client(url: String = url) =
     wsClient.url(url).withHttpHeaders("Authorization" -> s"Bearer $token")
 
-  def postCardData(cardData: JsObject): String = {
+  def postNewCard(cardData: JsObject): String = {
     (client().post(cardData).futureValue.json \ "id").as[String]
   }
 
-  def postCardData(title: String, body: String): String = {
-    postCardData(Json.obj("title" -> title, "body" -> body))
+  def postNewCard(title: String, body: String): String = {
+    postNewCard(Json.obj("title" -> title, "body" -> body))
   }
+
+  def postCard(cardData: JsObject): Unit = {
+    val id = (cardData \ "id").as[String]
+    client(url + "/" + id).post(cardData).futureValue
+  }
+
+  def deleteCard(id: String): Unit =
+    client(url + "/" + id).delete().futureValue
 
   def getPagedCards(page: Int, pageSize: Int): JsValue =
     client()
@@ -39,7 +47,11 @@ class CardActionsWsHelper(wsClient: WSClient, port: Int, token: String) extends 
       .futureValue
       .json
 
-  def getCard(id: String): JsValue = client(url + s"/${id}").get().futureValue.json
+  def getCard(id: String): JsValue =
+    client(url + s"/${id}").get().futureValue.json
+
+  def getHistory(id: String): JsValue =
+    client(url + "/" + id + "/history").get().futureValue.json
 
 }
 
