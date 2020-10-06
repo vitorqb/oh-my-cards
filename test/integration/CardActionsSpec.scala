@@ -77,10 +77,7 @@ class CardActionsSpec
     * Overrides the default application to provide the ES client.
     */
   override def fakeApplication: Application =
-    new GuiceApplicationBuilder()
-      .overrides(new TestEsFakeModule)
-      .overrides(bind[CardElasticClientLike].to[CardElasticClientImpl])
-      .build()
+    new GuiceApplicationBuilder().overrides(new TestEsFakeModule).build()
 
   def wsClient: WSClient = app.injector.instanceOf[WSClient]
 
