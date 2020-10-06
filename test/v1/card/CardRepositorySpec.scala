@@ -102,22 +102,22 @@ class CardRepositorySpec
     val context = CardUpdateContext(user, now, cardData)
 
     "send delete msg to card data repository" in testContext { c =>
-      c.repo.delete(cardData, user).futureValue
+      c.repo.delete(cardData, context).futureValue
       verify(c.dataRepo).delete("1", user)(connection)
     }
 
     "send delete msg to tags repository" in testContext { c =>
-      c.repo.delete(cardData, user).futureValue
+      c.repo.delete(cardData, context).futureValue
       verify(c.tagsRepo).delete("1")(connection)
     }
 
     "send delete msg to es client" in testContext { c =>
-      c.repo.delete(cardData, user).futureValue
+      c.repo.delete(cardData, context).futureValue
       verify(c.esClient).delete("1")
     }
 
     "send delete msg to history tracker" in testContext { c =>
-      c.repo.delete(cardData, user).futureValue
+      c.repo.delete(cardData, context).futureValue
       verify(c.historyRecorder).registerDeletion(context)(connection)
     }
   }
@@ -166,7 +166,8 @@ class CardRepositoryIntegrationSpec
   val now = new DateTime(2000, 1, 1, 0, 0, 0)
   val baseCreateContext = CardCreationContext(user, now, "1", 1)
   val baseCardInput = CardFormInput("Title", Some("Body"), Some(List("Tag1", "TagTwo")))
-  val baseExpectedCardData = baseCardInput.asCardData("1", Some(now), Some(now), 1)
+  val baseExpectedCardData = baseCardInput.asCardData(baseCreateContext)
+  val baseUpdateContext = CardUpdateContext(user, now, baseExpectedCardData)
 
   case class TestContext(components: CardRepositoryComponentsLike, repo: CardRepositoryLike)
 
@@ -249,19 +250,20 @@ class CardRepositoryIntegrationSpec
     "create and delete a card" taggedAs(FunctionalTestsTag) in testContext { c =>
       c.repo.create(baseCardInput, baseCreateContext).futureValue
       refreshIdx()
-      c.repo.delete(baseExpectedCardData, user).futureValue
+      c.repo.delete(baseExpectedCardData, baseUpdateContext).futureValue
 
       c.repo.get("1", user).futureValue mustEqual None
     }
 
     "deletes a card that does not exist" taggedAs(FunctionalTestsTag) in testContext { c =>
-      c.repo.delete(baseExpectedCardData, user).failed.futureValue mustBe a[CardDoesNotExist]
+      c.repo.delete(baseExpectedCardData, baseUpdateContext).failed.futureValue mustBe a[CardDoesNotExist]
     }
 
     "deletes a card from other user" taggedAs(FunctionalTestsTag) in testContext { c =>
+      val updateContext = baseUpdateContext.copy(user=otherUser)
       c.repo.create(baseCardInput, baseCreateContext).futureValue
       refreshIdx()
-      c.repo.delete(baseExpectedCardData, otherUser).failed.futureValue mustBe a[CardDoesNotExist]
+      c.repo.delete(baseExpectedCardData, updateContext).failed.futureValue mustBe a[CardDoesNotExist]
     }
 
     "create three cards and find 2 with search term" taggedAs(FunctionalTestsTag) in testContext { c =>

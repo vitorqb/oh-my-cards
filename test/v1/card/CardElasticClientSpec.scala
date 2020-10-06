@@ -38,6 +38,7 @@ import v1.card.cardrepositorycomponents.CardRepositoryComponentsLike
 import v1.card.CardRepositoryLike
 import v1.card.TagsRepositoryLike
 import v1.card.CardElasticClientLike
+import v1.card.CardUpdateContext
 
 class CardElasticIdFinderSpec extends PlaySpec with MockitoSugar with ScalaFutures {
 
@@ -226,8 +227,9 @@ class CardElasticClientFunctionalSpec
       resultAfter.hits.hits.head.sourceAsMap("updatedAt").asInstanceOf[String] mustEqual "2020-01-04T00:00:00.000Z"
 
       //Need to mock the clock for deletion
-      when(c.components.clock.now).thenReturn(DateTime.parse("2020-01-10T00:00:00Z"))
-      c.cardRepo.delete(cardData4, user).await
+      val datetime = DateTime.parse("2020-01-10T00:00:00Z")
+      val updateContext = CardUpdateContext(user, datetime, cardData4)
+      c.cardRepo.delete(cardData4, updateContext).await
       refreshIdx()
       client.execute(queryByTitleAndBody).await.result.hits.total.value == 0
 

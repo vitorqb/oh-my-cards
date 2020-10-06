@@ -146,8 +146,11 @@ class CardResourceHandler @Inject()(
 
   def delete(id: String, user: User): Future[Unit] = {
     repository.get(id, user).map {
-      case Some(cardData) => repository.delete(cardData, user)
-      case None           => throw new CardDoesNotExist
+      case Some(cardData) =>
+        repository.delete(cardData, CardUpdateContext(user, clock.now, cardData))
+
+      case None =>
+        throw new CardDoesNotExist
     }
   }
 
