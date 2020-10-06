@@ -162,11 +162,8 @@ class CardResourceHandler @Inject()(
     get(id, user).flatMap {
       case Some(oldCardResource) => oldCardResource.updateWith(input) match {
         case Success(newCardResource) => {
-          repository.update(
-            oldCardResource.asCardData,
-            newCardResource.asCardData,
-            user
-          ) flatMap { _ =>
+          val context = CardUpdateContext(user, clock.now, oldCardResource.asCardData)
+          repository.update(newCardResource.asCardData, context) flatMap { _ =>
             get(id, user).map(_.get)
           }
         }

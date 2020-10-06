@@ -165,7 +165,7 @@ class CardResourceHandlerSpec
       "Fail if card update fails" in {
         val e = new Exception
         when(repository.get(id, user)).thenReturn(Future.successful(Some(cardData)))
-        when(repository.update(any, any, eqTo(user))).thenReturn(Future.failed(e))
+        when(repository.update(any, any)).thenReturn(Future.failed(e))
         handler.update(id, input, user).failed.futureValue mustEqual e
       }
     }

@@ -129,22 +129,22 @@ class CardRepositorySpec
     val context = CardUpdateContext(user, now, oldData)
 
     "send update msg to card data repository" in testContext { c =>
-      c.repo.update(oldData, data, user).futureValue
+      c.repo.update(data, context).futureValue
       verify(c.dataRepo).update(data, context)(connection)
     }
 
     "send update msg to tags repository" in testContext { c =>
-      c.repo.update(oldData, data, user).futureValue
+      c.repo.update(data, context).futureValue
       verify(c.tagsRepo).update(data)(connection)
     }
 
     "send update msg to es client" in testContext { c =>
-      c.repo.update(oldData, data, user).futureValue
+      c.repo.update(data, context).futureValue
       verify(c.esClient).update(data, context)
     }
 
     "send update msg to history tracker" in testContext { c =>
-      c.repo.update(oldData, data, user).futureValue
+      c.repo.update(data, context).futureValue
       verify(c.historyRecorder).registerUpdate(data, context)(connection)
     }
 }
@@ -242,7 +242,8 @@ class CardRepositoryIntegrationSpec
 
       val oldCardData = baseExpectedCardData
       val newCardData = baseExpectedCardData.copy(title="A", body="B", tags=List())
-      c.repo.update(oldCardData, newCardData, user).futureValue
+      val context = CardUpdateContext(user, now, oldCardData)
+      c.repo.update(newCardData, context).futureValue
 
       c.repo.get("1", user).futureValue mustEqual Some(newCardData)
     }

@@ -140,7 +140,7 @@ trait CardRepositoryLike {
   def get(id: String, user: User): Future[Option[CardData]]
   def find(request: CardListRequest): Future[FindResult]
   def delete(data: CardData, context: CardUpdateContext): Future[Unit]
-  def update(oldData: CardData, data: CardData, user: User): Future[Unit]
+  def update(data: CardData, context: CardUpdateContext): Future[Unit]
   def getAllTags(user: User): Future[List[String]]
 }
 
@@ -252,10 +252,7 @@ class CardRepository(
     }
   }
 
-  //!!!! TODO -> Should we just pass the context here, and in create/delete?
-  //!!!!         it feels weird to have to pass oldData.
-  override def update(oldData: CardData, data: CardData, user: User): Future[Unit] = Future {
-    val context = CardUpdateContext(user, components.clock.now, oldData)
+  override def update(data: CardData, context: CardUpdateContext): Future[Unit] = Future {
     components.db.withTransaction { implicit c =>
       dataRepo.update(data, context)
       tagsRepo.update(data)
