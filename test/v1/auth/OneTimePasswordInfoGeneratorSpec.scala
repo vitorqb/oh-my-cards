@@ -1,6 +1,5 @@
 package v1.auth
 
-import org.scalatest._
 import org.scalatestplus.play._
 import org.scalatestplus.mockito.MockitoSugar
 

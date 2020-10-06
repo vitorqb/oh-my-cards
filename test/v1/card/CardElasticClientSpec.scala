@@ -2,8 +2,6 @@ package v1.card.elasticclient
 
 import v1.card.tagsrepository._
 
-import scala.language.reflectiveCalls
-
 import org.scalatestplus.play.PlaySpec
 import com.sksamuel.elastic4s.ElasticClient
 import org.scalatestplus.mockito.MockitoSugar
@@ -14,34 +12,31 @@ import com.sksamuel.elastic4s.RequestSuccess
 import com.sksamuel.elastic4s.requests.searches.SearchResponse
 import com.sksamuel.elastic4s.requests.searches.SearchHit
 import com.sksamuel.elastic4s.requests.searches.SearchHits
-import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import v1.admin.testUtils.TestEsClient
-import org.scalatest.BeforeAndAfter
 import test.utils.TestUtils
-import play.api.db.Database
 import org.joda.time.DateTime
 import test.utils.FunctionalTestsTag
-import play.api.Application
-import play.api.inject.guice.GuiceApplicationBuilder
-import play.api.inject.bind
 import v1.auth.User
 import test.utils.WaitUntil
-import org.joda.time.format.ISODateTimeFormat
-import org.scalatest.BeforeAndAfterAll
 import com.sksamuel.elastic4s.requests.searches.Total
 import org.scalatest.time.Span
 import org.scalatest.time.Millis
 
-import v1.card.testUtils._
 import scala.concurrent.ExecutionContext
-import v1.card.CardRefGenerator.CardRefGenerator
-import v1.card.cardrepositorycomponents.CardRepositoryComponentsLike
-import v1.card.cardrepositorycomponents.CardRepositoryComponents
 import v1.card.CardListRequest
 import v1.card.CardFormInput
 import v1.card.CardDataRepository
 import v1.card.CardRepository
 import v1.card.TagsFilterMiniLangSyntaxError
+import v1.card.historytracker.HistoricalEventCoreRepository
+import v1.card.historytracker.CardUpdateDataRepository
+import services.CounterUUIDGenerator
+import v1.card.historytracker.CardHistoryTracker
+import v1.card.CardCreationContext
+import v1.card.CardRepositoryLike
+import v1.card.TagsRepositoryLike
+import v1.card.CardElasticClientLike
+import v1.card.CardUpdateContext
 
 class CardElasticIdFinderSpec extends PlaySpec with MockitoSugar with ScalaFutures {
 
@@ -133,55 +128,69 @@ class CardElasticClientFunctionalSpec
     */
   val user = User("UserId", "Email")
   val cardListRequest = CardListRequest(1, 100, user.id, List(), List(), None, None)
-  def getNowAsISOString = ISODateTimeFormat.dateTime().print(DateTime.now)
 
-  val cardFixtures = new CardFixtureRepository() {
-    val f1 = CardFixture(
-      "id1",
-      CardFormInput("HELLO WORLD", Some(""), Some(List("T1", "T2"))),
-      DateTime.parse("2020-01-01T00:00:00Z")
-    )
+  val cardInput1 = CardFormInput("HELLO WORLD", Some(""), Some(List("T1", "T2")))
+  val cardContext1 = CardCreationContext(user, DateTime.parse("2020-01-01T00:00:00Z"), "id1", 1)
+  val cardData1 = cardInput1.asCardData(cardContext1)
 
-    val f2 = CardFixture(
-      "id2",
-      CardFormInput("FOO BYE", Some(""), Some(List("T1", "T3"))),
-      DateTime.parse("2020-01-02T00:00:00Z")
-    )
+  val cardInput2 = CardFormInput("FOO BYE", Some(""), Some(List("T1", "T3")))
+  val cardContext2 = CardCreationContext(user, DateTime.parse("2020-01-02T00:00:00Z"), "id2", 2)
+  val cardData2 = cardInput2.asCardData(cardContext2)
 
-    val f3 = CardFixture(
-      "id3",
-      CardFormInput("BAR", Some("FOO BAR"), Some(List())),
-      DateTime.parse("2020-01-03T00:00:00Z")
-    )
+  val cardInput3 = CardFormInput("BAR", Some("FOO BAR"), Some(List()))
+  val cardContext3 = CardCreationContext(user, DateTime.parse("2020-01-03T00:00:00Z"), "id3", 3)
+  val cardData3 = cardInput3.asCardData(cardContext3)
 
-    val f4 = CardFixture(
-      "id4",
-      CardFormInput("BYE BYE DUDE", Some("I SAID BYE"), Some(List("T1", "T2", "T4"))),
-      DateTime.parse("2020-01-04T00:00:00Z")
-    )
+  val cardInput4 = CardFormInput("BYE BYE DUDE", Some("I SAID BYE"), Some(List("T1", "T2", "T4")))
+  val cardContext4 = CardCreationContext(user, DateTime.parse("2020-01-04T00:00:00Z"), "id4", 4)
+  val cardData4 = cardInput4.asCardData(cardContext4)
 
-    def allFixtures() = Seq(f1, f2, f3, f4)
+  val allInputs = Seq(cardInput1, cardInput2, cardInput3, cardInput4)
+  val allContexts = Seq(cardContext1, cardContext2, cardContext3, cardContext4)
+  val allFixtures = allInputs.zip(allContexts)
+
+  case class TestContext(
+    val cardRepo: CardRepositoryLike,
+    val tagsRepo: TagsRepositoryLike,
+    val cardElasticClient: CardElasticClientLike,
+    val user: User
+  ) {
+
+    def saveCardsToDb(): Unit = allFixtures.foreach(x => saveCardToDb(x._1, x._2))
+    def saveCardToDb(input: CardFormInput, context: CardCreationContext): String =
+      cardRepo.create(input, context).futureValue
+
   }
 
   def testContext(block: TestContext => Any) = {
     TestUtils.testDB { db =>
+      val cardHistoryCoreRepo = new HistoricalEventCoreRepository
+      val cardHistoryUpdateRepo = new CardUpdateDataRepository(new CounterUUIDGenerator)
+      val historyRecorder = new CardHistoryTracker(
+        new CounterUUIDGenerator,
+        cardHistoryCoreRepo,
+        cardHistoryUpdateRepo
+      )
       val dataRepo = new CardDataRepository
       val tagsRepo = new TagsRepository
       val cardElasticClient = new CardElasticClientImpl(client)
-      val components = ComponentsBuilder().withDb(db).build()
+      val cardRepo = new CardRepository(
+        dataRepo,
+        tagsRepo,
+        cardElasticClient,
+        historyRecorder,
+        db
+      )
       val testContext = TestContext(
-        components=components,
-        cardRepo=new CardRepository(dataRepo, tagsRepo, cardElasticClient, components),
+        cardRepo=cardRepo,
         tagsRepo=tagsRepo,
         cardElasticClient=cardElasticClient,
-        cardFixtures=cardFixtures,
         user=user
       )
       try {
         block(testContext)
       } finally {
-        TestUtils.cleanupDb(db)
-        cleanIndex(index)
+        cleanIndex()
       }
     }
   }
@@ -191,17 +200,15 @@ class CardElasticClientFunctionalSpec
     "Create and delete a card" taggedAs(FunctionalTestsTag) in testContext { c =>
       import com.sksamuel.elastic4s.ElasticDsl._
 
-      val fixture = cardFixtures.f4
-
       val queryByTitleAndBody = search(index).query(
         boolQuery().must(
-          matchQuery("title", fixture.formInput.title),
-          matchQuery("body", fixture.formInput.body.get)
+          matchQuery("title", cardInput4.title),
+          matchQuery("body", cardInput4.body.get)
         )
       )
 
-      val id = c.createCardInDb(fixture)
-      refreshIdx(index)
+      val id = c.saveCardToDb(cardInput4, cardContext4)
+      refreshIdx()
       val cardData = c.cardRepo.get(id, c.user).futureValue.get
 
       val resultAfter = client.execute(queryByTitleAndBody).await.result
@@ -214,8 +221,11 @@ class CardElasticClientFunctionalSpec
       resultAfter.hits.hits.head.sourceAsMap("createdAt").asInstanceOf[String] mustEqual "2020-01-04T00:00:00.000Z"
       resultAfter.hits.hits.head.sourceAsMap("updatedAt").asInstanceOf[String] mustEqual "2020-01-04T00:00:00.000Z"
 
-      c.cardRepo.delete(id, user).await
-      refreshIdx(index)
+      //Need to mock the clock for deletion
+      val datetime = DateTime.parse("2020-01-10T00:00:00Z")
+      val updateContext = CardUpdateContext(user, datetime, cardData4)
+      c.cardRepo.delete(cardData4, updateContext).await
+      refreshIdx()
       client.execute(queryByTitleAndBody).await.result.hits.total.value == 0
 
       val resultAfterDelete = client.execute(queryByTitleAndBody).await.result
@@ -226,7 +236,7 @@ class CardElasticClientFunctionalSpec
 
       "find no match if user has no cards" taggedAs(FunctionalTestsTag) in testContext { c =>
         c.saveCardsToDb()
-        refreshIdx(index)
+        refreshIdx()
         val result = c.cardElasticClient.findIds(cardListRequest.copy(userId="NOT_AN_USER_ID")).futureValue
         result.ids mustEqual List()
         result.countOfItems mustEqual 0
@@ -234,9 +244,9 @@ class CardElasticClientFunctionalSpec
 
       "find all ids if user has cards" taggedAs(FunctionalTestsTag) in testContext { c =>
         c.saveCardsToDb()
-        refreshIdx(index)
+        refreshIdx()
         val result = c.cardElasticClient.findIds(cardListRequest).futureValue
-        result.ids mustEqual cardFixtures.allFixtures().map(_.id).reverse;
+        result.ids mustEqual allContexts.map(_.id).reverse;
         result.countOfItems mustEqual 4
       }
 
@@ -248,23 +258,23 @@ class CardElasticClientFunctionalSpec
 
     "Find first page with 2 cards" taggedAs(FunctionalTestsTag) in testContext { c =>
       c.saveCardsToDb()
-      refreshIdx(index)
+      refreshIdx()
       val result = c.cardElasticClient.findIds(cardListRequest.copy(pageSize=2)).futureValue
-      result.ids mustEqual List(cardFixtures.f4.id, cardFixtures.f3.id)
+      result.ids mustEqual List(cardContext4.id, cardContext3.id)
       result.countOfItems mustEqual 4
     }
 
     "Find second page with 2 cards" taggedAs(FunctionalTestsTag) in testContext { c =>
       c.saveCardsToDb()
-      refreshIdx(index)
+      refreshIdx()
       val result = c.cardElasticClient.findIds(cardListRequest.copy(pageSize=2, page=2)).futureValue
-      result.ids mustEqual List(cardFixtures.f2.id, cardFixtures.f1.id)
+      result.ids mustEqual List(cardContext2.id, cardContext1.id)
       result.countOfItems mustEqual 4
     }
 
     "Find last page with no cards" taggedAs(FunctionalTestsTag) in testContext { c =>
       c.saveCardsToDb()
-      refreshIdx(index)
+      refreshIdx()
       val result = c.cardElasticClient.findIds(cardListRequest.copy(pageSize=2, page=3)).futureValue
       result.ids mustEqual List()
       result.countOfItems mustEqual 4
@@ -275,31 +285,31 @@ class CardElasticClientFunctionalSpec
 
     "match more than one" taggedAs(FunctionalTestsTag) in testContext { c =>
       c.saveCardsToDb()
-      refreshIdx(index)
+      refreshIdx()
       val result = c.cardElasticClient.findIds(cardListRequest.copy(searchTerm=Some("fOo"))).futureValue
-      result.ids mustEqual List(cardFixtures.f2.id, cardFixtures.f3.id)
+      result.ids mustEqual List(cardContext2.id, cardContext3.id)
       result.countOfItems mustEqual 2
     }
 
     "match one by body" taggedAs(FunctionalTestsTag) in testContext { c =>
       c.saveCardsToDb()
-      refreshIdx(index)
+      refreshIdx()
       val result = c.cardElasticClient.findIds(cardListRequest.copy(searchTerm=Some("I SAID"))).futureValue
-      result.ids mustEqual List(cardFixtures.f4.id)
+      result.ids mustEqual List(cardContext4.id)
       result.countOfItems mustEqual 1
     }
 
     "match one by title" taggedAs(FunctionalTestsTag) in testContext { c =>
       c.saveCardsToDb()
-      refreshIdx(index)
+      refreshIdx()
       val result = c.cardElasticClient.findIds(cardListRequest.copy(searchTerm=Some("HELLO"))).futureValue
-      result.ids mustEqual List(cardFixtures.f1.id)
+      result.ids mustEqual List(cardContext1.id)
       result.countOfItems mustEqual 1
     }
 
     "match zero"  taggedAs(FunctionalTestsTag) in testContext { c =>
       c.saveCardsToDb()
-      refreshIdx(index)
+      refreshIdx()
       val result = c.cardElasticClient.findIds(cardListRequest.copy(searchTerm=Some("&*@^!"))).futureValue
       result.ids mustEqual List()
       result.countOfItems mustEqual 0
@@ -310,28 +320,28 @@ class CardElasticClientFunctionalSpec
 
     "match more than one" taggedAs(FunctionalTestsTag) in testContext { c =>
       c.saveCardsToDb()
-      refreshIdx(index)
+      refreshIdx()
       val query = Some("""((tags CONTAINS 'T1'))""")
       val result = c.cardElasticClient.findIds(cardListRequest.copy(query=query)).futureValue
-      result.ids mustEqual List(cardFixtures.f4.id, cardFixtures.f2.id, cardFixtures.f1.id)
+      result.ids mustEqual List(cardContext4.id, cardContext2.id, cardContext1.id)
       result.countOfItems mustEqual 3
     }
 
     "match one" taggedAs(FunctionalTestsTag) in testContext { c =>
       c.saveCardsToDb()
-      refreshIdx(index)
+      refreshIdx()
       val query = Some("""((tags CONTAINS 'T1') AND (tags CONTAINS 'T2') AND (tags CONTAINS 'T4'))""")
       val result = c.cardElasticClient.findIds(cardListRequest.copy(query=query)).futureValue
-      result.ids mustEqual List(cardFixtures.f4.id)
+      result.ids mustEqual List(cardContext4.id)
       result.countOfItems mustEqual 1
     }
 
     "match with or" taggedAs(FunctionalTestsTag) in testContext { c =>
       c.saveCardsToDb()
-      refreshIdx(index)
+      refreshIdx()
       val query = Some("""((tags CONTAINS 'T3') OR (tags CONTAINS 'T4'))""")
       val result = c.cardElasticClient.findIds(cardListRequest.copy(query=query)).futureValue
-      result.ids mustEqual List(cardFixtures.f2.id, cardFixtures.f4.id)
+      result.ids mustEqual List(cardContext2.id, cardContext4.id)
       result.countOfItems mustEqual 2
     }
 
@@ -341,33 +351,37 @@ class CardElasticClientFunctionalSpec
 
     val date1 = DateTime.parse("2000-01-01T00:00:00")
     val date2 = DateTime.parse("2020-01-01T00:00:00")
-    val searchTerm = cardFixtures.f1.formInput.title
+    val searchTerm = cardInput1.title
     val request = cardListRequest.copy(searchTerm=Some(searchTerm))
     def runQuery(c: TestContext) = c.cardElasticClient.findIds(request)
 
     "if the score is the same, sort by createdAt" taggedAs(FunctionalTestsTag) in testContext { c =>
-      val fixture1 = cardFixtures.f1.copy(id="1", datetime=date1)
-      val fixture2 = fixture1.copy(id="2", datetime=date2)
+      val cardInput_1 = cardInput1
+      val cardContext_1 = cardContext1.copy(id="1", now=date1, ref=1)
 
-      c.createCardInDb(fixture1)
-      c.createCardInDb(fixture2)
+      val cardInput_2 = cardInput1
+      val cardContext_2 = cardContext1.copy(id="2", now=date2, ref=2)
 
-      refreshIdx(index)
+      c.saveCardToDb(cardInput_1, cardContext_1)
+      c.saveCardToDb(cardInput_2, cardContext_2)
+
+      refreshIdx()
       val result = runQuery(c).futureValue
 
       result.ids mustEqual List("2", "1")
     }
 
     "if the score is not the same, sort by score" taggedAs(FunctionalTestsTag) in testContext { c =>
-      val formInput1 = cardFixtures.f1.formInput.copy(title=searchTerm)
-      val fixture1 = cardFixtures.f1.copy(id="1", formInput=formInput1, datetime=date1)
-      val formInput2 = formInput1.copy(title=searchTerm.substring(1, searchTerm.length()))
-      val fixture2 = fixture1.copy(id="2", formInput=formInput2, datetime=date2)
+      val cardInput_1 = cardInput1.copy(title=searchTerm)
+      val cardContext_1 = cardContext1.copy(id="1", now=date1, ref=1)
 
-      c.createCardInDb(fixture1)
-      c.createCardInDb(fixture2)
+      val cardInput_2 = cardInput1.copy(title=searchTerm.substring(1, searchTerm.length()))
+      val cardContext_2 = cardContext_1.copy(id="2", now=date2, ref=2)
 
-      refreshIdx(index)
+      c.saveCardToDb(cardInput_1, cardContext_1)
+      c.saveCardToDb(cardInput_2, cardContext_2)
+
+      refreshIdx()
       val result = runQuery(c).futureValue
 
       result.ids mustEqual List("1", "2")
@@ -379,7 +393,7 @@ class CardElasticClientFunctionalSpec
 
     "tags, pagination and body match" taggedAs(FunctionalTestsTag) in testContext { c =>
       c.saveCardsToDb()
-      refreshIdx(index)
+      refreshIdx()
       val query = Some(
         """((tags CONTAINS 't3') OR ((tags CONTAINS 'T1') AND (tags CONTAINS 'T2')))"""
       )

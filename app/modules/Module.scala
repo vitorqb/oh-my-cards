@@ -15,11 +15,7 @@ import com.sksamuel.elastic4s.ElasticProperties
 import com.sksamuel.elastic4s.http.JavaClient
 import v1.card.elasticclient.{CardElasticClientMock,CardElasticClientImpl}
 import services.SendgridMailServiceImpl
-import v1.card.CardRefGenerator.CardRefGenerator
-import v1.card.CardRefGenerator.CardRefGeneratorLike
 import play.api.db.Database
-import v1.card.cardrepositorycomponents.CardRepositoryComponentsLike
-import v1.card.cardrepositorycomponents.CardRepositoryComponents
 import v1.card.tagsrepository.TagsRepository
 import v1.card.TagsRepositoryLike
 import v1.card.CardRepositoryLike
@@ -29,6 +25,13 @@ import v1.card.CardDataRepository
 import v1.card.CardElasticClientLike
 import com.mohiva.play.silhouette.api.util.{Clock=>SilhouetteClock}
 import services.UUIDGenerator
+import v1.card.CardHistoryRecorderLike
+import v1.card.historytracker.CardHistoryTracker
+import v1.card.historytracker.HistoricalEventCoreRepositoryLike
+import v1.card.historytracker.CardUpdateDataRepositoryLike
+import v1.card.historytracker.HistoricalEventCoreRepository
+import v1.card.historytracker.CardUpdateDataRepository
+import services.referencecounter.{ReferenceCounter,ReferenceCounterLike}
 
 class Module extends AbstractModule with ScalaModule {
 
@@ -97,30 +100,40 @@ class Module extends AbstractModule with ScalaModule {
   }
 
   @Provides
-  def cardRefGenerator(db: Database): CardRefGeneratorLike = new CardRefGenerator(db)
+  def cardRefGenerator(db: Database): ReferenceCounterLike = new ReferenceCounter(db)
 
   @Provides
   def tagsRepository(): TagsRepositoryLike = new TagsRepository()
+
+  @Provides
+  def historicalEventCoreRepositoryLike(): HistoricalEventCoreRepositoryLike =
+    new HistoricalEventCoreRepository
+
+  @Provides
+  def cardUpdateDataRepositoryLike(
+    uuidGenerator: UUIDGeneratorLike,
+  ): CardUpdateDataRepositoryLike =
+    new CardUpdateDataRepository(uuidGenerator)
+
+  @Provides
+  def cardHistoryRecorder(
+    uuidGenerator: UUIDGeneratorLike,
+    coreRepo: HistoricalEventCoreRepositoryLike,
+    updateRepo: CardUpdateDataRepositoryLike
+  ): CardHistoryRecorderLike =
+    new CardHistoryTracker(uuidGenerator, coreRepo, updateRepo)
 
   @Provides
   def cardRepository(
     dataRepo: CardDataRepositoryLike,
     tagsRepo: TagsRepositoryLike,
     esClient: CardElasticClientLike,
-    components: CardRepositoryComponentsLike
+    historyRecorder: CardHistoryRecorderLike,
+    db: Database
   )(
     implicit ec: ExecutionContext
   ): CardRepositoryLike =
-    new CardRepository(dataRepo, tagsRepo, esClient, components)
-
-  @Provides
-  def cardRepositoryComponents(
-    db: Database,
-    uuidGenerator: UUIDGeneratorLike,
-    refGenerator: CardRefGeneratorLike,
-    clock: SilhouetteClock
-  ): CardRepositoryComponentsLike =
-    new CardRepositoryComponents(db, uuidGenerator, refGenerator, clock)
+    new CardRepository(dataRepo, tagsRepo, esClient, historyRecorder, db)
 
   @Provides
   def cardDataRepository()(implicit ec: ExecutionContext): CardDataRepositoryLike =

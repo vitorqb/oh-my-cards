@@ -1,7 +1,6 @@
 package services
 
 import org.scalatestplus.play._
-import org.scalatestplus.play.guice._
 
 class RandomStringGeneratorSpec extends PlaySpec {
 

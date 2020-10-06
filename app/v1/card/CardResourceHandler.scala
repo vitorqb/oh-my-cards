@@ -1,5 +1,5 @@
 package v1.card
-
+ 
 import javax.inject.Inject
 import scala.util.{Try,Success,Failure}
 import play.api.libs.json.{Json,Format}
@@ -8,6 +8,9 @@ import scala.concurrent.Future
 import scala.concurrent.ExecutionContext
 import org.joda.time.DateTime
 import utils.JodaToJsonUtils._
+import com.mohiva.play.silhouette.api.util.{Clock=>SilhouetteClock}
+import services.referencecounter.ReferenceCounterLike
+import services.UUIDGeneratorLike
 
 /**
   * Custom exceptions.
@@ -116,7 +119,10 @@ object CardListResponse {
   * A resource handler for Cards.
   */
 class CardResourceHandler @Inject()(
-  val repository: CardRepositoryLike
+  val repository: CardRepositoryLike,
+  val clock: SilhouetteClock,
+  val refCounter: ReferenceCounterLike,
+  val uuidGenerator: UUIDGeneratorLike
 )(
   implicit val ec: ExecutionContext){
 
@@ -129,7 +135,8 @@ class CardResourceHandler @Inject()(
   } yield cardListResponse
 
   def create(input: CardFormInput, user: User): Future[CardResource] = {
-    repository.create(input, user).flatMap(createdDataId =>
+    val context = CardCreationContext(user, clock.now, uuidGenerator.generate(), refCounter.nextRef())
+    repository.create(input, context).flatMap(createdDataId =>
       get(createdDataId, user).map {
         case Some(cardResource) => cardResource
         case None => throw new RuntimeException("Could not find created resource!")
@@ -138,7 +145,13 @@ class CardResourceHandler @Inject()(
   }
 
   def delete(id: String, user: User): Future[Unit] = {
-    repository.delete(id, user)
+    repository.get(id, user).map {
+      case Some(cardData) =>
+        repository.delete(cardData, CardUpdateContext(user, clock.now, cardData))
+
+      case None =>
+        throw new CardDoesNotExist
+    }
   }
 
   def get(id: String, user: User): Future[Option[CardResource]] = {
@@ -147,9 +160,12 @@ class CardResourceHandler @Inject()(
 
   def update(id: String, input: CardFormInput, user: User): Future[CardResource] =
     get(id, user).flatMap {
-      case Some(cardResource) => cardResource.updateWith(input) match {
-        case Success(cardResource) => repository.update(cardResource.asCardData, user).flatMap { _ =>
-          get(id, user).map(_.get)
+      case Some(oldCardResource) => oldCardResource.updateWith(input) match {
+        case Success(newCardResource) => {
+          val context = CardUpdateContext(user, clock.now, oldCardResource.asCardData)
+          repository.update(newCardResource.asCardData, context) flatMap { _ =>
+            get(id, user).map(_.get)
+          }
         }
         case Failure(e) => throw e
       }

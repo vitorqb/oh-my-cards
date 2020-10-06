@@ -20,7 +20,6 @@ import play.api.i18n.MessagesProvider
 import play.api.i18n.MessagesImpl
 import play.api.i18n.Lang
 import play.api.i18n.DefaultMessagesApi
-import com.google.inject.Provider
 import org.scalatest.Tag
 
 /**
@@ -32,6 +31,7 @@ object TestUtils {
 
   val dbDriver = "org.sqlite.JDBC"
   val dbUrl = "jdbc:sqlite:test.sqlite"
+  lazy val db = Databases(dbDriver, dbUrl)
 
   def getDb(): Database = {
     val out = Databases(dbDriver, dbUrl)
@@ -54,6 +54,10 @@ object TestUtils {
       SQL("DELETE FROM cardGridConfigIncludeTags").execute()
       SQL("DELETE FROM cardGridConfigExcludeTags").execute()
       SQL("DELETE FROM cardGridProfiles").execute()
+      SQL("DELETE FROM cardHistoricalEvents").execute()
+      SQL("DELETE FROM cardStringFieldUpdates").execute()
+      SQL("DELETE FROM cardTagsFieldUpdates").execute()
+      SQL("UPDATE counters SET value = 1000 WHERE id = 'baseCounter'").execute()
     }
   }
 
@@ -61,17 +65,15 @@ object TestUtils {
     * Used as a context manager for tests with db.
     */
   def testDB[T](block: Database => T) = {
-    Databases.withDatabase(dbDriver, dbUrl) { db =>
-      if (! dbInitialized) {
-        Evolutions.cleanupEvolutions(db)
-        Evolutions.applyEvolutions(db)
-        dbInitialized = true
-      }
-      try {
-        block(db)
-      } finally {
-        cleanupDb(db)
-      }
+    if (! dbInitialized) {
+      Evolutions.cleanupEvolutions(db)
+      Evolutions.applyEvolutions(db)
+      dbInitialized = true
+    }
+    try {
+      block(db)
+    } finally {
+      cleanupDb(db)
     }
   }
 

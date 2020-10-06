@@ -20,7 +20,7 @@ class CardDataRepository extends CardDataRepositoryLike {
   /**
     * A parser for CardData.
     */
-  private def cardDataParser()(implicit c: Connection): RowParser[CardData] = {
+  private def cardDataParser(): RowParser[CardData] = {
     import anorm._
 
     (

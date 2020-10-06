@@ -4,25 +4,22 @@ import org.scalatestplus.play.PlaySpec
 import v1.admin.testUtils.TestEsClient
 import test.utils.TestUtils
 import play.api.db.Database
-import v1.card.CardData
-import org.joda.time.DateTime
-import org.scalatestplus.mockito.MockitoSugar
-import org.mockito.Mockito._
-import v1.card.CardDataRepository
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import v1.auth.User
 import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
-import com.sksamuel.elastic4s.ElasticClient
 import test.utils.FunctionalTestsTag
 import org.scalatest.BeforeAndAfter
 import play.api.inject.bind
-import v1.card.testUtils.CardFixture
 import v1.card.CardFormInput
 import v1.card.CardRepositoryLike
 import org.scalatest.concurrent.ScalaFutures
 import v1.card.CardElasticClientLike
 import v1.card.elasticclient.CardElasticClientImpl
+import v1.card.CardCreationContext
+import com.mohiva.play.silhouette.api.util.{Clock => SilhouetteClock}
+import services.UUIDGeneratorLike
+import services.referencecounter.ReferenceCounterLike
 
 class ElasticSearchSynchronizerSpec
     extends PlaySpec
@@ -44,14 +41,14 @@ class ElasticSearchSynchronizerSpec
 
   before {
     TestUtils.cleanupDb(app.injector.instanceOf[Database])
-    cleanIndex(index)
-    refreshIdx(index)
+    cleanIndex()
+    refreshIdx()
   }
 
   after {
     TestUtils.cleanupDb(app.injector.instanceOf[Database])
-    cleanIndex(index)
-    refreshIdx(index)
+    cleanIndex()
+    refreshIdx()
   }
 
   "run" should {
@@ -64,21 +61,28 @@ class ElasticSearchSynchronizerSpec
 
     def createThreeCardsOnDb() = {
       val repository: CardRepositoryLike = app.injector.instanceOf[CardRepositoryLike]
-      val idOne = repository.create(cardInput1, user).futureValue
-      val idTwo = repository.create(cardInput2, user).futureValue
-      val idThree = repository.create(cardInput3, user).futureValue
+      val clock = app.injector.instanceOf[SilhouetteClock]
+      val uuidGenerator = app.injector.instanceOf[UUIDGeneratorLike]
+      val refGenerator = app.injector.instanceOf[ReferenceCounterLike]
+      //!!!! TODO How could we make this nicer?
+      val context1 = CardCreationContext(user, clock.now, uuidGenerator.generate, refGenerator.nextRef)
+      val idOne = repository.create(cardInput1, context1).futureValue
+      val context2 = CardCreationContext(user, clock.now, uuidGenerator.generate, refGenerator.nextRef)
+      val idTwo = repository.create(cardInput2, context2).futureValue
+      val context3 = CardCreationContext(user, clock.now, uuidGenerator.generate, refGenerator.nextRef)
+      val idThree = repository.create(cardInput3, context3).futureValue
       (idOne, idTwo, idThree)
     }
 
     "Send all items to es client" taggedAs(FunctionalTestsTag) in {
       val (idOne, idTwo, idThree) = createThreeCardsOnDb()
-      cleanIndex(index)
-      refreshIdx(index)
+      cleanIndex()
+      refreshIdx()
 
       val synchronizer = app.injector.instanceOf[ElasticSearchSynchornizer]
       synchronizer.deleteStaleEntries().await
       synchronizer.updateAllEntries().await
-      refreshIdx(index)
+      refreshIdx()
 
       val hits = client.execute {
         search(index).matchAllQuery()
@@ -90,18 +94,18 @@ class ElasticSearchSynchronizerSpec
     }
 
     "Erases stale items that do not exist in the db" taggedAs(FunctionalTestsTag) in {
-      cleanIndex(index)
+      cleanIndex()
       client.execute {
         indexInto(index).id("FOO")
       }.await
-      refreshIdx(index)
+      refreshIdx()
 
       val getRequestBefore = client.execute(get(index, "FOO")).await.result
       getRequestBefore.found mustEqual true
 
       val synchronizer = app.injector.instanceOf[ElasticSearchSynchornizer]
       synchronizer.run().await
-      refreshIdx(index)
+      refreshIdx()
 
       val getRequestAfter = client.execute(get(index, "FOO")).await.result
       getRequestAfter.found mustEqual false

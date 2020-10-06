@@ -16,7 +16,6 @@ import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.inject.bind
 import test.utils.FunctionalTestsTag
 import test.utils.TestUtils
-import org.scalatest.BeforeAndAfter
 import org.scalatestplus.play.guice.GuiceOneServerPerSuite
 import test.utils.WaitUntil
 import org.scalatest.BeforeAndAfterEach
@@ -69,7 +68,7 @@ class CardActionsSpec
   var token: String = ""
 
   override def beforeEach() = {
-    cleanIndex("cards")
+    cleanIndex()
     TestUtils.cleanupDb(app.injector.instanceOf[Database])
     token = (new TestTokenProviderSvc(app.injector.instanceOf[Database])).getToken()
   }
@@ -119,7 +118,7 @@ class CardActionsSpec
       val card = cardActionWsHelper.getCard(id)
 
       (card \ "id").as[String] mustEqual id
-      (card \ "ref").as[Int] mustEqual 1
+      (card \ "ref").as[Int] mustEqual 1001
       (card \ "createdAt").as[String].length() > 10
       (card \ "updatedAt").as[String] mustEqual (card \ "createdAt").as[String]
       (card \ "title").as[String] mustEqual "FOO"

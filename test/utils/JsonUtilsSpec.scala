@@ -4,7 +4,6 @@ import org.scalatestplus.play.PlaySpec
 import utils.JodaToJsonUtils._
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
-import org.joda.time.DateTimeComparator
 
 
 class JsonUtilsSpec extends PlaySpec {

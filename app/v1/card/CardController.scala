@@ -24,6 +24,8 @@ case class CardFormInput(title: String, body: Option[String], tags: Option[List[
 
   def asCardData(id: String, createdAt: Option[DateTime], updatedAt: Option[DateTime], ref: Int): CardData =
     CardData(id, getTitle(), getBody(), getTags(), createdAt, updatedAt, ref)
+  def asCardData(creationContext: CardCreationContext): CardData =
+    asCardData(creationContext.id, Some(creationContext.now), Some(creationContext.now), creationContext.ref)
   def getTitle(): String = title
   def getBody(): String = body.getOrElse("")
   def getTags(): List[String] = tags.getOrElse(List())

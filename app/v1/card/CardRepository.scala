@@ -4,8 +4,8 @@ import java.sql.Connection
 import org.joda.time.DateTime
 import v1.auth.User
 import scala.concurrent.Future
-import v1.card.cardrepositorycomponents.CardRepositoryComponentsLike
 import scala.concurrent.ExecutionContext
+import play.api.db.Database
 
 /**
   * A trait for all known user exceptions.
@@ -76,6 +76,16 @@ final case class CardData(
 )
 
 /**
+  * A genetic context for a card event, like update, create or delete.
+  * @param user the user that is creating the card.
+  * @param now the current datetime to consider.
+  */
+trait CardEventContextLike {
+  val user: User
+  val now: DateTime
+}
+
+/**
   * The context for a card creation.
   * 
   * @param user the user that is creating the card.
@@ -83,7 +93,12 @@ final case class CardData(
   * @param id the id to use for the new card.
   * @param ref the ref to use for the new card.
   */
-case class CardCreationContext(user: User, now: DateTime, id: String, ref: Int)
+case class CardCreationContext(
+  user: User,
+  now: DateTime,
+  id: String,
+  ref: Int
+) extends CardEventContextLike
 
 /**
   * The context for a card update.
@@ -91,7 +106,11 @@ case class CardCreationContext(user: User, now: DateTime, id: String, ref: Int)
   * @param user the user that is creating the card.
   * @param now the current datetime to consider.
   */
-case class CardUpdateContext(user: User, now: DateTime)
+case class CardUpdateContext(
+  user: User,
+  now: DateTime,
+  oldData: CardData
+) extends CardEventContextLike
 
 /**
   * A paged result with the matched ids for a query to find cards.
@@ -117,11 +136,11 @@ final case class FindResult(cards: Seq[CardData], countOfItems: Int)
   * using specialized services (e.g. ElasticSearch).
   */
 trait CardRepositoryLike {
-  def create(cardFormInput: CardFormInput, user: User): Future[String]
+  def create(cardFormInput: CardFormInput, context: CardCreationContext): Future[String]
   def get(id: String, user: User): Future[Option[CardData]]
   def find(request: CardListRequest): Future[FindResult]
-  def delete(id: String, user: User): Future[Unit]
-  def update(data: CardData, user: User): Future[Unit]
+  def delete(data: CardData, context: CardUpdateContext): Future[Unit]
+  def update(data: CardData, context: CardUpdateContext): Future[Unit]
   def getAllTags(user: User): Future[List[String]]
 }
 
@@ -160,34 +179,54 @@ trait CardElasticClientLike {
 }
 
 /**
+  * A manager for card history, keeping tack of historical events like
+  * card creation, deletion and update.
+  */
+trait CardHistoryRecorderLike {
+
+  /**
+    * Register the creation of a card.
+    */
+  def registerCreation(context: CardCreationContext)(implicit c: Connection): Unit
+
+  /**
+    * Register the deletion of a card.
+    */
+  def registerDeletion(context: CardUpdateContext)(implicit c: Connection): Unit
+
+  /**
+    * Register the update of a card.
+    */
+  def registerUpdate(newCard: CardData, context: CardUpdateContext)(implicit c: Connection): Unit
+
+}
+
+/**
   * The implementation
   */
 class CardRepository(
   dataRepo: CardDataRepositoryLike,
   tagsRepo: TagsRepositoryLike,
   esClient: CardElasticClientLike,
-  components: CardRepositoryComponentsLike
+  historyRecorder: CardHistoryRecorderLike,
+  db: Database
 )(
   implicit ec: ExecutionContext
 ) extends CardRepositoryLike {
 
-  override def create(cardFormInput: CardFormInput, user: User): Future[String] = Future {
-    components.db.withTransaction { implicit c =>
-      val now = components.clock.now
-      val id = components.uuidGenerator.generate()
-      val ref = components.refGenerator.nextRef()
-      val context = CardCreationContext(user, now, id, ref)
-
+  override def create(cardFormInput: CardFormInput, context: CardCreationContext): Future[String] = Future {
+    db.withTransaction { implicit c =>
       dataRepo.create(cardFormInput, context)
-      tagsRepo.create(id, cardFormInput.getTags())
+      tagsRepo.create(context.id, cardFormInput.getTags())
       esClient.create(cardFormInput, context)
+      historyRecorder.registerCreation(context)
 
-      id
+      context.id
     }
   }
 
   override def get(id: String, user: User): Future[Option[CardData]] = Future {
-    components.db.withTransaction { implicit c =>
+    db.withTransaction { implicit c =>
       dataRepo.get(id, user).map { data =>
         tagsRepo.fill(data)
       }
@@ -196,32 +235,33 @@ class CardRepository(
 
   override def find(request: CardListRequest): Future[FindResult] =
     esClient.findIds(request).map { idsResult =>
-      components.db.withConnection { implicit c =>
+      db.withConnection { implicit c =>
         val findResult = dataRepo.find(idsResult)
         val cardsWithTags = findResult.cards.map(x => tagsRepo.fill(x))
         findResult.copy(cards=cardsWithTags)
       }
     }
 
-  override def delete(id: String, user: User): Future[Unit] = Future {
-    components.db.withTransaction { implicit c =>
-      dataRepo.delete(id, user)
-      tagsRepo.delete(id)
-      esClient.delete(id)
+  override def delete(data: CardData, context: CardUpdateContext): Future[Unit] = Future {
+    db.withTransaction { implicit c =>
+      dataRepo.delete(data.id, context.user)
+      tagsRepo.delete(data.id)
+      esClient.delete(data.id)
+      historyRecorder.registerDeletion(context)
     }
   }
 
-  override def update(data: CardData, user: User): Future[Unit] = Future {
-    val context = CardUpdateContext(user, components.clock.now)
-    components.db.withTransaction { implicit c =>
+  override def update(data: CardData, context: CardUpdateContext): Future[Unit] = Future {
+    db.withTransaction { implicit c =>
       dataRepo.update(data, context)
       tagsRepo.update(data)
       esClient.update(data, context)
+      historyRecorder.registerUpdate(data, context)
     }
   }
 
   override def getAllTags(user: User): Future[List[String]] = Future {
-    components.db.withConnection { implicit c =>
+    db.withConnection { implicit c =>
       dataRepo.getAllTags(user)
     }
   }
