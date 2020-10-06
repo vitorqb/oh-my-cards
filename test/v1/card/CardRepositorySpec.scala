@@ -178,13 +178,10 @@ class CardRepositoryIntegrationSpec
       )
       val repo = new CardRepository(dataRepo, tagsRepo, esClient, historyRecorder, db)
       val testContext = TestContext(repo)
-      //!!!! TODO REMOVE CLEANUPS
       try {
-        TestUtils.cleanupDb(db)
         block(testContext)
       } finally {
         cleanIndex()
-        TestUtils.cleanupDb(db)
       }
     }
 
