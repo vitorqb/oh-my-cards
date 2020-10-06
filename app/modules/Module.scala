@@ -16,8 +16,6 @@ import com.sksamuel.elastic4s.http.JavaClient
 import v1.card.elasticclient.{CardElasticClientMock,CardElasticClientImpl}
 import services.SendgridMailServiceImpl
 import play.api.db.Database
-import v1.card.cardrepositorycomponents.CardRepositoryComponentsLike
-import v1.card.cardrepositorycomponents.CardRepositoryComponents
 import v1.card.tagsrepository.TagsRepository
 import v1.card.TagsRepositoryLike
 import v1.card.CardRepositoryLike
@@ -131,20 +129,11 @@ class Module extends AbstractModule with ScalaModule {
     tagsRepo: TagsRepositoryLike,
     esClient: CardElasticClientLike,
     historyRecorder: CardHistoryRecorderLike,
-    components: CardRepositoryComponentsLike
+    db: Database
   )(
     implicit ec: ExecutionContext
   ): CardRepositoryLike =
-    new CardRepository(dataRepo, tagsRepo, esClient, historyRecorder, components)
-
-  @Provides
-  def cardRepositoryComponents(
-    db: Database,
-    uuidGenerator: UUIDGeneratorLike,
-    refGenerator: ReferenceCounterLike,
-    clock: SilhouetteClock
-  ): CardRepositoryComponentsLike =
-    new CardRepositoryComponents(db, uuidGenerator, refGenerator, clock)
+    new CardRepository(dataRepo, tagsRepo, esClient, historyRecorder, db)
 
   @Provides
   def cardDataRepository()(implicit ec: ExecutionContext): CardDataRepositoryLike =

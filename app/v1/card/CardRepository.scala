@@ -4,8 +4,8 @@ import java.sql.Connection
 import org.joda.time.DateTime
 import v1.auth.User
 import scala.concurrent.Future
-import v1.card.cardrepositorycomponents.CardRepositoryComponentsLike
 import scala.concurrent.ExecutionContext
+import play.api.db.Database
 
 /**
   * A trait for all known user exceptions.
@@ -205,18 +205,17 @@ trait CardHistoryRecorderLike {
   * The implementation
   */
 class CardRepository(
-  //!!!! TODO After passing context as param, we don't need `components` anymore.
   dataRepo: CardDataRepositoryLike,
   tagsRepo: TagsRepositoryLike,
   esClient: CardElasticClientLike,
   historyRecorder: CardHistoryRecorderLike,
-  components: CardRepositoryComponentsLike
+  db: Database
 )(
   implicit ec: ExecutionContext
 ) extends CardRepositoryLike {
 
   override def create(cardFormInput: CardFormInput, context: CardCreationContext): Future[String] = Future {
-    components.db.withTransaction { implicit c =>
+    db.withTransaction { implicit c =>
       dataRepo.create(cardFormInput, context)
       tagsRepo.create(context.id, cardFormInput.getTags())
       esClient.create(cardFormInput, context)
@@ -227,7 +226,7 @@ class CardRepository(
   }
 
   override def get(id: String, user: User): Future[Option[CardData]] = Future {
-    components.db.withTransaction { implicit c =>
+    db.withTransaction { implicit c =>
       dataRepo.get(id, user).map { data =>
         tagsRepo.fill(data)
       }
@@ -236,7 +235,7 @@ class CardRepository(
 
   override def find(request: CardListRequest): Future[FindResult] =
     esClient.findIds(request).map { idsResult =>
-      components.db.withConnection { implicit c =>
+      db.withConnection { implicit c =>
         val findResult = dataRepo.find(idsResult)
         val cardsWithTags = findResult.cards.map(x => tagsRepo.fill(x))
         findResult.copy(cards=cardsWithTags)
@@ -244,7 +243,7 @@ class CardRepository(
     }
 
   override def delete(data: CardData, context: CardUpdateContext): Future[Unit] = Future {
-    components.db.withTransaction { implicit c =>
+    db.withTransaction { implicit c =>
       dataRepo.delete(data.id, context.user)
       tagsRepo.delete(data.id)
       esClient.delete(data.id)
@@ -253,7 +252,7 @@ class CardRepository(
   }
 
   override def update(data: CardData, context: CardUpdateContext): Future[Unit] = Future {
-    components.db.withTransaction { implicit c =>
+    db.withTransaction { implicit c =>
       dataRepo.update(data, context)
       tagsRepo.update(data)
       esClient.update(data, context)
@@ -262,7 +261,7 @@ class CardRepository(
   }
 
   override def getAllTags(user: User): Future[List[String]] = Future {
-    components.db.withConnection { implicit c =>
+    db.withConnection { implicit c =>
       dataRepo.getAllTags(user)
     }
   }

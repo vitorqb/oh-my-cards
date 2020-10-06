@@ -4,19 +4,16 @@ import v1.card._
 import org.scalatestplus.play.PlaySpec
 import org.mockito.MockitoSugar
 import v1.auth.User
-import v1.card.testUtils.ComponentsBuilder
 import java.sql.Connection
 import org.mockito.{ ArgumentMatchersSugar }
 import v1.card.testUtils.MockDb
 import org.joda.time.DateTime
 import test.utils.TestUtils
-import v1.card.cardrepositorycomponents.CardRepositoryComponentsLike
 import v1.card.tagsrepository.TagsRepository
 import v1.admin.testUtils.TestEsClient
 import scala.concurrent.ExecutionContext
 import test.utils.FunctionalTestsTag
 import services.CounterUUIDGenerator
-import services.FrozenClock
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.Span
 import org.scalatest.time.Millis
@@ -24,7 +21,6 @@ import v1.card.elasticclient.CardElasticClientImpl
 import v1.card.historytracker.CardHistoryTracker
 import v1.card.historytracker.HistoricalEventCoreRepository
 import v1.card.historytracker.CardUpdateDataRepository
-import services.referencecounter.ReferenceCounter
 
 class CardRepositorySpec
     extends PlaySpec
@@ -51,14 +47,12 @@ class CardRepositorySpec
     override def withTransaction[A](block: Connection => A): A = block(connection)
     override def withConnection[A](block: Connection => A): A = block(connection)
   }
-  val components = ComponentsBuilder().withDb(db).withContext(context).build()
-
   def testContext(block: TestContext => Any): Any = {
     val dataRepo = mock[CardDataRepositoryLike]
     val tagsRepo = mock[TagsRepositoryLike]
     val esClient = mock[CardElasticClientLike]
     val historyRecorder = mock[CardHistoryRecorderLike]
-    val repo = new CardRepository(dataRepo, tagsRepo, esClient, historyRecorder, components)
+    val repo = new CardRepository(dataRepo, tagsRepo, esClient, historyRecorder, db)
     val testContext = TestContext(dataRepo, tagsRepo, esClient, historyRecorder, repo)
     block(testContext)
   }
@@ -169,16 +163,10 @@ class CardRepositoryIntegrationSpec
   val baseExpectedCardData = baseCardInput.asCardData(baseCreateContext)
   val baseUpdateContext = CardUpdateContext(user, now, baseExpectedCardData)
 
-  case class TestContext(components: CardRepositoryComponentsLike, repo: CardRepositoryLike)
+  case class TestContext(repo: CardRepositoryLike)
 
   def testContext(block: TestContext => Any): Any = {
     TestUtils.testDB { db =>
-      val components = ComponentsBuilder()
-        .withDb(db)
-        .withUUIDGenerator(new CounterUUIDGenerator)
-        .withRefGenerator(new ReferenceCounter(db))
-        .withClock(new FrozenClock(now))
-        .build()
       val tagsRepo = new TagsRepository()
       val esClient = new CardElasticClientImpl(client)
       val dataRepo = new CardDataRepository
@@ -188,8 +176,9 @@ class CardRepositoryIntegrationSpec
         new HistoricalEventCoreRepository,
         new CardUpdateDataRepository(new CounterUUIDGenerator)
       )
-      val repo = new CardRepository(dataRepo, tagsRepo, esClient, historyRecorder, components)
-      val testContext = TestContext(components, repo)
+      val repo = new CardRepository(dataRepo, tagsRepo, esClient, historyRecorder, db)
+      val testContext = TestContext(repo)
+      //!!!! TODO REMOVE CLEANUPS
       try {
         TestUtils.cleanupDb(db)
         block(testContext)

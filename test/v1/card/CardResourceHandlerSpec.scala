@@ -13,7 +13,6 @@ import org.scalatest.concurrent.ScalaFutures
 import v1.auth.User
 import scala.concurrent.Future
 import org.joda.time.DateTime
-import v1.card.cardrepositorycomponents.CardRepositoryComponents
 import com.mohiva.play.silhouette.api.util.{Clock=>SilhouetteClock}
 import services.UUIDGenerator
 import services.referencecounter.ReferenceCounterLike
@@ -183,14 +182,13 @@ class CardResourceHandlerSpec
           val user = User("userId", "userEmail")
           val refCounter = mock[ReferenceCounterLike]
           val input = CardFormInput("title", Some("body"), None)
-          val components = new CardRepositoryComponents(db, uuidGenerator, refCounter, clock)
           val historyTracker = mock[CardHistoryRecorderLike]
           val repository = new CardRepository(
             dataRepo,
             tagsRepo,
             elasticClient,
             historyTracker,
-            components
+            db
           )
           val handler = new CardResourceHandler(repository, clock, refCounter, uuidGenerator)
           val created = handler.create(input, user).futureValue

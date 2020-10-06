@@ -22,7 +22,6 @@ import com.sksamuel.elastic4s.requests.searches.Total
 import org.scalatest.time.Span
 import org.scalatest.time.Millis
 
-import v1.card.testUtils._
 import scala.concurrent.ExecutionContext
 import v1.card.CardListRequest
 import v1.card.CardFormInput
@@ -34,7 +33,6 @@ import v1.card.historytracker.CardUpdateDataRepository
 import services.CounterUUIDGenerator
 import v1.card.historytracker.CardHistoryTracker
 import v1.card.CardCreationContext
-import v1.card.cardrepositorycomponents.CardRepositoryComponentsLike
 import v1.card.CardRepositoryLike
 import v1.card.TagsRepositoryLike
 import v1.card.CardElasticClientLike
@@ -152,7 +150,6 @@ class CardElasticClientFunctionalSpec
   val allFixtures = allInputs.zip(allContexts)
 
   case class TestContext(
-    val components: CardRepositoryComponentsLike,
     val cardRepo: CardRepositoryLike,
     val tagsRepo: TagsRepositoryLike,
     val cardElasticClient: CardElasticClientLike,
@@ -177,16 +174,14 @@ class CardElasticClientFunctionalSpec
       val dataRepo = new CardDataRepository
       val tagsRepo = new TagsRepository
       val cardElasticClient = new CardElasticClientImpl(client)
-      val components = ComponentsBuilder().withDb(db).build()
       val cardRepo = new CardRepository(
         dataRepo,
         tagsRepo,
         cardElasticClient,
         historyRecorder,
-        components
+        db
       )
       val testContext = TestContext(
-        components=components,
         cardRepo=cardRepo,
         tagsRepo=tagsRepo,
         cardElasticClient=cardElasticClient,
