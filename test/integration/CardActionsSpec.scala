@@ -3,59 +3,17 @@ package tests.integration
 import org.scalatestplus.play.PlaySpec
 
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.time.Span
-import org.scalatest.time.Millis
 
 import play.api.db.Database
-import play.api.libs.ws.WSClient
-import play.api.libs.json.{Json,JsObject}
-import play.api.libs.json.JsValue
 import v1.admin.testUtils.TestEsClient
 import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
-import play.api.inject.bind
 import test.utils.FunctionalTestsTag
 import test.utils.TestUtils
 import org.scalatestplus.play.guice.GuiceOneServerPerSuite
 import test.utils.WaitUntil
 import org.scalatest.BeforeAndAfterEach
-import v1.card.CardElasticClientLike
-import v1.card.elasticclient.CardElasticClientImpl
-
-
-/**
-  * Helper class that allows posting a card for testing.
-  */
-class CardActionsWsHelper(wsClient: WSClient, port: Int, token: String) extends ScalaFutures {
-
-  override implicit val patienceConfig: PatienceConfig = {
-    new PatienceConfig(scaled(Span(2000, Millis)))
-  }
-
-  val url = s"http://localhost:$port/v1/cards"
-
-  def client(url: String = url) =
-    wsClient.url(url).withHttpHeaders("Authorization" -> s"Bearer $token")
-
-  def postCardData(cardData: JsObject): String = {
-    (client().post(cardData).futureValue.json \ "id").as[String]
-  }
-
-  def postCardData(title: String, body: String): String = {
-    postCardData(Json.obj("title" -> title, "body" -> body))
-  }
-
-  def getPagedCards(page: Int, pageSize: Int): JsValue =
-    client()
-      .withQueryStringParameters("page" -> page.toString, "pageSize" -> pageSize.toString)
-      .get()
-      .futureValue
-      .json
-
-  def getCard(id: String): JsValue = client(url + s"/${id}").get().futureValue.json
-
-}
-
+import play.api.libs.ws.WSClient
 
 class CardActionsSpec
     extends PlaySpec

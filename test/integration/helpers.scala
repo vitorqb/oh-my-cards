@@ -3,7 +3,45 @@ package tests.integration
 import play.api.db.Database
 import org.scalatest.concurrent.ScalaFutures
 import anorm.{SQL}
+import play.api.libs.ws.WSClient
+import org.scalatest.time.Span
+import org.scalatest.time.Millis
+import play.api.libs.json.{Json,JsObject}
+import play.api.libs.json.JsValue
 
+
+/**
+  * Helper class that allows posting a card for testing.
+  */
+class CardActionsWsHelper(wsClient: WSClient, port: Int, token: String) extends ScalaFutures {
+
+  override implicit val patienceConfig: PatienceConfig = {
+    new PatienceConfig(scaled(Span(2000, Millis)))
+  }
+
+  val url = s"http://localhost:$port/v1/cards"
+
+  def client(url: String = url) =
+    wsClient.url(url).withHttpHeaders("Authorization" -> s"Bearer $token")
+
+  def postCardData(cardData: JsObject): String = {
+    (client().post(cardData).futureValue.json \ "id").as[String]
+  }
+
+  def postCardData(title: String, body: String): String = {
+    postCardData(Json.obj("title" -> title, "body" -> body))
+  }
+
+  def getPagedCards(page: Int, pageSize: Int): JsValue =
+    client()
+      .withQueryStringParameters("page" -> page.toString, "pageSize" -> pageSize.toString)
+      .get()
+      .futureValue
+      .json
+
+  def getCard(id: String): JsValue = client(url + s"/${id}").get().futureValue.json
+
+}
 
 /**
   * Helper class that provides a valid user token for testing.
