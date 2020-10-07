@@ -159,7 +159,7 @@ class CardElasticClientFunctionalSpec
     /**
       * Increases patience for future because we were having timeouts
       */
-    override implicit def patienceConfig = new PatienceConfig(Span(1000, Millis))
+    override implicit def patienceConfig = new PatienceConfig(Span(3000, Millis))
 
     def saveCardsToDb(): Unit = allFixtures.foreach(x => saveCardToDb(x._1, x._2))
     def saveCardToDb(input: CardFormInput, context: CardCreationContext): String =
