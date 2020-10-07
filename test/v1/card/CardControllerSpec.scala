@@ -31,6 +31,7 @@ import scala.concurrent.ExecutionContext
 import v1.auth.SilhouetteEnvWrapper
 import v1.card.historytrackerhandler.CardHistoryResource
 
+
 trait CardListRequestParserTestUtils extends JsonUtils {
 
   implicit class EnrichedResult[T](private val x: Either[CardListRequestInput, JsValue]) {
@@ -149,28 +150,41 @@ class CardControllerSpec
 
   "getHistory" should {
 
-    "returns the history from the history tracker handler" in {
-      val datetime = DateTime.parse("2021-10-10T12:00:00Z")
-      val createEvent = CardCreation(datetime, "1", user.id)
-      val bodyUpdate = StringFieldUpdate("body", "old", "new")
-      val tagUpdate = TagsFieldUpdate("tags", List("A"), List("B"))
-      val fieldUpdates = Seq(bodyUpdate, tagUpdate)
-      val updateEvent = CardUpdate(datetime, "1", user.id, fieldUpdates)
-      val historyResource = CardHistoryResource(Seq(createEvent, updateEvent))
+    val datetime = DateTime.parse("2021-10-10T12:00:00Z")
+    val createEvent = CardCreation(datetime, "1", user.id)
+    val bodyUpdate = StringFieldUpdate("body", "old", "new")
+    val tagUpdate = TagsFieldUpdate("tags", List("A"), List("B"))
+    val fieldUpdates = Seq(bodyUpdate, tagUpdate)
+    val updateEvent = CardUpdate(datetime, "1", user.id, fieldUpdates)
+    val historyResource = CardHistoryResource(Seq(createEvent, updateEvent))
+    val cardData = CardData("1", "title", "body", List(), None, None, 1)
+    val cardResource = CardResource.fromCardData(cardData)
+
+    case class TestContext(
+      historyTrackerHandler: HistoryTrackerHandlerLike,
+      cardResourceHandler: CardResourceHandler,
+      controller: CardController
+    )
+
+    def testContext(block: TestContext => Any): Any = {
       val historyTrackerHandler = mock[HistoryTrackerHandlerLike]
       when(historyTrackerHandler.get("1")).thenReturn(Future.successful(historyResource))
-
+      val cardResourceHandler = mock[CardResourceHandler]
+      when(cardResourceHandler.get("1", user)).thenReturn(Future.successful(Some(cardResource)))
       val controller = new CardController(
         app.injector.instanceOf[ControllerComponents],
-        app.injector.instanceOf[CardResourceHandler],
+        cardResourceHandler,
         app.injector.instanceOf[SilhouetteEnvWrapper].silhouette,
         historyTrackerHandler
       )(
         app.injector.instanceOf[ExecutionContext]
       )
-      val request = FakeRequest()
+      block(TestContext(historyTrackerHandler, cardResourceHandler, controller))
+    }
 
-      val response = controller.getHistory("1")(request)
+    "returns the history from the history tracker handler" in testContext { c =>
+      val request = FakeRequest()
+      val response = c.controller.getHistory("1")(request)
       status(response) mustEqual 200
       contentAsJson(response) mustEqual Json.obj(
         "history" -> Seq(
@@ -199,6 +213,14 @@ class CardControllerSpec
         )
       )
 
+    }
+
+    "return 404 if other user" in testContext { c =>
+      val request = FakeRequest()
+      reset(c.cardResourceHandler)
+      when(c.cardResourceHandler.get("1", user)).thenReturn(Future.successful(None))
+      val response = c.controller.getHistory("1")(request)
+      status(response) mustEqual 404
     }
 
   }
