@@ -29,7 +29,7 @@ import org.mockito.MockitoSugar
 import v1.card.historytrackerhandler.HistoryTrackerHandlerLike
 import scala.concurrent.ExecutionContext
 import v1.auth.SilhouetteEnvWrapper
-import v1.card.historytracker.CardHistoricalEventLike
+import v1.card.historytrackerhandler.CardHistoryResource
 
 trait CardListRequestParserTestUtils extends JsonUtils {
 
@@ -156,9 +156,9 @@ class CardControllerSpec
       val tagUpdate = TagsFieldUpdate("tags", List("A"), List("B"))
       val fieldUpdates = Seq(bodyUpdate, tagUpdate)
       val updateEvent = CardUpdate(datetime, "1", user.id, fieldUpdates)
-      val updates: Seq[CardHistoricalEventLike] = Seq(createEvent, updateEvent)
+      val historyResource = CardHistoryResource(Seq(createEvent, updateEvent))
       val historyTrackerHandler = mock[HistoryTrackerHandlerLike]
-      when(historyTrackerHandler.get("1")).thenReturn(Future.successful(updates))
+      when(historyTrackerHandler.get("1")).thenReturn(Future.successful(historyResource))
 
       val controller = new CardController(
         app.injector.instanceOf[ControllerComponents],

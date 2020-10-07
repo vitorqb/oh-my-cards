@@ -168,10 +168,7 @@ class CardController @Inject()(
   def getHistory(id: String) = silhouette.SecuredAction.async { implicit request =>
     {
       //!!!! TODO - WE NEED TO DOUBLE CHECK THE USER HAS ACCESS TO THIS HISTORY
-      historyTrackerHandler
-        .get(id)
-        .map(x => Ok(Json.obj("history" -> Json.toJson(x))))
-        .recover(handleError _)
+      historyTrackerHandler.get(id).map(x => Ok(Json.toJson(x))).recover(handleError _)
     }
   }
 

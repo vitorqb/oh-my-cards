@@ -5,6 +5,7 @@ import v1.card.historytracker.CardHistoricalEventLike
 import java.sql.Connection
 import play.api.db.Database
 import scala.concurrent.ExecutionContext
+import play.api.libs.json.Json
 
 /**
   * A trait defining the base functionalities for the Card History Tracker.
@@ -17,7 +18,15 @@ trait CardHistoryTrackerLike {
   * A trait for the handler that knows how to handle requests regarding a card's history.
   */
 trait HistoryTrackerHandlerLike {
-  def get(id: String): Future[Seq[CardHistoricalEventLike]]
+  def get(id: String): Future[CardHistoryResource]
+}
+
+/**
+  * The outcome format for the get history call.
+  */
+case class CardHistoryResource(history: Seq[CardHistoricalEventLike])
+object CardHistoryResource {
+  implicit val writes = Json.writes[CardHistoryResource]
 }
 
 /**
@@ -29,9 +38,9 @@ class HistoryTrackerHandler(
 )(
   implicit ec: ExecutionContext
 ) extends HistoryTrackerHandlerLike {
-  def get(id: String): Future[Seq[CardHistoricalEventLike]] = Future {
+  def get(id: String): Future[CardHistoryResource] = Future {
     db.withConnection { implicit c =>
-      tracker.getEvents(id)
+      CardHistoryResource(tracker.getEvents(id))
     }
   }
 }
