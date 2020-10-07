@@ -6,6 +6,8 @@ import com.sksamuel.elastic4s.ElasticProperties
 import scala.util.Try
 import com.google.inject.AbstractModule
 import net.codingwell.scalaguice.ScalaModule
+import v1.card.CardElasticClientLike
+import v1.card.elasticclient.CardElasticClientImpl
 
 
 //!!!! TODO -> Move to package v1.testUtils
@@ -49,7 +51,10 @@ trait TestEsClient {
     * Provides a Guice Module to inject the test client as dependency.
     */
   class TestEsFakeModule extends AbstractModule with ScalaModule {
-    override def configure() = bind[ElasticClient].toInstance(client)
+    override def configure() = Seq(
+      bind[ElasticClient].toInstance(client),
+      bind[CardElasticClientLike].to[CardElasticClientImpl]
+    )
   }
 
 }

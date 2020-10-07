@@ -10,6 +10,7 @@ import v1.card.{
 import services.UUIDGeneratorLike
 import java.sql.Connection
 import org.joda.time.DateTime
+import v1.card.historytrackerhandler.CardHistoryTrackerLike
 
 /**
   * The core data for a historical event, share among all events.
@@ -92,7 +93,9 @@ class CardHistoryTracker(
   uuidGenerator: UUIDGeneratorLike,
   coreRepo: HistoricalEventCoreRepositoryLike,
   updateRepo: CardUpdateDataRepositoryLike
-) extends CardHistoryRecorderLike {
+) extends CardHistoryRecorderLike
+  with CardHistoryTrackerLike
+{
 
   override def registerCreation(context: CardCreationContext)(implicit c: Connection): Unit = {
     val id = uuidGenerator.generate()

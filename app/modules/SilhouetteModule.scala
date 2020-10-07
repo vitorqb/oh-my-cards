@@ -9,7 +9,7 @@ import com.mohiva.play.silhouette.api.services.AuthenticatorService
 import com.mohiva.play.silhouette.impl.authenticators.DummyAuthenticator
 import com.mohiva.play.silhouette.api.EventBus
 import com.mohiva.play.silhouette.api.Environment
-import v1.auth.DefaultEnv
+import v1.auth.{DefaultEnv,SilhouetteEnvWrapper}
 import scala.concurrent.ExecutionContext.Implicits.global
 import com.mohiva.play.silhouette.api.Silhouette
 import com.mohiva.play.silhouette.api.SilhouetteProvider
@@ -54,5 +54,13 @@ class SilhouetteModule extends AbstractModule with ScalaModule {
       eventBus
     )
   }
+
+  /**
+    * Used for tests when we need to inject Silhouette[DefaultEnv]
+    * see https://github.com/playframework/playframework/issues/6174
+    */
+  @Provides
+  def provideSilhouette(s: Silhouette[DefaultEnv]): SilhouetteEnvWrapper =
+    new SilhouetteEnvWrapper { val silhouette = s }
 
 }

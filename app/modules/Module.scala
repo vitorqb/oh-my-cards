@@ -31,6 +31,11 @@ import v1.card.historytracker.HistoricalEventCoreRepositoryLike
 import v1.card.historytracker.CardUpdateDataRepositoryLike
 import v1.card.historytracker.HistoricalEventCoreRepository
 import v1.card.historytracker.CardUpdateDataRepository
+import v1.card.historytrackerhandler.{
+  HistoryTrackerHandlerLike,
+  HistoryTrackerHandler,
+  CardHistoryTrackerLike
+}
 import services.referencecounter.{ReferenceCounter,ReferenceCounterLike}
 
 class Module extends AbstractModule with ScalaModule {
@@ -138,6 +143,23 @@ class Module extends AbstractModule with ScalaModule {
   @Provides
   def cardDataRepository()(implicit ec: ExecutionContext): CardDataRepositoryLike =
     new CardDataRepository
+
+  @Provides
+  def cardHistoryTrackerLike(
+    uuidGenerator: UUIDGeneratorLike,
+    coreRepo: HistoricalEventCoreRepositoryLike,
+    updateRepo: CardUpdateDataRepositoryLike
+  ): CardHistoryTrackerLike =
+    new CardHistoryTracker(uuidGenerator, coreRepo, updateRepo)
+
+  @Provides
+  def historyTrackerHandler(
+    db: Database,
+    tracker: CardHistoryTrackerLike
+  )(
+    implicit ec: ExecutionContext
+  ): HistoryTrackerHandlerLike =
+    new HistoryTrackerHandler(db, tracker)
 }
 
 protected object Helpers {
