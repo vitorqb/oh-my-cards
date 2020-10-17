@@ -20,11 +20,15 @@ class OneTimePasswordInfoGeneratorSpec
   "OneTimePasswordInfoGenerator.generate" should {
 
     "Generates a new OneTimePasswordInfo" in {
+      val length = OneTimePasswordInfoGenerator.length
+      val chars = Some(OneTimePasswordInfoGenerator.chars)
+      val validForMinutes = OneTimePasswordInfoGenerator.validForMinutes
+
       val clockMock = mock[SilhouetteClock]
       when(clockMock.now).thenReturn(DateTime.parse("2019-01-01T00:00:00"))
 
       val randomStringGeneratorMock = mock[RandomStringGenerator]
-      when(randomStringGeneratorMock.generate(2)).thenReturn("foo")
+      when(randomStringGeneratorMock.generate(length, chars)).thenReturn("foo")
 
       val uuidGeneratorMock = mock[UUIDGeneratorLike]
       when(uuidGeneratorMock.generate).thenReturn("bar")
@@ -33,16 +37,13 @@ class OneTimePasswordInfoGeneratorSpec
         clockMock,
         randomStringGeneratorMock,
         uuidGeneratorMock
-      ) {
-        override val validForMinutes = 2
-        override val length = 2
-      }
+      )
 
       generator.generate(OneTimePasswordInput("a@b.com")) mustEqual OneTimePasswordInfo(
         "bar",
         "a@b.com",
         "foo",
-        DateTime.parse("2019-01-01T00:02:00"),
+        DateTime.parse("2019-01-01T00:15:00"),
         false,
         false
       )

@@ -29,8 +29,21 @@ class RandomStringGeneratorSpec extends PlaySpec {
       val generated: String = (new RandomStringGenerator(Some(seed))).generate(len)
 
       "Generates expected string" in {
-        generated mustBe "7EZr1mu8JD6INWYdaAQV"
+        generated mustBe "dPuBwqCZDvS3sYJaU8nT"
       }
+    }
+
+    "With a set of valid characters" should {
+      val len = 40
+      val chars = "a1".toSet
+      val seed = 1231231
+
+      val generated: String = (new RandomStringGenerator(Some(seed)).generate(len, Some(chars)))
+
+      "generates expexted string with valid chars only" in {
+        generated mustEqual "a1111111111a1a111a1aa1aaa1111111a11aa1aa"
+      }
+
     }
 
   }
