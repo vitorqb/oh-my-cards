@@ -14,15 +14,7 @@ class OneTimePasswordInfoGenerator @Inject()(
   val randomStringGenerator: RandomStringGenerator,
   val uuidGenerator: UUIDGeneratorLike) {
 
-  /**
-    * Length used to generate a OneTimePasswordInfo.
-    */
-  val length: Int = 8
-
-  /**
-    * Number of minutes the password is valid.
-    */
-  val validForMinutes: Int = 15
+  import OneTimePasswordInfoGenerator._
 
   /**
     * Generates a new OneTimePasswordInfo based on a OneTimePasswordInput.
@@ -31,11 +23,32 @@ class OneTimePasswordInfoGenerator @Inject()(
     OneTimePasswordInfo(
       uuidGenerator.generate(),
       input.email,
-      randomStringGenerator.generate(length),
+      randomStringGenerator.generate(length, Some(chars)),
       clock.now.plusMinutes(validForMinutes),
       false,
       false
     )
   }
 
+}
+
+/**
+  * Companion object with constants
+  */
+object OneTimePasswordInfoGenerator {
+  /**
+    * Length used to generate a OneTimePasswordInfo.
+    */
+  val length: Int = 10
+
+  /**
+    * Valid alphanumeric characters for the password.
+    */
+  val chars: Set[Char] =
+    RandomStringGenerator.alphaNumericChars -- Set('I', '0', 'O', 'o', 'l')
+
+  /**
+    * Number of minutes the password is valid.
+    */
+  val validForMinutes: Int = 15
 }
