@@ -25,6 +25,7 @@ trait FileRepositoryLike {
     *  @param key - A unique key for the file (e.g. a uuid)
     *  @param file - The file
     */
+  //!!!! TODO Rename to store
   def upload(key: String, file: InputStream): Future[Unit]
 }
 
@@ -57,6 +58,7 @@ class BackblazeS3FileRepository(
       .endpointOverride(endpoint)
       .build()
       .putObject(putRequest, requestBody)
+    logger.info(f"Finished upload with key ${key}")
     ()
   }
 }
@@ -75,4 +77,5 @@ case class BackblazeS3Config(
 class MockFileRepository()(implicit val ec: ExecutionContext) extends FileRepositoryLike {
 
   def upload(key: String, file: InputStream): Future[Unit] = Future.successful(())
+
 }
