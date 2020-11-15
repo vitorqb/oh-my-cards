@@ -37,6 +37,10 @@ import v1.card.historytrackerhandler.{
   CardHistoryTrackerLike
 }
 import services.referencecounter.{ReferenceCounter,ReferenceCounterLike}
+import services.filerepository.FileRepositoryLike
+import services.filerepository.BackblazeS3Config
+import services.filerepository.BackblazeS3FileRepository
+import services.filerepository.MockFileRepository
 
 class Module extends AbstractModule with ScalaModule {
 
@@ -160,6 +164,31 @@ class Module extends AbstractModule with ScalaModule {
     implicit ec: ExecutionContext
   ): HistoryTrackerHandlerLike =
     new HistoryTrackerHandler(db, tracker)
+
+  @Provides
+  def fileRepository(
+    config: Configuration
+  )(
+    implicit ec: ExecutionContext
+  ): FileRepositoryLike = {
+    config.get[String]("staticFilesRepositoryType") match {
+      case "backblaze" => {
+        val backblazeConfig = BackblazeS3Config(
+          config.get[String]("backblaze.staticfiles.bucket"),
+          config.get[String]("backblaze.staticfiles.region"),
+          config.get[String]("backblaze.staticfiles.accesskey"),
+          config.get[String]("backblaze.staticfiles.secretaccesskey"),
+          config.get[String]("backblaze.staticfiles.endpoint"),
+        )
+        new BackblazeS3FileRepository(backblazeConfig)
+      }
+      case "mock" => new MockFileRepository()
+      case x => {
+        throw new RuntimeException(f"Invalid value for key staticFilesRepositoryType: ${x}")
+      }
+    }
+  }
+
 }
 
 protected object Helpers {
