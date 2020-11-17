@@ -13,6 +13,7 @@ import services.UUIDGeneratorLike
 import play.api.Logger
 import utils.RequestExtractorHelper
 import services.resourcepermissionregistry.ResourcePermissionRegistryLike
+import akka.stream.scaladsl.StreamConverters
 
 class StaticAssetsController @Inject()(
   val controllerComponents: ControllerComponents,
@@ -50,4 +51,17 @@ class StaticAssetsController @Inject()(
     }.flatten
   }
 
+  /**
+    * Retrieves the static file (if the user has access)
+    */
+  def retrieve(key: String) = silhouette.SecuredAction.async { implicit request =>
+    Future {
+      resourcePermissionRegistry.hasAccess(request.identity, key).flatMap {
+        case false => Future.successful(NotFound)
+        case true => fileRepository.read(key).map { x =>
+          Ok.chunked(StreamConverters.fromInputStream(() => x))
+        }
+      }
+    }.flatten
+  }
 }

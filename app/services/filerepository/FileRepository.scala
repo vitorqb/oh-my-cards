@@ -79,7 +79,9 @@ class BackblazeS3FileRepository(
     logger.info(f"Started download with key ${key}")
     val bucket = config.bucket
     val getRequest = GetObjectRequest.builder().bucket(bucket).key(key).build()
-    s3client.getObject(getRequest)
+    val out = s3client.getObject(getRequest)
+    logger.info(f"Finished download with key ${key}")
+    out
   }
 
 }

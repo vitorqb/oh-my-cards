@@ -22,6 +22,9 @@ import services.UUIDGenerator
 import services.UUIDGeneratorLike
 import play.api.mvc.AnyContent
 import services.resourcepermissionregistry.ResourcePermissionRegistryLike
+import java.io.ByteArrayInputStream
+import akka.actor.ActorSystem
+import akka.stream.Materializer
 
 
 class StaticAssetsControllerSpec
@@ -31,6 +34,10 @@ class StaticAssetsControllerSpec
     with ArgumentMatchersSugar {
 
   implicit val ec: ExecutionContext = ExecutionContext.global
+
+  // Needed to read from chunked response
+  implicit val actorSystem = ActorSystem("test")
+  implicit lazy val mat = Materializer(actorSystem)
 
   case class ControllerBuilder(
     c: SilhouetteInjectorContext,
@@ -131,6 +138,53 @@ class StaticAssetsControllerSpec
         }
       }
     }
+  }
+
+  ".retrieve" should {
+
+    "retrieve the file for the user from the repository" in {
+      SilhouetteTestUtils.running() { c =>
+        Helpers.running(c.app) {
+          val file = new ByteArrayInputStream("content".getBytes())
+          val permissionRegistry = mock[ResourcePermissionRegistryLike]
+          when(permissionRegistry.hasAccess(c.user, "theKey")).thenReturn(Future.successful(true))
+          val fileRepository = mock[FileRepositoryLike]
+          when(fileRepository.read("theKey")).thenReturn(Future.successful(file))
+          val controller = ControllerBuilder(c)
+            .withPermissionRegistry(permissionRegistry)
+            .withFileRepository(fileRepository)
+            .build()
+          val request = mkFakeRequest()
+
+          val result = controller.retrieve("theKey")(request)
+
+          status(result) mustEqual 200
+          contentAsString(result) mustEqual "content"
+        }
+      }
+    }
+
+    "returns 404 if user does not has access" in {
+      SilhouetteTestUtils.running() { c =>
+        Helpers.running(c.app) {
+          val file = new ByteArrayInputStream("content".getBytes())
+          val permissionRegistry = mock[ResourcePermissionRegistryLike]
+          when(permissionRegistry.hasAccess(c.user, "theKey")).thenReturn(Future.successful(false))
+          val fileRepository = mock[FileRepositoryLike]
+          when(fileRepository.read("theKey")).thenReturn(Future.successful(file))
+          val controller = ControllerBuilder(c)
+            .withPermissionRegistry(permissionRegistry)
+            .withFileRepository(fileRepository)
+            .build()
+          val request = mkFakeRequest()
+
+          val result = controller.retrieve("theKey")(request)
+
+          status(result) mustEqual 404
+        }
+      }
+    }
+
   }
 
 }
