@@ -20,6 +20,8 @@ import scala.io.Source
 import testutils.silhouettetestutils.SilhouetteInjectorContext
 import services.UUIDGenerator
 import services.UUIDGeneratorLike
+import play.api.mvc.AnyContent
+import services.resourcepermissionregistry.ResourcePermissionRegistryLike
 
 
 class StaticAssetsControllerSpec
@@ -33,17 +35,43 @@ class StaticAssetsControllerSpec
   case class ControllerBuilder(
     c: SilhouetteInjectorContext,
     f: Option[FileRepositoryLike] = None,
-    u: Option[UUIDGeneratorLike] = None
+    u: Option[UUIDGeneratorLike] = None,
+    r: Option[ResourcePermissionRegistryLike] =  None
   ) {
     def withFileRepository(f2: FileRepositoryLike): ControllerBuilder = copy(f=Some(f2))
     def withUUIDGenerator(u2: UUIDGeneratorLike): ControllerBuilder = copy(u=Some(u2))
+    def withPermissionRegistry(r2: ResourcePermissionRegistryLike): ControllerBuilder = copy(r=Some(r2))
     def build(): StaticAssetsController = {
-      val f2 = f.getOrElse(mock[FileRepositoryLike])
+      val f2 = f.getOrElse({
+        val x = mock[FileRepositoryLike]
+        when(x.upload(any, any)).thenReturn(Future.successful(()))
+        x
+      })
       val u2 = u.getOrElse(mock[UUIDGeneratorLike])
+      val r2 = r.getOrElse({
+        val x = mock[ResourcePermissionRegistryLike]
+        when(x.grantAccess(any, any)).thenReturn(Future.successful(()))
+        x
+      })
       val components = Helpers.stubControllerComponents()
-      new StaticAssetsController(components, c.silhouette, f2, u2)
+      new StaticAssetsController(components, c.silhouette, f2, u2, r2)
     }
   }
+
+  def mkFakeRequest(fileContent: Option[String]): FakeRequest[AnyContent] = {
+    val result = FakeRequest()
+    fileContent match {
+      case None => result
+      case Some(x) => {
+        val file = TempFileWritter.write(x)
+        val filePart = MultipartFormData.FilePart("upload", "foo.txt", None, file)
+        val formData = new MultipartFormData(Map(), Seq(filePart), Seq())
+        result.withMultipartFormDataBody(formData)
+      }
+    }
+  }
+  def mkFakeRequest(): FakeRequest[AnyContent] = mkFakeRequest(None)
+  def mkFakeRequest(x: String): FakeRequest[AnyContent] = mkFakeRequest(Some(x))
 
   ".store()" should {
 
@@ -58,10 +86,7 @@ class StaticAssetsControllerSpec
             .withFileRepository(fileRepository)
             .withUUIDGenerator(uuidGenerator)
             .build()
-          val file = TempFileWritter.write("foo")
-          val filePart = MultipartFormData.FilePart("upload", "foo.txt", None, file)
-          val formData = new MultipartFormData(Map(), Seq(filePart), Seq())
-          val fakeRequest = FakeRequest().withMultipartFormDataBody(formData)
+          val fakeRequest = mkFakeRequest("foo")
 
           val result = controller.store()(fakeRequest)
 
@@ -73,12 +98,32 @@ class StaticAssetsControllerSpec
       }
     }
 
+    "gives user permission to the uploaded file" in {
+      SilhouetteTestUtils.running() { c =>
+        Helpers.running(c.app) {
+          val uuidGenerator = mock[UUIDGenerator]
+          when(uuidGenerator.generate()).thenReturn("theKey")
+          val permissionRegistry = mock[ResourcePermissionRegistryLike]
+          when(permissionRegistry.grantAccess(c.user, "theKey")).thenReturn(Future.successful(()))
+          val controller = ControllerBuilder(c)
+            .withUUIDGenerator(uuidGenerator)
+            .withPermissionRegistry(permissionRegistry)
+            .build()
+          val request = mkFakeRequest("content")
+
+          val result = controller.store()(request)
+
+          status(result) mustEqual 200
+          verify(permissionRegistry).grantAccess(c.user, "theKey")
+        }
+      }
+    }
+
     "return error if missing file" in {
       SilhouetteTestUtils.running() { c =>
         Helpers.running(c.app) {
-          val key = "key"
           val controller = ControllerBuilder(c).build()
-          val fakeRequest = FakeRequest()
+          val fakeRequest = mkFakeRequest()
 
           val result = controller.store()(fakeRequest)
 

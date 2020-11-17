@@ -41,6 +41,8 @@ import services.filerepository.FileRepositoryLike
 import services.filerepository.BackblazeS3Config
 import services.filerepository.BackblazeS3FileRepository
 import services.filerepository.MockFileRepository
+import services.resourcepermissionregistry.ResourcePermissionRegistryLike
+import services.resourcepermissionregistry.ResourcePermissionRegistry
 
 class Module extends AbstractModule with ScalaModule {
 
@@ -188,6 +190,14 @@ class Module extends AbstractModule with ScalaModule {
       }
     }
   }
+
+  @Provides
+  def resourcePermissionRegistry(
+    db: Database
+  )(
+    implicit ec: ExecutionContext
+  ): ResourcePermissionRegistryLike =
+    new ResourcePermissionRegistry(db)
 
 }
 
