@@ -12,6 +12,7 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials
 import java.net.URI
 import scala.concurrent.ExecutionContext
+import software.amazon.awssdk.services.s3.model.GetObjectRequest
 
 /**
   * A common trait for all File Repositories.
@@ -21,11 +22,18 @@ trait FileRepositoryLike {
   implicit val ec: ExecutionContext
 
   /**
-    * Uploads and saves a file.
+    * Stores a file
     *  @param key - A unique key for the file (e.g. a uuid)
     *  @param file - The file
     */
   def store(key: String, file: InputStream): Future[Unit]
+
+  /**
+    * Reads a file
+    *  @param key - The file key.
+    */
+  def read(key: String): Future[InputStream]
+
 }
 
 /**
@@ -39,27 +47,41 @@ class BackblazeS3FileRepository(
 
   private val logger = Logger(getClass)
 
-  def store(key: String, file: InputStream): Future[Unit] = Future {
-    logger.info(f"Started upload with key ${key}.")
-    val bucket = config.bucket
+  lazy val s3client = {
+    logger.info(f"Creating s3 client...")
     val region = Region.of(config.region)
     val accessKey = config.accessKey
     val secretAccessKey = config.secretAccessKey
     val endpoint = URI.create(config.endpoint)
     val sessionCredentials = AwsSessionCredentials.create(accessKey, secretAccessKey, "")
     val credentialsProvider = StaticCredentialsProvider.create(sessionCredentials)
-    val putRequest = PutObjectRequest.builder().bucket(bucket).key(key).build()
-    val requestBody = RequestBody.fromBytes(file.readAllBytes())
-    S3Client
+    val out = S3Client
       .builder()
       .region(region)
       .credentialsProvider(credentialsProvider)
       .endpointOverride(endpoint)
       .build()
-      .putObject(putRequest, requestBody)
+    logger.info(f"s3 client created")
+    out
+  }
+
+  override def store(key: String, file: InputStream): Future[Unit] = Future {
+    logger.info(f"Started upload with key ${key}.")
+    val bucket = config.bucket
+    val putRequest = PutObjectRequest.builder().bucket(bucket).key(key).build()
+    val requestBody = RequestBody.fromBytes(file.readAllBytes())
+    s3client.putObject(putRequest, requestBody)
     logger.info(f"Finished upload with key ${key}")
     ()
   }
+
+  override def read(key: String): Future[InputStream] = Future {
+    logger.info(f"Started download with key ${key}")
+    val bucket = config.bucket
+    val getRequest = GetObjectRequest.builder().bucket(bucket).key(key).build()
+    s3client.getObject(getRequest)
+  }
+
 }
 
 case class BackblazeS3Config(
@@ -75,6 +97,8 @@ case class BackblazeS3Config(
   */
 class MockFileRepository()(implicit val ec: ExecutionContext) extends FileRepositoryLike {
 
-  def store(key: String, file: InputStream): Future[Unit] = Future.successful(())
+  override def read(key: String): Future[InputStream] = ???
+
+  override def store(key: String, file: InputStream): Future[Unit] = Future.successful(())
 
 }
