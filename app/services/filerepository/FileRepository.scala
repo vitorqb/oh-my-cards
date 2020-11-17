@@ -25,8 +25,7 @@ trait FileRepositoryLike {
     *  @param key - A unique key for the file (e.g. a uuid)
     *  @param file - The file
     */
-  //!!!! TODO Rename to store
-  def upload(key: String, file: InputStream): Future[Unit]
+  def store(key: String, file: InputStream): Future[Unit]
 }
 
 /**
@@ -40,7 +39,7 @@ class BackblazeS3FileRepository(
 
   private val logger = Logger(getClass)
 
-  def upload(key: String, file: InputStream): Future[Unit] = Future {
+  def store(key: String, file: InputStream): Future[Unit] = Future {
     logger.info(f"Started upload with key ${key}.")
     val bucket = config.bucket
     val region = Region.of(config.region)
@@ -76,6 +75,6 @@ case class BackblazeS3Config(
   */
 class MockFileRepository()(implicit val ec: ExecutionContext) extends FileRepositoryLike {
 
-  def upload(key: String, file: InputStream): Future[Unit] = Future.successful(())
+  def store(key: String, file: InputStream): Future[Unit] = Future.successful(())
 
 }

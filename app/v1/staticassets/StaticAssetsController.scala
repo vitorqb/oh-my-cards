@@ -40,7 +40,7 @@ class StaticAssetsController @Inject()(
           val key = uuidGenerator.generate()
           logger.info(f"Handling valid body data with single file and assigned key ${key}")
           val inputStream = new FileInputStream(file)
-          fileRepository.upload(key, inputStream).flatMap { _ =>
+          fileRepository.store(key, inputStream).flatMap { _ =>
             resourcePermissionRegistry.grantAccess(request.identity, key).map { _ =>
               Ok
             }

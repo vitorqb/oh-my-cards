@@ -44,7 +44,7 @@ class StaticAssetsControllerSpec
     def build(): StaticAssetsController = {
       val f2 = f.getOrElse({
         val x = mock[FileRepositoryLike]
-        when(x.upload(any, any)).thenReturn(Future.successful(()))
+        when(x.store(any, any)).thenReturn(Future.successful(()))
         x
       })
       val u2 = u.getOrElse(mock[UUIDGeneratorLike])
@@ -64,7 +64,7 @@ class StaticAssetsControllerSpec
       case None => result
       case Some(x) => {
         val file = TempFileWritter.write(x)
-        val filePart = MultipartFormData.FilePart("upload", "foo.txt", None, file)
+        val filePart = MultipartFormData.FilePart("store", "foo.txt", None, file)
         val formData = new MultipartFormData(Map(), Seq(filePart), Seq())
         result.withMultipartFormDataBody(formData)
       }
@@ -75,13 +75,13 @@ class StaticAssetsControllerSpec
 
   ".store()" should {
 
-    "upload a file" in {
+    "store a file" in {
       SilhouetteTestUtils.running() { c =>
         Helpers.running(c.app) {
           val uuidGenerator = mock[UUIDGenerator]
           when(uuidGenerator.generate()).thenReturn("MyKey")
           val fileRepository = mock[FileRepositoryLike]
-          when(fileRepository.upload(any, any)).thenReturn(Future.successful(()))
+          when(fileRepository.store(any, any)).thenReturn(Future.successful(()))
           val controller = ControllerBuilder(c)
             .withFileRepository(fileRepository)
             .withUUIDGenerator(uuidGenerator)
@@ -92,13 +92,13 @@ class StaticAssetsControllerSpec
 
           val fileArgCapture = ArgumentCaptor.forClass(classOf[InputStream])
           status(result) mustEqual 200
-          verify(fileRepository).upload(eqTo("MyKey"), fileArgCapture.capture())
+          verify(fileRepository).store(eqTo("MyKey"), fileArgCapture.capture())
           Source.fromInputStream(fileArgCapture.getValue()).mkString mustEqual "foo"
         }
       }
     }
 
-    "gives user permission to the uploaded file" in {
+    "gives user permission to the storeed file" in {
       SilhouetteTestUtils.running() { c =>
         Helpers.running(c.app) {
           val uuidGenerator = mock[UUIDGenerator]
