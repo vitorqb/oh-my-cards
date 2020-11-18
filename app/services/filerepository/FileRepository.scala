@@ -1,18 +1,16 @@
 package services.filerepository
 
 import scala.concurrent.Future
-import java.io.InputStream
 import play.api.Logger
 
-import software.amazon.awssdk.core.sync.RequestBody;
-import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
-import software.amazon.awssdk.auth.credentials.AwsSessionCredentials
-import java.net.URI
 import scala.concurrent.ExecutionContext
-import software.amazon.awssdk.services.s3.model.GetObjectRequest
+import com.backblaze.b2.client.B2StorageClientFactory
+import play.api.libs.Files.SingletonTemporaryFileCreator
+import com.backblaze.b2.client.contentHandlers.B2ContentFileWriter
+import java.io.File
+import com.backblaze.b2.client.structures.B2UploadFileRequest
+import java.nio.file.Files
+import com.backblaze.b2.client.contentSources.B2FileContentSource
 
 /**
   * A common trait for all File Repositories.
@@ -26,20 +24,20 @@ trait FileRepositoryLike {
     *  @param key - A unique key for the file (e.g. a uuid)
     *  @param file - The file
     */
-  def store(key: String, file: InputStream): Future[Unit]
+  def store(key: String, file: File): Future[Unit]
 
   /**
     * Reads a file
     *  @param key - The file key.
     */
-  def read(key: String): Future[InputStream]
+  def read(key: String): Future[File]
 
 }
 
 /**
-  * An implementation for File Repositories that uses s3+backblaze.
+  * An implementation for File Repository using b2 sdk.
   */
-class BackblazeS3FileRepository(
+class B2FileRepository(
   config: BackblazeS3Config
 )(
   implicit val ec: ExecutionContext
@@ -47,60 +45,51 @@ class BackblazeS3FileRepository(
 
   private val logger = Logger(getClass)
 
-  lazy val s3client = {
-    logger.info(f"Creating s3 client...")
-    val region = Region.of(config.region)
-    val accessKey = config.accessKey
-    val secretAccessKey = config.secretAccessKey
-    val endpoint = URI.create(config.endpoint)
-    val sessionCredentials = AwsSessionCredentials.create(accessKey, secretAccessKey, "")
-    val credentialsProvider = StaticCredentialsProvider.create(sessionCredentials)
-    val out = S3Client
-      .builder()
-      .region(region)
-      .credentialsProvider(credentialsProvider)
-      .endpointOverride(endpoint)
-      .build()
-    logger.info(f"s3 client created")
+  lazy val client = {
+    logger.info("Initializing b2 client...")
+    val out = B2StorageClientFactory
+      .createDefaultFactory()
+      .create(config.keyId, config.key, "OhMyCards")
+    logger.info("Client initialized")
     out
   }
 
-  override def store(key: String, file: InputStream): Future[Unit] = Future {
+  lazy val bucketName = {
+    val allowed = client.getAccountAuthorization().getAllowed()
+    if (config.bucketId != allowed.bucketId)
+      throw new RuntimeException("B2FileRepository does not has access to the bucket.")
+    allowed.bucketName
+  }
+
+  override def store(key: String, file: File): Future[Unit] = Future {
     logger.info(f"Started upload with key ${key}.")
-    val bucket = config.bucket
-    val putRequest = PutObjectRequest.builder().bucket(bucket).key(key).build()
-    val requestBody = RequestBody.fromBytes(file.readAllBytes())
-    s3client.putObject(putRequest, requestBody)
+    val contentType = Files.probeContentType(file.toPath())
+    val source = B2FileContentSource.builder(file).build()
+    val req = B2UploadFileRequest.builder(config.bucketId, key, contentType, source).build()
+    client.uploadSmallFile(req)
     logger.info(f"Finished upload with key ${key}")
     ()
   }
-
-  override def read(key: String): Future[InputStream] = Future {
+  override def read(key: String): Future[File] = Future {
     logger.info(f"Started download with key ${key}")
-    val bucket = config.bucket
-    val getRequest = GetObjectRequest.builder().bucket(bucket).key(key).build()
-    val out = s3client.getObject(getRequest)
+    val file = SingletonTemporaryFileCreator.create()
+    val sink = B2ContentFileWriter.builder(file).build()
+    client.downloadByName(bucketName, key, sink)
     logger.info(f"Finished download with key ${key}")
-    out
+    file
   }
 
 }
 
-case class BackblazeS3Config(
-  bucket: String,
-  region: String,
-  accessKey: String,
-  secretAccessKey: String,
-  endpoint: String,
-)
+case class BackblazeS3Config(bucketId: String, keyId: String, key: String)
 
 /**
   * A test implementation.
   */
 class MockFileRepository()(implicit val ec: ExecutionContext) extends FileRepositoryLike {
 
-  override def read(key: String): Future[InputStream] = ???
+  override def read(key: String): Future[File] = ???
 
-  override def store(key: String, file: InputStream): Future[Unit] = Future.successful(())
+  override def store(key: String, file: File): Future[Unit] = Future.successful(())
 
 }

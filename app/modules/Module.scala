@@ -39,10 +39,10 @@ import v1.card.historytrackerhandler.{
 import services.referencecounter.{ReferenceCounter,ReferenceCounterLike}
 import services.filerepository.FileRepositoryLike
 import services.filerepository.BackblazeS3Config
-import services.filerepository.BackblazeS3FileRepository
 import services.filerepository.MockFileRepository
 import services.resourcepermissionregistry.ResourcePermissionRegistryLike
 import services.resourcepermissionregistry.ResourcePermissionRegistry
+import services.filerepository.B2FileRepository
 
 class Module extends AbstractModule with ScalaModule {
 
@@ -176,13 +176,11 @@ class Module extends AbstractModule with ScalaModule {
     config.get[String]("staticFilesRepositoryType") match {
       case "backblaze" => {
         val backblazeConfig = BackblazeS3Config(
-          config.get[String]("backblaze.staticfiles.bucket"),
-          config.get[String]("backblaze.staticfiles.region"),
-          config.get[String]("backblaze.staticfiles.accesskey"),
-          config.get[String]("backblaze.staticfiles.secretaccesskey"),
-          config.get[String]("backblaze.staticfiles.endpoint"),
+          config.get[String]("backblaze.staticfiles.bucketId"),
+          config.get[String]("backblaze.staticfiles.keyId"),
+          config.get[String]("backblaze.staticfiles.key"),
         )
-        new BackblazeS3FileRepository(backblazeConfig)
+        new B2FileRepository(backblazeConfig)
       }
       case "mock" => new MockFileRepository()
       case x => {

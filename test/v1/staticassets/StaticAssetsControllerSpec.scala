@@ -13,7 +13,6 @@ import org.mockito.MockitoSugar
 import services.filerepository.FileRepositoryLike
 import play.api.mvc.MultipartFormData
 import org.mockito.ArgumentCaptor
-import java.io.InputStream
 import org.mockito.ArgumentMatchersSugar
 import scala.concurrent.Future
 import scala.io.Source
@@ -22,9 +21,9 @@ import services.UUIDGenerator
 import services.UUIDGeneratorLike
 import play.api.mvc.AnyContent
 import services.resourcepermissionregistry.ResourcePermissionRegistryLike
-import java.io.ByteArrayInputStream
 import akka.actor.ActorSystem
 import akka.stream.Materializer
+import java.io.File
 
 
 class StaticAssetsControllerSpec
@@ -35,7 +34,6 @@ class StaticAssetsControllerSpec
 
   implicit val ec: ExecutionContext = ExecutionContext.global
 
-  // Needed to read from chunked response
   implicit val actorSystem = ActorSystem("test")
   implicit lazy val mat = Materializer(actorSystem)
 
@@ -97,10 +95,10 @@ class StaticAssetsControllerSpec
 
           val result = controller.store()(fakeRequest)
 
-          val fileArgCapture = ArgumentCaptor.forClass(classOf[InputStream])
+          val fileArgCapture = ArgumentCaptor.forClass(classOf[File])
           status(result) mustEqual 200
           verify(fileRepository).store(eqTo("MyKey"), fileArgCapture.capture())
-          Source.fromInputStream(fileArgCapture.getValue()).mkString mustEqual "foo"
+          Source.fromFile(fileArgCapture.getValue()).mkString mustEqual "foo"
         }
       }
     }
@@ -145,7 +143,7 @@ class StaticAssetsControllerSpec
     "retrieve the file for the user from the repository" in {
       SilhouetteTestUtils.running() { c =>
         Helpers.running(c.app) {
-          val file = new ByteArrayInputStream("content".getBytes())
+          val file = TempFileWritter.write("content")
           val permissionRegistry = mock[ResourcePermissionRegistryLike]
           when(permissionRegistry.hasAccess(c.user, "theKey")).thenReturn(Future.successful(true))
           val fileRepository = mock[FileRepositoryLike]
@@ -167,7 +165,7 @@ class StaticAssetsControllerSpec
     "returns 404 if user does not has access" in {
       SilhouetteTestUtils.running() { c =>
         Helpers.running(c.app) {
-          val file = new ByteArrayInputStream("content".getBytes())
+          val file = TempFileWritter.write("content")
           val permissionRegistry = mock[ResourcePermissionRegistryLike]
           when(permissionRegistry.hasAccess(c.user, "theKey")).thenReturn(Future.successful(false))
           val fileRepository = mock[FileRepositoryLike]

@@ -46,7 +46,10 @@ libraryDependencies ++= Seq(
   "org.mockito" %% "mockito-scala" % "1.11.2",
   "com.lihaoyi" %% "requests" % "0.5.1",
   "org.parboiled" %% "parboiled-scala" % "1.3.1",
-  "software.amazon.awssdk" % "aws-sdk-java" % "2.15.15"
+
+  //Backblaze
+  "com.backblaze.b2" % "b2-sdk-httpclient" % "4.0.0",
+  "com.backblaze.b2" % "b2-sdk-core" % "4.0.0"
 )
 
 //ElasticSearch setup

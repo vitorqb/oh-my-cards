@@ -8,12 +8,10 @@ import v1.auth.DefaultEnv
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext
 import services.filerepository.FileRepositoryLike
-import java.io.FileInputStream
 import services.UUIDGeneratorLike
 import play.api.Logger
 import utils.RequestExtractorHelper
 import services.resourcepermissionregistry.ResourcePermissionRegistryLike
-import akka.stream.scaladsl.StreamConverters
 
 class StaticAssetsController @Inject()(
   val controllerComponents: ControllerComponents,
@@ -40,8 +38,7 @@ class StaticAssetsController @Inject()(
         case Some(file) => {
           val key = uuidGenerator.generate()
           logger.info(f"Handling valid body data with single file and assigned key ${key}")
-          val inputStream = new FileInputStream(file)
-          fileRepository.store(key, inputStream).flatMap { _ =>
+          fileRepository.store(key, file).flatMap { _ =>
             resourcePermissionRegistry.grantAccess(request.identity, key).map { _ =>
               Ok
             }
@@ -59,7 +56,7 @@ class StaticAssetsController @Inject()(
       resourcePermissionRegistry.hasAccess(request.identity, key).flatMap {
         case false => Future.successful(NotFound)
         case true => fileRepository.read(key).map { x =>
-          Ok.chunked(StreamConverters.fromInputStream(() => x))
+          Ok.sendFile(x)
         }
       }
     }.flatten
