@@ -12,6 +12,7 @@ import services.UUIDGeneratorLike
 import play.api.Logger
 import utils.RequestExtractorHelper
 import services.resourcepermissionregistry.ResourcePermissionRegistryLike
+import play.api.libs.json.Json
 
 class StaticAssetsController @Inject()(
   val controllerComponents: ControllerComponents,
@@ -40,7 +41,7 @@ class StaticAssetsController @Inject()(
           logger.info(f"Handling valid body data with single file and assigned key ${key}")
           fileRepository.store(key, file).flatMap { _ =>
             resourcePermissionRegistry.grantAccess(request.identity, key).map { _ =>
-              Ok
+              Ok(Json.obj("key" -> key))
             }
           }
         }

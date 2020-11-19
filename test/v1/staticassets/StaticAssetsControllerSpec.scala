@@ -24,6 +24,7 @@ import services.resourcepermissionregistry.ResourcePermissionRegistryLike
 import akka.actor.ActorSystem
 import akka.stream.Materializer
 import java.io.File
+import play.api.libs.json.Json
 
 
 class StaticAssetsControllerSpec
@@ -99,6 +100,20 @@ class StaticAssetsControllerSpec
           status(result) mustEqual 200
           verify(fileRepository).store(eqTo("MyKey"), fileArgCapture.capture())
           Source.fromFile(fileArgCapture.getValue()).mkString mustEqual "foo"
+        }
+      }
+    }
+
+    "returns key" in {
+      SilhouetteTestUtils.running() { c =>
+        Helpers.running(c.app) {
+          val uuidGenerator = mock[UUIDGenerator]
+          when(uuidGenerator.generate()).thenReturn("MyKey")
+          val controller = ControllerBuilder(c)
+            .withUUIDGenerator(uuidGenerator)
+            .build()
+          val result = controller.store()(mkFakeRequest("A"))
+          contentAsJson(result) mustEqual Json.obj("key" -> "MyKey")
         }
       }
     }
