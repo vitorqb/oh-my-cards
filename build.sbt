@@ -45,7 +45,11 @@ libraryDependencies ++= Seq(
   "joda-time" % "joda-time" % "2.10.5",
   "org.mockito" %% "mockito-scala" % "1.11.2",
   "com.lihaoyi" %% "requests" % "0.5.1",
-  "org.parboiled" %% "parboiled-scala" % "1.3.1"
+  "org.parboiled" %% "parboiled-scala" % "1.3.1",
+
+  //Backblaze
+  "com.backblaze.b2" % "b2-sdk-httpclient" % "4.0.0",
+  "com.backblaze.b2" % "b2-sdk-core" % "4.0.0"
 )
 
 //ElasticSearch setup
