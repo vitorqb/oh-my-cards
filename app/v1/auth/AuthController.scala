@@ -73,6 +73,7 @@ class AuthController @Inject()(
   implicit val ec: ExecutionContext)
     extends BaseController {
 
+  //!!!! TODO READ FROM CONFIG
   private val AUTH_COOKIE = "OHMYCARDS_AUTH"
 
   def createOneTimePassword = silhouette.UnsecuredAction.async { implicit request =>
@@ -127,6 +128,7 @@ class AuthController @Inject()(
     Ok(Json.toJson(Json.obj("email" -> request.identity.email)))
   }}
 
+  //!!!! TODO REMOVE AND USER CookieUserIdentifierLike
   private def decryptAuthCookie[A](r: Request[A]): Option[String] = {
     r.cookies.get(AUTH_COOKIE).map(_.value).map(decodeBase64(_)).flatMap(encryptedToken => {
       tokenEncrypter.decrypt(encryptedToken).map(arrayOfBytesToString(_))
