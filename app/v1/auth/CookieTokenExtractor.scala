@@ -3,7 +3,7 @@ package v1.auth
 import play.api.mvc.Request
 import play.api.mvc.AnyContent
 import scala.concurrent.Future
-import java.{util => ju}
+import utils.Base64Converter
 
 
 /**
@@ -21,9 +21,7 @@ class CookieTokenExtractor(
 
   override def extractToken(r: Request[AnyContent]): Future[Option[UserToken]] = {
     r.cookies.get(authCookieName)
-      .map { cookie => cookie.value }
-      .map { cookieValue => cookieValue.getBytes() }
-      .map { cookieValueBytes => ju.Base64.getDecoder().decode(cookieValueBytes) }
+      .map { cookie => Base64Converter.decode(cookie.value) }
       .flatMap { encryptedTokenBytes => tokenEncrypter.decrypt(encryptedTokenBytes) }
       .map { tokenBytes => tokenBytes.map(_.toChar).mkString }
       .map { token => userTokenRepository.findByTokenValue(token) } match {

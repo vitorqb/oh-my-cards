@@ -10,7 +10,7 @@ import scala.concurrent.ExecutionContext
 import scala.util.Success
 import scala.util.Failure
 import play.api.libs.json.Json
-import java.{util => ju}
+import utils.Base64Converter
 
 /**
   * Wrapper for sending emails with tokens.
@@ -108,9 +108,10 @@ class AuthController @Inject()(
           case Failure(e) => throw e
           case Success(user) => for {
             token <- tokenService.generateTokenForUser(user)
-            encryptedToken = ju.Base64.getEncoder.encodeToString(tokenEncrypter.encrypt(token))
+            encryptedToken = tokenEncrypter.encrypt(token)
+            base64EncryptedToken = Base64Converter.encodeToString(encryptedToken)
           } yield {
-            Ok(Json.toJson(token)).withCookies(Cookie(AUTH_COOKIE, encryptedToken))
+            Ok(Json.toJson(token)).withCookies(Cookie(AUTH_COOKIE, base64EncryptedToken))
           }
         }
       }
@@ -130,12 +131,14 @@ class AuthController @Inject()(
 
   //!!!! TODO REMOVE AND USER CookieUserIdentifierLike
   private def decryptAuthCookie[A](r: Request[A]): Option[String] = {
-    r.cookies.get(AUTH_COOKIE).map(_.value).map(decodeBase64(_)).flatMap(encryptedToken => {
-      tokenEncrypter.decrypt(encryptedToken).map(arrayOfBytesToString(_))
-    })
+    r.cookies.get(AUTH_COOKIE)
+      .map(_.value)
+      .map(Base64Converter.decode)
+      .flatMap { encryptedToken =>
+        tokenEncrypter.decrypt(encryptedToken).map(arrayOfBytesToString(_))
+      }
   }
 
   private def arrayOfBytesToString(a: Array[Byte]): String = a.map(_.toChar).mkString
-  private def decodeBase64(x: String): Array[Byte] = ju.Base64.getDecoder.decode(x.getBytes)
 
 }

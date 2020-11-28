@@ -7,12 +7,12 @@ import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.test.Helpers
 import play.api.test.Helpers._
 import play.api.mvc.Cookie
-import java.{util => ju}
 import org.mockito.MockitoSugar
 import org.mockito.ArgumentMatchersSugar
 import services.MailService
 import scala.concurrent.ExecutionContext
 import play.api.libs.json.Json
+import utils.Base64Converter
 
 
 class AuthControllerSpec
@@ -25,8 +25,7 @@ class AuthControllerSpec
     "recover the token from the cookie" in new Injector() { c =>
       when(c.tokenEncrypter.decrypt("encrypted".getBytes())).thenReturn(Some("token".getBytes()))
 
-      //!!!! TODO base64 encode/decode helper
-      val tokenVal = ju.Base64.getEncoder().encode("encrypted".getBytes()).map(_.toChar).mkString
+      val tokenVal = Base64Converter.encodeToString("encrypted")
       val cookie = Cookie("OHMYCARDS_AUTH", tokenVal)
       val request = FakeRequest().withCookies(cookie)
       val response = c.controller.recoverTokenFromCookie()(request)
