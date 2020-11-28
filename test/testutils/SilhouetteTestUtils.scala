@@ -12,6 +12,7 @@ import com.mohiva.play.silhouette.test.FakeEnvironment
 import com.mohiva.play.silhouette.api.RequestProvider
 import play.api.mvc.Request
 import v1.auth.SilhouetteEnvWrapper
+import play.api.Application
 
 /**
   * Context that can be used in tests providing an `app` with silhouette stubbed.
@@ -59,6 +60,7 @@ trait SilhouetteInjectorContext {
     * The silhouette instance
     */
   lazy val silhouette = app.injector.instanceOf[SilhouetteEnvWrapper].silhouette
+  def silhouette(app: Application) = app.injector.instanceOf[SilhouetteEnvWrapper].silhouette
 
 }
 

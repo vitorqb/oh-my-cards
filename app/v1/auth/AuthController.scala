@@ -117,7 +117,7 @@ class AuthController @Inject()(
     )
   }
 
-  def recoverTokenFromCookie = silhouette.UnsecuredAction.async { implicit request => Future {
+  def recoverTokenFromCookie = silhouette.UserAwareAction.async { implicit request => Future {
     decryptAuthCookie(request) match {
       case None => BadRequest
       case Some(x) => Ok(Json.toJson(Json.obj("value" -> x)))
