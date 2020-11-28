@@ -46,6 +46,8 @@ import services.filerepository.B2FileRepository
 import v1.auth.CookieTokenManagerLike
 import v1.auth.CookieTokenManager
 import v1.auth.UserTokenRepository
+import v1.auth.CookieUserIdentifierLike
+import v1.auth.CookieUserIdentifier
 
 class Module extends AbstractModule with ScalaModule {
 
@@ -204,9 +206,17 @@ class Module extends AbstractModule with ScalaModule {
   def cookieTokenManager(
     userTokenRepository: UserTokenRepository,
     tokenEncrypter: TokenEncrypter,
-    authCookieName: String,
   ): CookieTokenManagerLike =
-    new CookieTokenManager(userTokenRepository, tokenEncrypter, authCookieName)
+    new CookieTokenManager(userTokenRepository, tokenEncrypter, "OHMYCARDS_AUTH")
+
+  @Provides
+  def cookieUserIdentifier(
+    cookieTokenManager: CookieTokenManagerLike,
+    clock: SilhouetteClock
+  )(
+    implicit ec: ExecutionContext
+  ): CookieUserIdentifierLike =
+    new CookieUserIdentifier(cookieTokenManager, clock)
 
 }
 

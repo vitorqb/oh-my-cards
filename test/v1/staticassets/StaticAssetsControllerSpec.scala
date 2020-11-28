@@ -25,6 +25,9 @@ import akka.actor.ActorSystem
 import akka.stream.Materializer
 import java.io.File
 import play.api.libs.json.Json
+import v1.auth.CookieUserIdentifier
+import v1.auth.CookieUserIdentifierLike
+import v1.auth.User
 
 
 class StaticAssetsControllerSpec
@@ -42,11 +45,15 @@ class StaticAssetsControllerSpec
     c: SilhouetteInjectorContext,
     f: Option[FileRepositoryLike] = None,
     u: Option[UUIDGeneratorLike] = None,
-    r: Option[ResourcePermissionRegistryLike] =  None
+    r: Option[ResourcePermissionRegistryLike] =  None,
+    i: Option[CookieUserIdentifierLike] = None,
+    s: Option[User] = None
   ) {
-    def withFileRepository(f2: FileRepositoryLike): ControllerBuilder = copy(f=Some(f2))
-    def withUUIDGenerator(u2: UUIDGeneratorLike): ControllerBuilder = copy(u=Some(u2))
-    def withPermissionRegistry(r2: ResourcePermissionRegistryLike): ControllerBuilder = copy(r=Some(r2))
+    def withFileRepository(f2: FileRepositoryLike) = copy(f=Some(f2))
+    def withUUIDGenerator(u2: UUIDGeneratorLike) = copy(u=Some(u2))
+    def withPermissionRegistry(r2: ResourcePermissionRegistryLike) = copy(r=Some(r2))
+    def withCookieUserIdentifier(i2: CookieUserIdentifierLike) = copy(i=Some(i2))
+    def withUser(s2: User) = copy(s=Some(s2))
     def build(): StaticAssetsController = {
       val f2 = f.getOrElse({
         val x = mock[FileRepositoryLike]
@@ -59,8 +66,14 @@ class StaticAssetsControllerSpec
         when(x.grantAccess(any, any)).thenReturn(Future.successful(()))
         x
       })
+      val s2 = s.getOrElse(User("foo", "bar@baz"))
+      val i2 = i.getOrElse({
+        val i = mock[CookieUserIdentifier]
+        when(i.identifyUser(any)).thenReturn(Future.successful(Some(s2)))
+        i
+      })
       val components = Helpers.stubControllerComponents()
-      new StaticAssetsController(components, c.silhouette, f2, u2, r2)
+      new StaticAssetsController(components, c.silhouette, f2, u2, r2, i2)
     }
   }
 
@@ -91,6 +104,7 @@ class StaticAssetsControllerSpec
           val controller = ControllerBuilder(c)
             .withFileRepository(fileRepository)
             .withUUIDGenerator(uuidGenerator)
+            .withUser(c.user)
             .build()
           val fakeRequest = mkFakeRequest("foo")
 
@@ -111,6 +125,7 @@ class StaticAssetsControllerSpec
           when(uuidGenerator.generate()).thenReturn("MyKey")
           val controller = ControllerBuilder(c)
             .withUUIDGenerator(uuidGenerator)
+            .withUser(c.user)
             .build()
           val result = controller.store()(mkFakeRequest("A"))
           contentAsJson(result) mustEqual Json.obj("key" -> "MyKey")
@@ -128,6 +143,7 @@ class StaticAssetsControllerSpec
           val controller = ControllerBuilder(c)
             .withUUIDGenerator(uuidGenerator)
             .withPermissionRegistry(permissionRegistry)
+            .withUser(c.user)
             .build()
           val request = mkFakeRequest("content")
 
@@ -166,6 +182,7 @@ class StaticAssetsControllerSpec
           val controller = ControllerBuilder(c)
             .withPermissionRegistry(permissionRegistry)
             .withFileRepository(fileRepository)
+            .withUser(c.user)
             .build()
           val request = mkFakeRequest()
 
@@ -188,6 +205,7 @@ class StaticAssetsControllerSpec
           val controller = ControllerBuilder(c)
             .withPermissionRegistry(permissionRegistry)
             .withFileRepository(fileRepository)
+            .withUser(c.user)
             .build()
           val request = mkFakeRequest()
 
