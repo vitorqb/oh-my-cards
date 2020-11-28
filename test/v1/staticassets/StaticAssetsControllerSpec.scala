@@ -7,7 +7,6 @@ import play.api.test.Helpers._
 import play.api.test.Helpers
 import play.api.test.FakeRequest
 import org.scalatest.concurrent.ScalaFutures
-import testutils.silhouettetestutils.SilhouetteTestUtils
 import scala.concurrent.ExecutionContext
 import org.mockito.MockitoSugar
 import services.filerepository.FileRepositoryLike
@@ -17,17 +16,15 @@ import org.mockito.ArgumentMatchersSugar
 import scala.concurrent.Future
 import scala.io.Source
 import testutils.silhouettetestutils.SilhouetteInjectorContext
-import services.UUIDGenerator
 import services.UUIDGeneratorLike
 import play.api.mvc.AnyContent
 import services.resourcepermissionregistry.ResourcePermissionRegistryLike
 import akka.actor.ActorSystem
 import akka.stream.Materializer
 import java.io.File
-import play.api.libs.json.Json
-import v1.auth.CookieUserIdentifier
 import v1.auth.CookieUserIdentifierLike
-import v1.auth.User
+import play.api.inject.guice.GuiceApplicationBuilder
+import play.api.libs.json.Json
 
 
 class StaticAssetsControllerSpec
@@ -41,181 +38,133 @@ class StaticAssetsControllerSpec
   implicit val actorSystem = ActorSystem("test")
   implicit lazy val mat = Materializer(actorSystem)
 
-  case class ControllerBuilder(
-    c: SilhouetteInjectorContext,
-    f: Option[FileRepositoryLike] = None,
-    u: Option[UUIDGeneratorLike] = None,
-    r: Option[ResourcePermissionRegistryLike] =  None,
-    i: Option[CookieUserIdentifierLike] = None,
-    s: Option[User] = None
-  ) {
-    def withFileRepository(f2: FileRepositoryLike) = copy(f=Some(f2))
-    def withUUIDGenerator(u2: UUIDGeneratorLike) = copy(u=Some(u2))
-    def withPermissionRegistry(r2: ResourcePermissionRegistryLike) = copy(r=Some(r2))
-    def withCookieUserIdentifier(i2: CookieUserIdentifierLike) = copy(i=Some(i2))
-    def withUser(s2: User) = copy(s=Some(s2))
-    def build(): StaticAssetsController = {
-      val f2 = f.getOrElse({
-        val x = mock[FileRepositoryLike]
-        when(x.store(any, any)).thenReturn(Future.successful(()))
-        x
-      })
-      val u2 = u.getOrElse(mock[UUIDGeneratorLike])
-      val r2 = r.getOrElse({
-        val x = mock[ResourcePermissionRegistryLike]
-        when(x.grantAccess(any, any)).thenReturn(Future.successful(()))
-        x
-      })
-      val s2 = s.getOrElse(User("foo", "bar@baz"))
-      val i2 = i.getOrElse({
-        val i = mock[CookieUserIdentifier]
-        when(i.identifyUser(any)).thenReturn(Future.successful(Some(s2)))
-        i
-      })
-      val components = Helpers.stubControllerComponents()
-      new StaticAssetsController(components, c.silhouette, f2, u2, r2, i2)
-    }
-  }
-
-  def mkFakeRequest(fileContent: Option[String]): FakeRequest[AnyContent] = {
-    val result = FakeRequest()
-    fileContent match {
-      case None => result
-      case Some(x) => {
-        val file = TempFileWritter.write(x)
-        val filePart = MultipartFormData.FilePart("store", "foo.txt", None, file)
-        val formData = new MultipartFormData(Map(), Seq(filePart), Seq())
-        result.withMultipartFormDataBody(formData)
-      }
-    }
-  }
-  def mkFakeRequest(): FakeRequest[AnyContent] = mkFakeRequest(None)
-  def mkFakeRequest(x: String): FakeRequest[AnyContent] = mkFakeRequest(Some(x))
-
   ".store()" should {
 
-    "store a file" in {
-      SilhouetteTestUtils.running() { c =>
-        Helpers.running(c.app) {
-          val uuidGenerator = mock[UUIDGenerator]
-          when(uuidGenerator.generate()).thenReturn("MyKey")
-          val fileRepository = mock[FileRepositoryLike]
-          when(fileRepository.store(any, any)).thenReturn(Future.successful(()))
-          val controller = ControllerBuilder(c)
-            .withFileRepository(fileRepository)
-            .withUUIDGenerator(uuidGenerator)
-            .withUser(c.user)
-            .build()
-          val fakeRequest = mkFakeRequest("foo")
+    "store a file" in new Context() { c =>
+      when(c.permissionRegistry.grantAccess(any, any)).thenReturn(Future.successful(()))
+      when(c.uuidGenerator.generate()).thenReturn("MyKey")
+      when(c.fileRepository.store(any, any)).thenReturn(Future.successful(()))
+      val fakeRequest = RequestMaker().gen("foo")
 
-          val result = controller.store()(fakeRequest)
+      val result = c.controller.store()(fakeRequest)
 
-          val fileArgCapture = ArgumentCaptor.forClass(classOf[File])
-          status(result) mustEqual 200
-          verify(fileRepository).store(eqTo("MyKey"), fileArgCapture.capture())
-          Source.fromFile(fileArgCapture.getValue()).mkString mustEqual "foo"
-        }
-      }
+      val fileArgCapture = ArgumentCaptor.forClass(classOf[File])
+      status(result) mustEqual 200
+      verify(c.fileRepository).store(eqTo("MyKey"), fileArgCapture.capture())
+      Source.fromFile(fileArgCapture.getValue()).mkString mustEqual "foo"
     }
 
-    "returns key" in {
-      SilhouetteTestUtils.running() { c =>
-        Helpers.running(c.app) {
-          val uuidGenerator = mock[UUIDGenerator]
-          when(uuidGenerator.generate()).thenReturn("MyKey")
-          val controller = ControllerBuilder(c)
-            .withUUIDGenerator(uuidGenerator)
-            .withUser(c.user)
-            .build()
-          val result = controller.store()(mkFakeRequest("A"))
-          contentAsJson(result) mustEqual Json.obj("key" -> "MyKey")
-        }
-      }
+    "returns key" in new Context() { c =>
+      when(c.permissionRegistry.grantAccess(any, any)).thenReturn(Future.successful(()))
+      when(c.uuidGenerator.generate()).thenReturn("MyKey")
+      when(c.fileRepository.store(any, any)).thenReturn(Future.successful(()))
+
+      val result = c.controller.store()(RequestMaker().gen("A"))
+
+      contentAsJson(result) mustEqual Json.obj("key" -> "MyKey")
     }
 
-    "gives user permission to the storeed file" in {
-      SilhouetteTestUtils.running() { c =>
-        Helpers.running(c.app) {
-          val uuidGenerator = mock[UUIDGenerator]
-          when(uuidGenerator.generate()).thenReturn("theKey")
-          val permissionRegistry = mock[ResourcePermissionRegistryLike]
-          when(permissionRegistry.grantAccess(c.user, "theKey")).thenReturn(Future.successful(()))
-          val controller = ControllerBuilder(c)
-            .withUUIDGenerator(uuidGenerator)
-            .withPermissionRegistry(permissionRegistry)
-            .withUser(c.user)
-            .build()
-          val request = mkFakeRequest("content")
+    "gives user permission to the stored file" in new Context() { c =>
+      when(c.uuidGenerator.generate()).thenReturn("theKey")
+      when(c.permissionRegistry.grantAccess(c.user, "theKey")).thenReturn(Future.successful(()))
+      when(c.fileRepository.store(any, any)).thenReturn(Future.successful(()))
+      val request = RequestMaker().gen("content")
 
-          val result = controller.store()(request)
+      val result = controller.store()(request)
 
-          status(result) mustEqual 200
-          verify(permissionRegistry).grantAccess(c.user, "theKey")
-        }
-      }
+      status(result) mustEqual 200
+      verify(c.permissionRegistry).grantAccess(c.user, "theKey")
     }
 
-    "return error if missing file" in {
-      SilhouetteTestUtils.running() { c =>
-        Helpers.running(c.app) {
-          val controller = ControllerBuilder(c).build()
-          val fakeRequest = mkFakeRequest()
+    "return error if missing file" in new Context() { c =>
+      val fakeRequest = RequestMaker().gen()
 
-          val result = controller.store()(fakeRequest)
+      val result = c.controller.store()(fakeRequest)
 
-          status(result) mustEqual 400
-        }
-      }
+      status(result) mustEqual 400
     }
   }
 
   ".retrieve" should {
 
-    "retrieve the file for the user from the repository" in {
-      SilhouetteTestUtils.running() { c =>
-        Helpers.running(c.app) {
-          val file = TempFileWritter.write("content")
-          val permissionRegistry = mock[ResourcePermissionRegistryLike]
-          when(permissionRegistry.hasAccess(c.user, "theKey")).thenReturn(Future.successful(true))
-          val fileRepository = mock[FileRepositoryLike]
-          when(fileRepository.read("theKey")).thenReturn(Future.successful(file))
-          val controller = ControllerBuilder(c)
-            .withPermissionRegistry(permissionRegistry)
-            .withFileRepository(fileRepository)
-            .withUser(c.user)
-            .build()
-          val request = mkFakeRequest()
+    "retrieve the file for the user from the repository" in new Context { c =>
+      val file = TempFileWritter.write("content")
+      when(c.cookieUserIdentifier.identifyUser(any)).thenReturn(Future.successful(Some(c.user)))
+      when(c.permissionRegistry.hasAccess(c.user, "theKey")).thenReturn(Future.successful(true))
+      when(c.fileRepository.read("theKey")).thenReturn(Future.successful(file))
+      val request = RequestMaker().gen()
 
-          val result = controller.retrieve("theKey")(request)
+      val result = c.controller.retrieve("theKey")(request)
 
-          status(result) mustEqual 200
-          contentAsString(result) mustEqual "content"
+      status(result) mustEqual 200
+      contentAsString(result) mustEqual "content"
+    }
+
+    "returns 401 if user not identifiable by cookies" in new Context { c =>
+      when(c.cookieUserIdentifier.identifyUser(any)).thenReturn(Future.successful(None))
+      val request = RequestMaker().gen()
+
+      val result = c.controller.retrieve("theKey")(request)
+
+      status(result) mustEqual 401
+    }
+
+    "returns 404 if user does not has access" in new Context { c =>
+      val file = TempFileWritter.write("content")
+      when(c.cookieUserIdentifier.identifyUser(any)).thenReturn(Future.successful(Some(c.user)))
+      when(c.permissionRegistry.hasAccess(c.user, "theKey")).thenReturn(Future.successful(false))
+      when(c.fileRepository.read("theKey")).thenReturn(Future.successful(file))
+      val request = RequestMaker().gen()
+
+      val result = c.controller.retrieve("theKey")(request)
+
+      status(result) mustEqual 404
+    }
+
+  }
+
+  case class Context() {
+    lazy val silhouetteInjector = new SilhouetteInjectorContext {}
+    lazy val app = new GuiceApplicationBuilder()
+      .overrides(new silhouetteInjector.GuiceModule)
+      .build()
+    lazy val user = silhouetteInjector.user
+    lazy val components = Helpers.stubControllerComponents()
+    lazy val fileRepository = mock[FileRepositoryLike]
+    lazy val uuidGenerator = mock[UUIDGeneratorLike]
+    lazy val permissionRegistry = mock[ResourcePermissionRegistryLike]
+    lazy val cookieUserIdentifier = mock[CookieUserIdentifierLike]
+    lazy val controller = new StaticAssetsController(
+      components,
+      silhouetteInjector.silhouette(app),
+      fileRepository,
+      uuidGenerator,
+      permissionRegistry,
+      cookieUserIdentifier
+    )
+
+    def apply(block: Context => Any) = {
+      Helpers.running(app) {
+        block(this)
+      }
+    }
+  }
+
+  case class RequestMaker() {
+    def gen(fileContent: Option[String]): FakeRequest[AnyContent] = {
+      val result = FakeRequest()
+      fileContent match {
+        case None => result
+        case Some(x) => {
+          val file = TempFileWritter.write(x)
+          val filePart = MultipartFormData.FilePart("store", "foo.txt", None, file)
+          val formData = new MultipartFormData(Map(), Seq(filePart), Seq())
+          result.withMultipartFormDataBody(formData)
         }
       }
     }
-
-    "returns 404 if user does not has access" in {
-      SilhouetteTestUtils.running() { c =>
-        Helpers.running(c.app) {
-          val file = TempFileWritter.write("content")
-          val permissionRegistry = mock[ResourcePermissionRegistryLike]
-          when(permissionRegistry.hasAccess(c.user, "theKey")).thenReturn(Future.successful(false))
-          val fileRepository = mock[FileRepositoryLike]
-          when(fileRepository.read("theKey")).thenReturn(Future.successful(file))
-          val controller = ControllerBuilder(c)
-            .withPermissionRegistry(permissionRegistry)
-            .withFileRepository(fileRepository)
-            .withUser(c.user)
-            .build()
-          val request = mkFakeRequest()
-
-          val result = controller.retrieve("theKey")(request)
-
-          status(result) mustEqual 404
-        }
-      }
-    }
-
+    def gen(): FakeRequest[AnyContent] = gen(None)
+    def gen(x: String): FakeRequest[AnyContent] = gen(Some(x))
   }
 
 }
