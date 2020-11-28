@@ -24,13 +24,20 @@ class AuthControllerSpec
   "recoverTokenFromCookie" should {
     "recover the token from the cookie" in new Injector() { c =>
       when(c.tokenEncrypter.decrypt("encrypted".getBytes())).thenReturn(Some("token".getBytes()))
-
       val tokenVal = Base64Converter.encodeToString("encrypted")
       val cookie = Cookie("OHMYCARDS_AUTH", tokenVal)
       val request = FakeRequest().withCookies(cookie)
       val response = c.controller.recoverTokenFromCookie()(request)
       status(response) mustEqual 200
       contentAsJson(response) mustEqual Json.obj("value" -> "token")
+    }
+    "fail if invalid cookie" in new Injector() { c =>
+      when(c.tokenEncrypter.decrypt("encrypted".getBytes())).thenReturn(None)
+      val tokenVal = Base64Converter.encodeToString("encrypted")
+      val cookie = Cookie("OHMYCARDS_AUTH", tokenVal)
+      val request = FakeRequest().withCookies(cookie)
+      val response = c.controller.recoverTokenFromCookie()(request)
+      status(response) mustEqual 400
     }
   }
 
