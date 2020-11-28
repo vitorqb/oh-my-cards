@@ -9,15 +9,15 @@ import utils.Base64Converter
 /**
   * Extracts a Token from a request cookies.
   */
-trait CookieTokenExtractorLike {
+trait CookieTokenManagerLike {
   def extractToken(r: Request[AnyContent]): Future[Option[UserToken]]
 }
 
-class CookieTokenExtractor(
+class CookieTokenManager(
   userTokenRepository: UserTokenRepository,
   tokenEncrypter: TokenEncrypter,
   authCookieName: String,
-) extends CookieTokenExtractorLike {
+) extends CookieTokenManagerLike {
 
   override def extractToken(r: Request[AnyContent]): Future[Option[UserToken]] = {
     r.cookies.get(authCookieName)

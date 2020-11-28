@@ -10,7 +10,7 @@ import play.api.mvc.Cookie
 import org.mockito.ArgumentMatchersSugar
 
 
-class CookieTokenExtractorSpec
+class CookieTokenManagerSpec
     extends PlaySpec
     with MockitoSugar
     with ScalaFutures
@@ -23,7 +23,7 @@ class CookieTokenExtractorSpec
       val token = mock[UserToken]
       val tokenEncrypter = mock[TokenEncrypter]
       val userTokenRepository = mock[UserTokenRepository]
-      val extractor = new CookieTokenExtractor(userTokenRepository, tokenEncrypter, "foo")
+      val extractor = new CookieTokenManager(userTokenRepository, tokenEncrypter, "foo")
       val request = FakeRequest().withCookies(Cookie("bar", "bar"))
 
       extractor.extractToken(request).futureValue mustEqual None
@@ -34,7 +34,7 @@ class CookieTokenExtractorSpec
       val tokenEncrypter = mock[TokenEncrypter]
       when(tokenEncrypter.decrypt(any)).thenReturn(None)
       val userTokenRepository = mock[UserTokenRepository]
-      val extractor = new CookieTokenExtractor(userTokenRepository, tokenEncrypter, "foo")
+      val extractor = new CookieTokenManager(userTokenRepository, tokenEncrypter, "foo")
       val request = FakeRequest().withCookies(Cookie("foo", "foo"))
 
       extractor.extractToken(request).futureValue mustEqual None
@@ -47,7 +47,7 @@ class CookieTokenExtractorSpec
       val userTokenRepository = mock[UserTokenRepository]
       when(userTokenRepository.findByTokenValue("token"))
         .thenReturn(Future.successful(Some(token)))
-      val extractor = new CookieTokenExtractor(userTokenRepository, tokenEncrypter, "foo")
+      val extractor = new CookieTokenManager(userTokenRepository, tokenEncrypter, "foo")
       val request = FakeRequest().withCookies(Cookie("foo", "foo"))
 
       extractor.extractToken(request).futureValue mustEqual Some(token)

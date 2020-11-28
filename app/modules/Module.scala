@@ -43,8 +43,8 @@ import services.filerepository.MockFileRepository
 import services.resourcepermissionregistry.ResourcePermissionRegistryLike
 import services.resourcepermissionregistry.ResourcePermissionRegistry
 import services.filerepository.B2FileRepository
-import v1.auth.CookieTokenExtractorLike
-import v1.auth.CookieTokenExtractor
+import v1.auth.CookieTokenManagerLike
+import v1.auth.CookieTokenManager
 import v1.auth.UserTokenRepository
 
 class Module extends AbstractModule with ScalaModule {
@@ -201,12 +201,12 @@ class Module extends AbstractModule with ScalaModule {
     new ResourcePermissionRegistry(db)
 
   @Provides
-  def cookieTokenExtractor(
+  def cookieTokenManager(
     userTokenRepository: UserTokenRepository,
     tokenEncrypter: TokenEncrypter,
     authCookieName: String,
-  ): CookieTokenExtractorLike =
-    new CookieTokenExtractor(userTokenRepository, tokenEncrypter, authCookieName)
+  ): CookieTokenManagerLike =
+    new CookieTokenManager(userTokenRepository, tokenEncrypter, authCookieName)
 
 }
 

@@ -66,9 +66,9 @@ class CookieUserIdentifierSpec
     val tokenEncrypter = mock[TokenEncrypter]
     val clock = mock[SilhouetteClock]
     when(clock.now).thenReturn(token.expirationDateTime.minusDays(1))
-    val cookieTokenExtractor =
-      new CookieTokenExtractor(userTokenRepository, tokenEncrypter, cookieName)
-    val identifier = new CookieUserIdentifier(cookieTokenExtractor, clock)
+    val cookieTokenManager =
+      new CookieTokenManager(userTokenRepository, tokenEncrypter, cookieName)
+    val identifier = new CookieUserIdentifier(cookieTokenManager, clock)
     val context = TestContext(
       user,
       token,

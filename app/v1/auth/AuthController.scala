@@ -70,7 +70,7 @@ class AuthController @Inject()(
   val mailService: MailService,
   val userService: UserService,
   val tokenService: TokenService,
-  val cookieTokenExtractor: CookieTokenExtractorLike,
+  val cookieTokenManager: CookieTokenManagerLike,
   val clock: SilhouetteClock
 )(
   implicit val ec: ExecutionContext)
@@ -122,7 +122,7 @@ class AuthController @Inject()(
   }
 
   def recoverTokenFromCookie = silhouette.UserAwareAction.async { implicit request =>
-    cookieTokenExtractor.extractToken(request).map {
+    cookieTokenManager.extractToken(request).map {
       case None  => BadRequest
       case Some(token) if ! token.isValid(clock) => BadRequest
       case Some(token) => Ok(Json.toJson(token))

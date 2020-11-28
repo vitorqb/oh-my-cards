@@ -26,7 +26,7 @@ class AuthControllerSpec
     "recover the token from the cookie" in new Injector() { c =>
       when(c.token.isValid(c.clock)).thenReturn(true)
       when(c.token.token).thenReturn("token")
-      when(c.cookieTokenExtractor.extractToken(any)).thenReturn(Future.successful(Some(token)))
+      when(c.cookieTokenManager.extractToken(any)).thenReturn(Future.successful(Some(token)))
       val cookie = Cookie("OHMYCARDS_AUTH", "foo")
       val request = FakeRequest().withCookies(cookie)
 
@@ -37,7 +37,7 @@ class AuthControllerSpec
     }
     "fail if invalid cookie" in new Injector() { c =>
       when(c.token.isValid(c.clock)).thenReturn(false)
-      when(c.cookieTokenExtractor.extractToken(any)).thenReturn(Future.successful(Some(token)))
+      when(c.cookieTokenManager.extractToken(any)).thenReturn(Future.successful(Some(token)))
       val cookie = Cookie("OHMYCARDS_AUTH", "foo")
       val request = FakeRequest().withCookies(cookie)
 
@@ -65,7 +65,7 @@ class AuthControllerSpec
     lazy val mailService = mock[MailService]
     lazy val userService = mock[UserService]
     lazy val tokenService = mock[TokenService]
-    lazy val cookieTokenExtractor = mock[CookieTokenExtractorLike]
+    lazy val cookieTokenManager = mock[CookieTokenManagerLike]
     lazy val clock = mock[SilhouetteClock]
     lazy val token = mock[UserToken]
     lazy val controller = new AuthController(
@@ -78,7 +78,7 @@ class AuthControllerSpec
       mailService,
       userService,
       tokenService,
-      cookieTokenExtractor,
+      cookieTokenManager,
       clock
     )
 
