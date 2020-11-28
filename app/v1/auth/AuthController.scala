@@ -3,7 +3,6 @@ package v1.auth
 import services.MailService
 import com.mohiva.play.silhouette.api._
 import play.api.mvc._
-import play.api.mvc.Request
 import scala.concurrent.Future
 import com.google.inject.Inject
 import scala.concurrent.ExecutionContext
@@ -11,6 +10,7 @@ import scala.util.Success
 import scala.util.Failure
 import play.api.libs.json.Json
 import utils.Base64Converter
+import com.mohiva.play.silhouette.api.util.{Clock=>SilhouetteClock}
 
 /**
   * Wrapper for sending emails with tokens.
@@ -69,7 +69,10 @@ class AuthController @Inject()(
   val tokenEncrypter: TokenEncrypter,
   val mailService: MailService,
   val userService: UserService,
-  val tokenService: TokenService)(
+  val tokenService: TokenService,
+  val cookieTokenExtractor: CookieTokenExtractorLike,
+  val clock: SilhouetteClock
+)(
   implicit val ec: ExecutionContext)
     extends BaseController {
 
@@ -118,27 +121,16 @@ class AuthController @Inject()(
     )
   }
 
-  def recoverTokenFromCookie = silhouette.UserAwareAction.async { implicit request => Future {
-    decryptAuthCookie(request) match {
-      case None => BadRequest
-      case Some(x) => Ok(Json.toJson(Json.obj("value" -> x)))
+  def recoverTokenFromCookie = silhouette.UserAwareAction.async { implicit request =>
+    cookieTokenExtractor.extractToken(request).map {
+      case None  => BadRequest
+      case Some(token) if ! token.isValid(clock) => BadRequest
+      case Some(token) => Ok(Json.toJson(token))
     }
-  }}
+  }
 
   def getUser = silhouette.SecuredAction.async { implicit request => Future {
     Ok(Json.toJson(Json.obj("email" -> request.identity.email)))
   }}
-
-  //!!!! TODO REMOVE AND USER CookieUserIdentifierLike
-  private def decryptAuthCookie[A](r: Request[A]): Option[String] = {
-    r.cookies.get(AUTH_COOKIE)
-      .map(_.value)
-      .map(Base64Converter.decode)
-      .flatMap { encryptedToken =>
-        tokenEncrypter.decrypt(encryptedToken).map(arrayOfBytesToString(_))
-      }
-  }
-
-  private def arrayOfBytesToString(a: Array[Byte]): String = a.map(_.toChar).mkString
 
 }

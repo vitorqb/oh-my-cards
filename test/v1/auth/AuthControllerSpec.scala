@@ -11,8 +11,9 @@ import org.mockito.MockitoSugar
 import org.mockito.ArgumentMatchersSugar
 import services.MailService
 import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
+import com.mohiva.play.silhouette.api.util.{Clock=>SilhouetteClock}
 import play.api.libs.json.Json
-import utils.Base64Converter
 
 
 class AuthControllerSpec
@@ -23,20 +24,25 @@ class AuthControllerSpec
 
   "recoverTokenFromCookie" should {
     "recover the token from the cookie" in new Injector() { c =>
-      when(c.tokenEncrypter.decrypt("encrypted".getBytes())).thenReturn(Some("token".getBytes()))
-      val tokenVal = Base64Converter.encodeToString("encrypted")
-      val cookie = Cookie("OHMYCARDS_AUTH", tokenVal)
+      when(c.token.isValid(c.clock)).thenReturn(true)
+      when(c.token.token).thenReturn("token")
+      when(c.cookieTokenExtractor.extractToken(any)).thenReturn(Future.successful(Some(token)))
+      val cookie = Cookie("OHMYCARDS_AUTH", "foo")
       val request = FakeRequest().withCookies(cookie)
+
       val response = c.controller.recoverTokenFromCookie()(request)
+
       status(response) mustEqual 200
       contentAsJson(response) mustEqual Json.obj("value" -> "token")
     }
     "fail if invalid cookie" in new Injector() { c =>
-      when(c.tokenEncrypter.decrypt("encrypted".getBytes())).thenReturn(None)
-      val tokenVal = Base64Converter.encodeToString("encrypted")
-      val cookie = Cookie("OHMYCARDS_AUTH", tokenVal)
+      when(c.token.isValid(c.clock)).thenReturn(false)
+      when(c.cookieTokenExtractor.extractToken(any)).thenReturn(Future.successful(Some(token)))
+      val cookie = Cookie("OHMYCARDS_AUTH", "foo")
       val request = FakeRequest().withCookies(cookie)
+
       val response = c.controller.recoverTokenFromCookie()(request)
+
       status(response) mustEqual 400
     }
   }
@@ -59,6 +65,9 @@ class AuthControllerSpec
     lazy val mailService = mock[MailService]
     lazy val userService = mock[UserService]
     lazy val tokenService = mock[TokenService]
+    lazy val cookieTokenExtractor = mock[CookieTokenExtractorLike]
+    lazy val clock = mock[SilhouetteClock]
+    lazy val token = mock[UserToken]
     lazy val controller = new AuthController(
       silhouette,
       controllerComponents,
@@ -68,7 +77,9 @@ class AuthControllerSpec
       tokenEncrypter,
       mailService,
       userService,
-      tokenService
+      tokenService,
+      cookieTokenExtractor,
+      clock
     )
 
     def apply(block: Injector => Any): Any = {
