@@ -97,11 +97,11 @@ class CardElasticClientImpl @Inject()(
 
   def handleResponse[T](response: Try[Response[T]]) = response match {
     case Failure(exception) => logger.error("Elastic Search failed!", exception)
-    case Success(value) => logger.info(s"Success: $value")
+    case Success(value) => logger.info(s"A request was completed successfully")
   }
 
   override def create(cardFormInput: CardFormInput, context: CardCreationContext): Unit = {
-    logger.info(s"Creating elastic search entry for $cardFormInput with $context")
+    logger.info(s"Creating elastic search entry with $context")
     wait {
       elasticClient.execute {
         indexInto(index).id(context.id).fields(
@@ -117,7 +117,7 @@ class CardElasticClientImpl @Inject()(
   }
 
   override def update(cardData: CardData, context: CardUpdateContext): Unit = {
-    logger.info(s"Updating elastic search entry for $cardData with $context")
+    logger.info(s"Updating elastic search entry for ${cardData.id} with $context")
     wait {
       elasticClient.execute {
         updateById(index, cardData.id).doc(
@@ -157,13 +157,14 @@ class CardElasticIdFinder(
     * Handles a success ES query.
     */
   def onSuccess(response: RequestSuccess[SearchResponse]): Future[IdsFindResult] = {
-    logger.info("Response: " + response)
     Future.successful {
-      IdsFindResult(
+      val result = IdsFindResult(
         response.result.hits.hits.map(x => x.id).toSeq,
         response.result.hits.total.value.intValue()
       )
-  }
+      logger.info(s"Ids found: $result")
+      result
+    }
   }
 
   /**
@@ -222,7 +223,7 @@ class CardElasticIdFinder(
       .size(cardListReq.pageSize)
       .trackTotalHits(true)
 
-    logger.info(s"Sending request $request")
+    logger.info(s"Sending search request for $cardListReq")
     elasticClient.execute(request).flatMap {
       case success: RequestSuccess[SearchResponse] => onSuccess(success)
       case failure: RequestFailure => onFailure(failure)
