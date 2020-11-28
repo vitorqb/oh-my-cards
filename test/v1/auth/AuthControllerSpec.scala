@@ -61,7 +61,6 @@ class AuthControllerSpec
     lazy val oneTimePasswordRepository = mock[OneTimePasswordInfoRepository]
     lazy val oneTimePasswordProvider = mock[OneTimePasswordProvider]
     lazy val oneTimePasswordInfoGenerator = mock[OneTimePasswordInfoGenerator]
-    lazy val tokenEncrypter = mock[TokenEncrypter]
     lazy val mailService = mock[MailService]
     lazy val userService = mock[UserService]
     lazy val tokenService = mock[TokenService]
@@ -74,7 +73,6 @@ class AuthControllerSpec
       oneTimePasswordRepository,
       oneTimePasswordProvider,
       oneTimePasswordInfoGenerator,
-      tokenEncrypter,
       mailService,
       userService,
       tokenService,

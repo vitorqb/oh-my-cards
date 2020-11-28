@@ -9,7 +9,6 @@ import scala.concurrent.ExecutionContext
 import scala.util.Success
 import scala.util.Failure
 import play.api.libs.json.Json
-import utils.Base64Converter
 import com.mohiva.play.silhouette.api.util.{Clock=>SilhouetteClock}
 
 /**
@@ -66,7 +65,6 @@ class AuthController @Inject()(
   val oneTimePasswordRepository: OneTimePasswordInfoRepository,
   val oneTimePasswordProvider: OneTimePasswordProvider,
   val oneTimePasswordInfoGenerator: OneTimePasswordInfoGenerator,
-  val tokenEncrypter: TokenEncrypter,
   val mailService: MailService,
   val userService: UserService,
   val tokenService: TokenService,
@@ -75,9 +73,6 @@ class AuthController @Inject()(
 )(
   implicit val ec: ExecutionContext)
     extends BaseController {
-
-  //!!!! TODO READ FROM CONFIG
-  private val AUTH_COOKIE = "OHMYCARDS_AUTH"
 
   def createOneTimePassword = silhouette.UnsecuredAction.async { implicit request =>
     Forms.OneTimePasswordInputForm.bindFromRequest.fold(
@@ -111,11 +106,9 @@ class AuthController @Inject()(
           case Failure(e) => throw e
           case Success(user) => for {
             token <- tokenService.generateTokenForUser(user)
-            encryptedToken = tokenEncrypter.encrypt(token)
-            base64EncryptedToken = Base64Converter.encodeToString(encryptedToken)
-          } yield {
-            Ok(Json.toJson(token)).withCookies(Cookie(AUTH_COOKIE, base64EncryptedToken))
-          }
+            result = Ok(Json.toJson(token))
+            resultWithCookie = cookieTokenManager.setToken(result, token)
+          } yield resultWithCookie
         }
       }
     )

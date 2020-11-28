@@ -4,6 +4,8 @@ import play.api.mvc.Request
 import play.api.mvc.AnyContent
 import scala.concurrent.Future
 import utils.Base64Converter
+import play.api.mvc.Result
+import play.api.mvc.Cookie
 
 
 /**
@@ -11,6 +13,7 @@ import utils.Base64Converter
   */
 trait CookieTokenManagerLike {
   def extractToken(r: Request[AnyContent]): Future[Option[UserToken]]
+  def setToken(r: Result, token: UserToken): Result
 }
 
 class CookieTokenManager(
@@ -28,6 +31,13 @@ class CookieTokenManager(
         case None => Future.successful(None)
         case Some(x) => x
       }
+  }
+
+  override def setToken(r: Result, token: UserToken): Result = {
+    val encryptedToken = tokenEncrypter.encrypt(token)
+    val base64EncryptedToken = Base64Converter.encodeToString(encryptedToken)
+    val cookie = Cookie(authCookieName, base64EncryptedToken)
+    r.withCookies(cookie)
   }
 
 }
