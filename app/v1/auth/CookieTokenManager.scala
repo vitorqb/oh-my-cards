@@ -9,7 +9,7 @@ import play.api.mvc.Cookie
 
 
 /**
-  * Extracts a Token from a request cookies.
+  * Set's an extracts the cookie with the token from http request or results.
   */
 trait CookieTokenManagerLike {
   def extractToken(r: Request[AnyContent]): Future[Option[UserToken]]
