@@ -1,7 +1,5 @@
 package utils
 
-import java.{util => ju}
-
 object StringUtils {
 
   def splitByComma(s: String): List[String] =
