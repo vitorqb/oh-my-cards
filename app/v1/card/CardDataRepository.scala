@@ -36,18 +36,15 @@ class CardDataRepository extends CardDataRepositoryLike {
     }
   }
 
-  def create(
-    cardFormInput: CardFormInput,
-    context: CardCreationContext
-  )(implicit c: Connection): Unit = {
+  def create(data: CardCreateData, context: CardCreationContext)(implicit c: Connection): Unit = {
     SQL(
       """INSERT INTO cards(id, userId, title, body, createdAt, updatedAt, ref)
              VALUES ({id}, {userId}, {title}, {body}, {now}, {now}, {ref})"""
     ).on(
       "id" -> context.id,
       "userId" -> context.user.id,
-      "title" -> cardFormInput.getTitle(),
-      "body" -> cardFormInput.getBody(),
+      "title" -> data.title,
+      "body" -> data.body,
       "now" -> context.now,
       "ref" -> context.ref
     ).executeInsert()

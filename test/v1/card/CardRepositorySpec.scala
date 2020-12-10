@@ -62,7 +62,7 @@ class CardRepositorySpec
     "send create msg to card data repository" in testContext { c =>
       val formInput = CardFormInput("title", Some("body"), None)
       c.repo.create(formInput, context).futureValue
-      verify(c.dataRepo).create(formInput, context)(connection)
+      verify(c.dataRepo).create(formInput.toCreateData(), context)(connection)
     }
 
     "send create msg to tags repo" in testContext { c =>

@@ -31,6 +31,8 @@ case class CardFormInput(title: String, body: Option[String], tags: Option[List[
   def getBody(): String = body.getOrElse("")
   def getTags(): List[String] = tags.getOrElse(List())
 
+  def toCreateData(): CardCreateData = new CardCreateData(getTitle(), getBody(), getTags())
+
 }
 
 object CardFormInput {

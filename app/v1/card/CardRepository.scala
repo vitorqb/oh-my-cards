@@ -47,6 +47,11 @@ trait TagsRepositoryLike {
 }
 
 /**
+  * The basic data needed to create a card.
+  */
+final case class CardCreateData(title: String, body: String, tags: List[String])
+
+/**
   * A trait for card data repository.
   * 
   * The CardDataRepository is the persistance and retrival layer for
@@ -54,7 +59,7 @@ trait TagsRepositoryLike {
   * using an SQL layer.
   */
 trait CardDataRepositoryLike {
-  def create(cardFormInput: CardFormInput, context: CardCreationContext)(implicit c: Connection): Unit
+  def create(data: CardCreateData, context: CardCreationContext)(implicit c: Connection): Unit
   def get(id: String, user: User)(implicit c: Connection): Option[CardData]
   def find(idsResult: IdsFindResult)(implicit c: Connection): FindResult
   def delete(id: String, user: User)(implicit c: Connection): Unit
@@ -98,7 +103,11 @@ case class CardCreationContext(
   now: DateTime,
   id: String,
   ref: Int
-) extends CardEventContextLike
+) extends CardEventContextLike {
+
+  def genCardData(data: CardCreateData) = 
+    CardData(id, data.title, data.body, data.tags, Some(now), Some(now), ref)
+}
 
 /**
   * The context for a card update.
@@ -216,7 +225,7 @@ class CardRepository(
 
   override def create(cardFormInput: CardFormInput, context: CardCreationContext): Future[String] = Future {
     db.withTransaction { implicit c =>
-      dataRepo.create(cardFormInput, context)
+      dataRepo.create(cardFormInput.toCreateData(), context)
       tagsRepo.create(context.id, cardFormInput.getTags())
       esClient.create(cardFormInput, context)
       historyRecorder.registerCreation(context)
