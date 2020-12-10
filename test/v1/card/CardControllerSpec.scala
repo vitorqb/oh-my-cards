@@ -162,14 +162,14 @@ class CardControllerSpec
 
     case class TestContext(
       historyTrackerHandler: HistoryTrackerHandlerLike,
-      cardResourceHandler: CardResourceHandler,
+      cardResourceHandler: CardResourceHandlerLike,
       controller: CardController
     )
 
     def testContext(block: TestContext => Any): Any = {
       val historyTrackerHandler = mock[HistoryTrackerHandlerLike]
       when(historyTrackerHandler.get("1")).thenReturn(Future.successful(historyResource))
-      val cardResourceHandler = mock[CardResourceHandler]
+      val cardResourceHandler = mock[CardResourceHandlerLike]
       when(cardResourceHandler.get("1", user)).thenReturn(Future.successful(Some(cardResource)))
       val controller = new CardController(
         app.injector.instanceOf[ControllerComponents],

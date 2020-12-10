@@ -1,6 +1,5 @@
 package v1.card
  
-import javax.inject.Inject
 import scala.util.{Try,Success,Failure}
 import play.api.libs.json.{Json,Format}
 import v1.auth.User
@@ -118,13 +117,48 @@ object CardListResponse {
 /**
   * A resource handler for Cards.
   */
-class CardResourceHandler @Inject()(
+trait CardResourceHandlerLike {
+
+  /**
+    * Finds a list of cards.
+    */
+  def find(cardListReq: CardListRequest): Future[CardListResponse]
+
+  /**
+    * Creates a new card.
+    */
+  def create(input: CardFormInput, user: User): Future[CardResource]
+
+  /**
+    * Deletes a card.
+    */
+  def delete(id: String, user: User): Future[Unit]
+
+  /**
+    * Get's and returns a card.
+    */
+  def get(id: String, user: User): Future[Option[CardResource]]
+
+  /**
+    * Updates a card
+    */
+  def update(id: String, input: CardFormInput, user: User): Future[CardResource]
+
+  /**
+    * Returns the metadata for a card.
+    */
+  def getMetadata(user: User): Future[CardMetadataResource]
+}
+
+
+class CardResourceHandler(
   val repository: CardRepositoryLike,
   val clock: SilhouetteClock,
   val refCounter: ReferenceCounterLike,
   val uuidGenerator: UUIDGeneratorLike
 )(
-  implicit val ec: ExecutionContext){
+  implicit val ec: ExecutionContext
+) extends CardResourceHandlerLike {
 
   def find(cardListReq: CardListRequest): Future[CardListResponse] = for {
     findResult       <- repository.find(cardListReq)

@@ -71,7 +71,7 @@ case class CardListRequestInput(
   */
 class CardController @Inject()(
   val controllerComponents: ControllerComponents,
-  val resourceHandler: CardResourceHandler,
+  val resourceHandler: CardResourceHandlerLike,
   val silhouette: Silhouette[DefaultEnv],
   val historyTrackerHandler: HistoryTrackerHandlerLike
 )(

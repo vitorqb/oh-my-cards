@@ -48,6 +48,8 @@ import v1.auth.CookieTokenManager
 import v1.auth.UserTokenRepository
 import v1.auth.CookieUserIdentifierLike
 import v1.auth.CookieUserIdentifier
+import v1.card.CardResourceHandlerLike
+import v1.card.CardResourceHandler
 
 class Module extends AbstractModule with ScalaModule {
 
@@ -218,6 +220,16 @@ class Module extends AbstractModule with ScalaModule {
   ): CookieUserIdentifierLike =
     new CookieUserIdentifier(cookieTokenManager, clock)
 
+  @Provides
+  def cardResourceHandler(
+    repository: CardRepositoryLike,
+    clock: SilhouetteClock,
+    refCounter: ReferenceCounterLike,
+    uuidGenerator: UUIDGeneratorLike
+  )(
+    implicit ex: ExecutionContext
+  ): CardResourceHandlerLike =
+    new CardResourceHandler(repository, clock, refCounter, uuidGenerator)
 }
 
 protected object Helpers {
