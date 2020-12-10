@@ -170,7 +170,7 @@ class CardResourceHandler(
 
   def create(input: CardFormInput, user: User): Future[CardResource] = {
     val context = CardCreationContext(user, clock.now, uuidGenerator.generate(), refCounter.nextRef())
-    repository.create(input, context).flatMap(createdDataId =>
+    repository.create(input.toCreateData(), context).flatMap(createdDataId =>
       get(createdDataId, user).map {
         case Some(cardResource) => cardResource
         case None => throw new RuntimeException("Could not find created resource!")

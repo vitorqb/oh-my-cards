@@ -79,12 +79,13 @@ class CardResourceHandlerSpec
   "CardResourceHandlerSpec.create" should {
 
     "Delegate to repository.create" in {
-      val cardFormInput = CardFormInput("foo", Some("bar"), None)
-      val createdCardData = cardFormInput.asCardData("1", date1, date1, 1)
       val user = mock[User]
-      val repository = mock[CardRepositoryLike]
+      val cardFormInput = CardFormInput("foo", Some("bar"), None)
+      val cardCreateData = cardFormInput.toCreateData()
       val context = CardCreationContext(user, date1.get, "1", 1)
-      when(repository.create(cardFormInput, context)).thenReturn(Future.successful("1"))
+      val createdCardData = context.genCardData(cardCreateData)
+      val repository = mock[CardRepositoryLike]
+      when(repository.create(cardCreateData, context)).thenReturn(Future.successful("1"))
       when(repository.get("1", user)).thenReturn(Future.successful(Some(createdCardData)))
       val clock = mock[SilhouetteClock]
       when(clock.now).thenReturn(date1.get)

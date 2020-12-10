@@ -19,9 +19,10 @@ import com.sksamuel.elastic4s.requests.searches.sort.FieldSort
 import com.sksamuel.elastic4s.requests.searches.sort.ScoreSort
 import com.sksamuel.elastic4s.requests.searches.sort.SortOrder
 
-import v1.card.{CardFormInput,CardData,CardCreationContext,CardUpdateContext,CardListRequest,IdsFindResult,TagsFilterMiniLangSyntaxError,CardElasticClientLike}
+import v1.card.{CardData,CardCreationContext,CardUpdateContext,CardListRequest,IdsFindResult,TagsFilterMiniLangSyntaxError,CardElasticClientLike}
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
+import v1.card.CardCreateData
 
 final case class CardElasticClientException(
   val message: String = "Something went wrong on ElasticSearch",
@@ -39,8 +40,8 @@ class CardElasticClientMock() extends CardElasticClientLike {
 
   val logger = Logger(getClass)
 
-  override def create(cardFormInput: CardFormInput, context: CardCreationContext): Unit = {
-    logger.info(s"Mocked create for $cardFormInput with $context")
+  override def create(data: CardCreateData, context: CardCreationContext): Unit = {
+    logger.info(s"Mocked create for $data with $context")
   }
 
   override def update(cardData: CardData, context: CardUpdateContext): Unit = {
@@ -100,17 +101,17 @@ class CardElasticClientImpl @Inject()(
     case Success(value) => logger.info(s"A request was completed successfully")
   }
 
-  override def create(cardFormInput: CardFormInput, context: CardCreationContext): Unit = {
+  override def create(data: CardCreateData, context: CardCreationContext): Unit = {
     logger.info(s"Creating elastic search entry with $context")
     wait {
       elasticClient.execute {
         indexInto(index).id(context.id).fields(
-          "title" -> cardFormInput.getTitle(),
-          "body" -> cardFormInput.getBody(),
+          "title" -> data.title,
+          "body" -> data.body,
           "updatedAt" -> context.now,
           "createdAt" -> context.now,
           "userId" -> context.user.id,
-          "tags" -> cardFormInput.getTags().map(_.toLowerCase())
+          "tags" -> data.tags.map(_.toLowerCase())
         )
       }.andThen(handleResponse(_))
     }

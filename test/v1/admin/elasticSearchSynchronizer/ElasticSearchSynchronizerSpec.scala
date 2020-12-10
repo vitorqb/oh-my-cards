@@ -11,7 +11,6 @@ import play.api.inject.guice.GuiceApplicationBuilder
 import test.utils.FunctionalTestsTag
 import org.scalatest.BeforeAndAfter
 import play.api.inject.bind
-import v1.card.CardFormInput
 import v1.card.CardRepositoryLike
 import org.scalatest.concurrent.ScalaFutures
 import v1.card.CardElasticClientLike
@@ -20,6 +19,7 @@ import v1.card.CardCreationContext
 import com.mohiva.play.silhouette.api.util.{Clock => SilhouetteClock}
 import services.UUIDGeneratorLike
 import services.referencecounter.ReferenceCounterLike
+import v1.card.CardCreateData
 
 class ElasticSearchSynchronizerSpec
     extends PlaySpec
@@ -53,9 +53,9 @@ class ElasticSearchSynchronizerSpec
 
   "run" should {
 
-    lazy val cardInput1 = CardFormInput("t1", Some("b1"), Some(List("A")))
-    lazy val cardInput2 = CardFormInput("t2", Some("b2"), Some(List()))
-    lazy val cardInput3 = CardFormInput("t3", Some("b3"), Some(List("a", "B")))
+    lazy val createData1 = CardCreateData("t1", "b1", List("A"))
+    lazy val createData2 = CardCreateData("t2", "b2", List())
+    lazy val createData3 = CardCreateData("t3", "b3", List("a", "B"))
 
     lazy val user = User("a", "b")
 
@@ -66,11 +66,11 @@ class ElasticSearchSynchronizerSpec
       val refGenerator = app.injector.instanceOf[ReferenceCounterLike]
       //!!!! TODO How could we make this nicer?
       val context1 = CardCreationContext(user, clock.now, uuidGenerator.generate, refGenerator.nextRef)
-      val idOne = repository.create(cardInput1, context1).futureValue
+      val idOne = repository.create(createData1, context1).futureValue
       val context2 = CardCreationContext(user, clock.now, uuidGenerator.generate, refGenerator.nextRef)
-      val idTwo = repository.create(cardInput2, context2).futureValue
+      val idTwo = repository.create(createData2, context2).futureValue
       val context3 = CardCreationContext(user, clock.now, uuidGenerator.generate, refGenerator.nextRef)
-      val idThree = repository.create(cardInput3, context3).futureValue
+      val idThree = repository.create(createData3, context3).futureValue
       (idOne, idTwo, idThree)
     }
 

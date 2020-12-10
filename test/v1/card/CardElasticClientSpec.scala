@@ -24,7 +24,6 @@ import org.scalatest.time.Millis
 
 import scala.concurrent.ExecutionContext
 import v1.card.CardListRequest
-import v1.card.CardFormInput
 import v1.card.CardDataRepository
 import v1.card.CardRepository
 import v1.card.TagsFilterMiniLangSyntaxError
@@ -37,6 +36,7 @@ import v1.card.CardRepositoryLike
 import v1.card.TagsRepositoryLike
 import v1.card.CardElasticClientLike
 import v1.card.CardUpdateContext
+import v1.card.CardCreateData
 
 class CardElasticIdFinderSpec extends PlaySpec with MockitoSugar with ScalaFutures {
 
@@ -129,23 +129,23 @@ class CardElasticClientFunctionalSpec
   val user = User("UserId", "Email")
   val cardListRequest = CardListRequest(1, 100, user.id, List(), List(), None, None)
 
-  val cardInput1 = CardFormInput("HELLO WORLD", Some(""), Some(List("T1", "T2")))
+  val cardCreateData1 = CardCreateData("HELLO WORLD", "", List("T1", "T2"))
   val cardContext1 = CardCreationContext(user, DateTime.parse("2020-01-01T00:00:00Z"), "id1", 1)
-  val cardData1 = cardInput1.asCardData(cardContext1)
+  val cardData1 = cardContext1.genCardData(cardCreateData1)
 
-  val cardInput2 = CardFormInput("FOO BYE", Some(""), Some(List("T1", "T3")))
+  val cardCreateData2 = CardCreateData("FOO BYE", "", List("T1", "T3"))
   val cardContext2 = CardCreationContext(user, DateTime.parse("2020-01-02T00:00:00Z"), "id2", 2)
-  val cardData2 = cardInput2.asCardData(cardContext2)
+  val cardData2 = cardContext2.genCardData(cardCreateData2)
 
-  val cardInput3 = CardFormInput("BAR", Some("FOO BAR"), Some(List()))
+  val cardCreateData3 = CardCreateData("BAR", "FOO BAR", List())
   val cardContext3 = CardCreationContext(user, DateTime.parse("2020-01-03T00:00:00Z"), "id3", 3)
-  val cardData3 = cardInput3.asCardData(cardContext3)
+  val cardData3 = cardContext3.genCardData(cardCreateData3)
 
-  val cardInput4 = CardFormInput("BYE BYE DUDE", Some("I SAID BYE"), Some(List("T1", "T2", "T4")))
+  val cardCreateData4 = CardCreateData("BYE BYE DUDE", "I SAID BYE", List("T1", "T2", "T4"))
   val cardContext4 = CardCreationContext(user, DateTime.parse("2020-01-04T00:00:00Z"), "id4", 4)
-  val cardData4 = cardInput4.asCardData(cardContext4)
+  val cardData4 = cardContext4.genCardData(cardCreateData4)
 
-  val allInputs = Seq(cardInput1, cardInput2, cardInput3, cardInput4)
+  val allInputs = Seq(cardCreateData1, cardCreateData2, cardCreateData3, cardCreateData4)
   val allContexts = Seq(cardContext1, cardContext2, cardContext3, cardContext4)
   val allFixtures = allInputs.zip(allContexts)
 
@@ -162,8 +162,8 @@ class CardElasticClientFunctionalSpec
     override implicit def patienceConfig = new PatienceConfig(Span(3000, Millis))
 
     def saveCardsToDb(): Unit = allFixtures.foreach(x => saveCardToDb(x._1, x._2))
-    def saveCardToDb(input: CardFormInput, context: CardCreationContext): String =
-      cardRepo.create(input, context).futureValue
+    def saveCardToDb(data: CardCreateData, context: CardCreationContext): String =
+      cardRepo.create(data, context).futureValue
 
   }
 
@@ -207,12 +207,12 @@ class CardElasticClientFunctionalSpec
 
       val queryByTitleAndBody = search(index).query(
         boolQuery().must(
-          matchQuery("title", cardInput4.title),
-          matchQuery("body", cardInput4.body.get)
+          matchQuery("title", cardCreateData4.title),
+          matchQuery("body", cardCreateData4.body)
         )
       )
 
-      val id = c.saveCardToDb(cardInput4, cardContext4)
+      val id = c.saveCardToDb(cardCreateData4, cardContext4)
       refreshIdx()
       val cardData = c.cardRepo.get(id, c.user).futureValue.get
 
@@ -356,15 +356,15 @@ class CardElasticClientFunctionalSpec
 
     val date1 = DateTime.parse("2000-01-01T00:00:00")
     val date2 = DateTime.parse("2020-01-01T00:00:00")
-    val searchTerm = cardInput1.title
+    val searchTerm = cardCreateData1.title
     val request = cardListRequest.copy(searchTerm=Some(searchTerm))
     def runQuery(c: TestContext) = c.cardElasticClient.findIds(request)
 
     "if the score is the same, sort by createdAt" taggedAs(FunctionalTestsTag) in testContext { c =>
-      val cardInput_1 = cardInput1
+      val cardInput_1 = cardCreateData1
       val cardContext_1 = cardContext1.copy(id="1", now=date1, ref=1)
 
-      val cardInput_2 = cardInput1
+      val cardInput_2 = cardCreateData1
       val cardContext_2 = cardContext1.copy(id="2", now=date2, ref=2)
 
       c.saveCardToDb(cardInput_1, cardContext_1)
@@ -377,10 +377,10 @@ class CardElasticClientFunctionalSpec
     }
 
     "if the score is not the same, sort by score" taggedAs(FunctionalTestsTag) in testContext { c =>
-      val cardInput_1 = cardInput1.copy(title=searchTerm)
+      val cardInput_1 = cardCreateData1.copy(title=searchTerm)
       val cardContext_1 = cardContext1.copy(id="1", now=date1, ref=1)
 
-      val cardInput_2 = cardInput1.copy(title=searchTerm.substring(1, searchTerm.length()))
+      val cardInput_2 = cardCreateData1.copy(title=searchTerm.substring(1, searchTerm.length()))
       val cardContext_2 = cardContext_1.copy(id="2", now=date2, ref=2)
 
       c.saveCardToDb(cardInput_1, cardContext_1)

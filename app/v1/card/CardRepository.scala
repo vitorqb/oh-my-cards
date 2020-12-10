@@ -145,7 +145,7 @@ final case class FindResult(cards: Seq[CardData], countOfItems: Int)
   * using specialized services (e.g. ElasticSearch).
   */
 trait CardRepositoryLike {
-  def create(cardFormInput: CardFormInput, context: CardCreationContext): Future[String]
+  def create(data: CardCreateData, context: CardCreationContext): Future[String]
   def get(id: String, user: User): Future[Option[CardData]]
   def find(request: CardListRequest): Future[FindResult]
   def delete(data: CardData, context: CardUpdateContext): Future[Unit]
@@ -169,7 +169,7 @@ trait CardElasticClientLike {
   /**
     * Creates a new entry on ElasticSearch for a new card.
     */
-  def create(cardFormInput: CardFormInput, context: CardCreationContext): Unit
+  def create(data: CardCreateData, context: CardCreationContext): Unit
 
   /**
     * Updates an entry on ElasticSearch for an existing cardData.
@@ -223,11 +223,11 @@ class CardRepository(
   implicit ec: ExecutionContext
 ) extends CardRepositoryLike {
 
-  override def create(cardFormInput: CardFormInput, context: CardCreationContext): Future[String] = Future {
+  override def create(data: CardCreateData, context: CardCreationContext): Future[String] = Future {
     db.withTransaction { implicit c =>
-      dataRepo.create(cardFormInput.toCreateData(), context)
-      tagsRepo.create(context.id, cardFormInput.getTags())
-      esClient.create(cardFormInput, context)
+      dataRepo.create(data, context)
+      tagsRepo.create(context.id, data.tags)
+      esClient.create(data, context)
       historyRecorder.registerCreation(context)
 
       context.id
