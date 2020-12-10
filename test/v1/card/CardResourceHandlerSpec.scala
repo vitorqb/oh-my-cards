@@ -116,7 +116,7 @@ class CardResourceHandlerSpec
       val cardListReq = CardListRequest(1, 2, "userid", List(), List(), None)
 
       val repository = mock[CardRepositoryLike]
-      when(repository.find(cardListReq)).thenReturn(Future.successful(findResult))
+      when(repository.find(cardListReq.toCardListData())).thenReturn(Future.successful(findResult))
 
       val clock = mock[SilhouetteClock]
       val refCounter = mock[ReferenceCounterLike]

@@ -52,6 +52,19 @@ trait TagsRepositoryLike {
 final case class CardCreateData(title: String, body: String, tags: List[String])
 
 /**
+  * The basic data needed to list cards.
+  */
+final case class CardListData(
+  page: Int,
+  pageSize: Int,
+  userId: String,
+  tags: List[String],
+  tagsNot: List[String],
+  query: Option[String],
+  searchTerm: Option[String]
+)
+
+/**
   * A trait for card data repository.
   * 
   * The CardDataRepository is the persistance and retrival layer for
@@ -147,7 +160,7 @@ final case class FindResult(cards: Seq[CardData], countOfItems: Int)
 trait CardRepositoryLike {
   def create(data: CardCreateData, context: CardCreationContext): Future[String]
   def get(id: String, user: User): Future[Option[CardData]]
-  def find(request: CardListRequest): Future[FindResult]
+  def find(data: CardListData): Future[FindResult]
   def delete(data: CardData, context: CardUpdateContext): Future[Unit]
   def update(data: CardData, context: CardUpdateContext): Future[Unit]
   def getAllTags(user: User): Future[List[String]]
@@ -184,7 +197,7 @@ trait CardElasticClientLike {
   /**
     * Returns a seq of ids from ElasticSearch that matches a CardListRequest.
     */
-  def findIds(cardListReq: CardListRequest): Future[IdsFindResult]
+  def findIds(data: CardListData): Future[IdsFindResult]
 }
 
 /**
@@ -242,8 +255,8 @@ class CardRepository(
     }
   }
 
-  override def find(request: CardListRequest): Future[FindResult] =
-    esClient.findIds(request).map { idsResult =>
+  override def find(data: CardListData): Future[FindResult] =
+    esClient.findIds(data).map { idsResult =>
       db.withConnection { implicit c =>
         val findResult = dataRepo.find(idsResult)
         val cardsWithTags = findResult.cards.map(x => tagsRepo.fill(x))

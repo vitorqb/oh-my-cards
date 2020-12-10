@@ -89,7 +89,10 @@ case class CardListRequest(
   tagsNot: List[String],
   query: Option[String],
   searchTerm: Option[String] = None
-)
+) {
+  def toCardListData(): CardListData =
+    CardListData(page, pageSize, userId, tags, tagsNot, query, searchTerm)
+}
 
 
 /**
@@ -161,7 +164,7 @@ class CardResourceHandler(
 ) extends CardResourceHandlerLike {
 
   def find(cardListReq: CardListRequest): Future[CardListResponse] = for {
-    findResult       <- repository.find(cardListReq)
+    findResult       <- repository.find(cardListReq.toCardListData())
     cardDataList     = findResult.cards
     countOfCards     = findResult.countOfItems
     cardResourceList = cardDataList.map(CardResource.fromCardData(_))

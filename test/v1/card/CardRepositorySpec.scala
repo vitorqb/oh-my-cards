@@ -213,8 +213,8 @@ class CardRepositoryIntegrationSpec
       c.repo.create(createData2, context2).futureValue
       refreshIdx()
 
-      val listRequest = CardListRequest(1, 2, user.id, List(), List(), None, None)
-      val response = c.repo.find(listRequest).futureValue
+      val listData = CardListData(1, 2, user.id, List(), List(), None, None)
+      val response = c.repo.find(listData).futureValue
 
       response.countOfItems mustEqual 2
       response.cards.length mustEqual 2
@@ -269,8 +269,8 @@ class CardRepositoryIntegrationSpec
       c.repo.create(createData3, context3).futureValue
       refreshIdx()
 
-      val listRequest = CardListRequest(1, 3, user.id, List(), List(), None, Some("SomeLongWord"))
-      val response = c.repo.find(listRequest).futureValue
+      val listData = CardListData(1, 3, user.id, List(), List(), None, Some("SomeLongWord"))
+      val response = c.repo.find(listData).futureValue
 
       response.countOfItems mustEqual 2
       response.cards mustEqual Seq(data1, data2)
@@ -287,13 +287,13 @@ class CardRepositoryIntegrationSpec
       c.repo.create(createData2, context2).futureValue
       refreshIdx()
 
-      val listRequest1 = CardListRequest(1, 1, user.id, List(), List(), None, None)
-      val response1 = c.repo.find(listRequest1).futureValue
+      val listData1 = CardListData(1, 1, user.id, List(), List(), None, None)
+      val response1 = c.repo.find(listData1).futureValue
       response1.countOfItems mustEqual 2
       response1.cards.length mustEqual 1
 
-      val listRequest2 = CardListRequest(2, 1, user.id, List(), List(), None, None)
-      val response2 = c.repo.find(listRequest2).futureValue
+      val listData2 = CardListData(2, 1, user.id, List(), List(), None, None)
+      val response2 = c.repo.find(listData2).futureValue
       response2.countOfItems mustEqual 2
       response2.cards.length mustEqual 1
     }
@@ -310,10 +310,10 @@ class CardRepositoryIntegrationSpec
 
       c.repo.create(createData1, context1).futureValue
       c.repo.create(createData2, context2).futureValue
-      val findRequest = CardListRequest(1, 10, user.id, List("Tag3"), List(), None)
+      val listData = CardListData(1, 10, user.id, List("Tag3"), List(), None, None)
       refreshIdx()
 
-      val result = c.repo.find(findRequest).futureValue
+      val result = c.repo.find(listData).futureValue
 
       val expResult = FindResult(Seq(context2.genCardData(createData2)), 1)
       result mustEqual expResult
@@ -334,8 +334,8 @@ class CardRepositoryIntegrationSpec
       c.repo.create(createData3, context3).futureValue
       refreshIdx()
 
-      val findRequest = CardListRequest(1, 10, user.id, List(), List(), None, Some("Titleee"))
-      val result = c.repo.find(findRequest).futureValue
+      val listData = CardListData(1, 10, user.id, List(), List(), None, Some("Titleee"))
+      val result = c.repo.find(listData).futureValue
 
       val cardData1 = context1.genCardData(createData1)
       val cardData2 = context2.genCardData(createData2)

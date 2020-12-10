@@ -19,10 +19,11 @@ import com.sksamuel.elastic4s.requests.searches.sort.FieldSort
 import com.sksamuel.elastic4s.requests.searches.sort.ScoreSort
 import com.sksamuel.elastic4s.requests.searches.sort.SortOrder
 
-import v1.card.{CardData,CardCreationContext,CardUpdateContext,CardListRequest,IdsFindResult,TagsFilterMiniLangSyntaxError,CardElasticClientLike}
+import v1.card.{CardData,CardCreationContext,CardUpdateContext,IdsFindResult,TagsFilterMiniLangSyntaxError,CardElasticClientLike}
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 import v1.card.CardCreateData
+import v1.card.CardListData
 
 final case class CardElasticClientException(
   val message: String = "Something went wrong on ElasticSearch",
@@ -52,8 +53,8 @@ class CardElasticClientMock() extends CardElasticClientLike {
     logger.info(s"Mocked delete for $id")
   }
 
-  override def findIds(cardListReq: CardListRequest): Future[IdsFindResult] = {
-    logger.info(s"Mocked findIds for $cardListReq")
+  override def findIds(data: CardListData): Future[IdsFindResult] = {
+    logger.info(s"Mocked findIds for $data")
     Future.successful(IdsFindResult(idsFound, countOfItems))
   }
   
@@ -139,8 +140,8 @@ class CardElasticClientImpl @Inject()(
     }
   }
 
-  override def findIds(cardListReq: CardListRequest): Future[IdsFindResult] =
-    new CardElasticIdFinder(elasticClient, index).findIds(cardListReq)
+  override def findIds(data: CardListData): Future[IdsFindResult] =
+    new CardElasticIdFinder(elasticClient, index).findIds(data)
 
 }
 
@@ -181,8 +182,8 @@ class CardElasticIdFinder(
     * Find all ids matching a query.
     * The result has the matching ids and the count of total matches.
     */
-  def findIds(cardListReq: CardListRequest): Future[IdsFindResult] = Future {
-    logger.info(s"Getting ids for $cardListReq")
+  def findIds(data: CardListData): Future[IdsFindResult] = Future {
+    logger.info(s"Getting ids for $data")
 
     var queries : List[Query] = List(matchAllQuery())
     def appendQuery(q: Query) = { queries = q :: queries }
@@ -190,16 +191,16 @@ class CardElasticIdFinder(
 
     //Add userid query
     appendQuery {
-      termQuery("userId.keyword", cardListReq.userId)
+      termQuery("userId.keyword", data.userId)
     }
 
     //Search term query
-    cardListReq.searchTerm.foreach { searchTerm => appendQuery {
+    data.searchTerm.foreach { searchTerm => appendQuery {
       multiMatchQuery(searchTerm).fields("title", "body").operator("or").fuzziness("AUTO")
     }}
 
     //Tag lang query
-    cardListReq.query.foreach { statement => appendQuery {
+    data.query.foreach { statement => appendQuery {
       TagsFilterMiniLang.parseAsES(statement) match {
         case Success(query) => query
         case Failure(e: ParsingError) => throw new TagsFilterMiniLangSyntaxError(e.message, e)
@@ -208,23 +209,23 @@ class CardElasticIdFinder(
     }}
 
     //Tags query
-    cardListReq.tags.foreach { tag => appendQuery {
+    data.tags.foreach { tag => appendQuery {
       simpleTagQuery(tag)
     }}
 
     //Tags not query
-    cardListReq.tagsNot.foreach { tag => appendQuery {
+    data.tagsNot.foreach { tag => appendQuery {
       boolQuery().not(simpleTagQuery(tag))
     }}
 
     val request = search(index)
       .query(boolQuery().must(queries))
       .sortBy(ScoreSort(SortOrder.DESC), FieldSort("createdAt", order=SortOrder.DESC))
-      .from((cardListReq.page - 1) * cardListReq.pageSize)
-      .size(cardListReq.pageSize)
+      .from((data.page - 1) * data.pageSize)
+      .size(data.pageSize)
       .trackTotalHits(true)
 
-    logger.info(s"Sending search request for $cardListReq")
+    logger.info(s"Sending search request for $data")
     elasticClient.execute(request).flatMap {
       case success: RequestSuccess[SearchResponse] => onSuccess(success)
       case failure: RequestFailure => onFailure(failure)
