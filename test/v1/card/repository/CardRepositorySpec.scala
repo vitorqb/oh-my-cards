@@ -166,7 +166,7 @@ class CardRepositoryIntegrationSpec
 
   implicit val ec: ExecutionContext = ExecutionContext.global
 
-  override implicit def patienceConfig = new PatienceConfig(Span(1000, Millis))
+  override implicit def patienceConfig = new PatienceConfig(Span(2000, Millis))
 
   val index = "cards"
   val user = User("A", "A@B.com")
@@ -205,7 +205,7 @@ class CardRepositoryIntegrationSpec
 
   "Functional tests for card creation and deletion" should {
 
-    "create and get c card without tag not body" taggedAs (FunctionalTestsTag) in testContext {
+    "create and get a card without tag not body" taggedAs (FunctionalTestsTag) in testContext {
       c =>
         val createData = baseCreateCardData.copy(tags = List(), body = "")
         c.repo.create(createData, baseCreateContext).futureValue mustEqual "1"
