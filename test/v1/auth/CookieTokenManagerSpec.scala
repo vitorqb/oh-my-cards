@@ -11,13 +11,11 @@ import org.mockito.ArgumentMatchersSugar
 import utils.Base64Converter
 import play.api.mvc.Result
 
-
 class CookieTokenManagerSpec
     extends PlaySpec
     with MockitoSugar
     with ScalaFutures
-    with ArgumentMatchersSugar
-{
+    with ArgumentMatchersSugar {
 
   "extractToken" should {
 
@@ -25,7 +23,8 @@ class CookieTokenManagerSpec
       val token = mock[UserToken]
       val tokenEncrypter = mock[TokenEncrypter]
       val userTokenRepository = mock[UserTokenRepository]
-      val manager = new CookieTokenManager(userTokenRepository, tokenEncrypter, "foo")
+      val manager =
+        new CookieTokenManager(userTokenRepository, tokenEncrypter, "foo")
       val request = FakeRequest().withCookies(Cookie("bar", "bar"))
 
       manager.extractToken(request).futureValue mustEqual None
@@ -36,7 +35,8 @@ class CookieTokenManagerSpec
       val tokenEncrypter = mock[TokenEncrypter]
       when(tokenEncrypter.decrypt(any)).thenReturn(None)
       val userTokenRepository = mock[UserTokenRepository]
-      val manager = new CookieTokenManager(userTokenRepository, tokenEncrypter, "foo")
+      val manager =
+        new CookieTokenManager(userTokenRepository, tokenEncrypter, "foo")
       val request = FakeRequest().withCookies(Cookie("foo", "foo"))
 
       manager.extractToken(request).futureValue mustEqual None
@@ -49,7 +49,8 @@ class CookieTokenManagerSpec
       val userTokenRepository = mock[UserTokenRepository]
       when(userTokenRepository.findByTokenValue("token"))
         .thenReturn(Future.successful(Some(token)))
-      val manager = new CookieTokenManager(userTokenRepository, tokenEncrypter, "foo")
+      val manager =
+        new CookieTokenManager(userTokenRepository, tokenEncrypter, "foo")
       val request = FakeRequest().withCookies(Cookie("foo", "foo"))
 
       manager.extractToken(request).futureValue mustEqual Some(token)
@@ -65,13 +66,15 @@ class CookieTokenManagerSpec
       when(tokenEncrypter.encrypt(token)).thenReturn("encrypted".getBytes())
       val result = mock[Result]
       val userTokenRepository = mock[UserTokenRepository]
-      val manager = new CookieTokenManager(userTokenRepository, tokenEncrypter, "foo")
+      val manager =
+        new CookieTokenManager(userTokenRepository, tokenEncrypter, "foo")
 
       manager.setToken(result, token)
 
-      verify(result).withCookies(Cookie("foo", Base64Converter.encodeToString("encrypted")))
+      verify(result).withCookies(
+        Cookie("foo", Base64Converter.encodeToString("encrypted"))
+      )
     }
   }
 
 }
- 

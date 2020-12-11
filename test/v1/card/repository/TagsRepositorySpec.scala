@@ -60,7 +60,7 @@ class TagsRepositorySpec extends PlaySpec {
       c.db.withTransaction { implicit t =>
         c.tagsRepo.create("1", List("Bar", "Foo"))
         val data = CardData("1", "A", "B", List(), None, None, 1)
-        c.tagsRepo.fill(data) mustEqual data.copy(tags=List("Bar", "Foo"))
+        c.tagsRepo.fill(data) mustEqual data.copy(tags = List("Bar", "Foo"))
       }
     }
   }

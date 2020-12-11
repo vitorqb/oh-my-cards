@@ -10,7 +10,8 @@ class TagsFilterMiniLangSped extends PlaySpec with StringUtils {
 
   val statement1 = """((tags CONTAINS 'FOO'))"""
   val statement2 = """((tags NOT CONTAINS 'foo'))"""
-  val statement3 = """((tags NOT CONTAINS 'foo') AND (tags NOT CONTAINS 'bar'))"""
+  val statement3 =
+    """((tags NOT CONTAINS 'foo') AND (tags NOT CONTAINS 'bar'))"""
   val statement4 = """((tags NOT CONTAINS 'foo') OR (tags CONTAINS 'bar'))"""
   val statement5 =
     """(((tags CONTAINS 'OhMyCards') AND (tags NOT CONTAINS 'done'))
@@ -51,7 +52,10 @@ class TagsFilterMiniLangSped extends PlaySpec with StringUtils {
             SELECT id FROM cards WHERE id NOT IN
               (SELECT cardId FROM cardsTags WHERE LOWER(tag) = {__TAGSMINILANG_PARAM_1__}))
         """.cleanForComparison
-      val expParams = Map("__TAGSMINILANG_PARAM_0__" -> "foo", "__TAGSMINILANG_PARAM_1__" -> "bar")
+      val expParams = Map(
+        "__TAGSMINILANG_PARAM_0__" -> "foo",
+        "__TAGSMINILANG_PARAM_1__" -> "bar"
+      )
       result.get mustEqual SqlResult(expectedStatement, expParams)
     }
 
@@ -64,7 +68,10 @@ class TagsFilterMiniLangSped extends PlaySpec with StringUtils {
             UNION
             SELECT cardId FROM cardsTags WHERE LOWER(tag) = {__TAGSMINILANG_PARAM_1__})
         """.cleanForComparison
-      val expParams = Map("__TAGSMINILANG_PARAM_0__" -> "foo", "__TAGSMINILANG_PARAM_1__" -> "bar")
+      val expParams = Map(
+        "__TAGSMINILANG_PARAM_0__" -> "foo",
+        "__TAGSMINILANG_PARAM_1__" -> "bar"
+      )
       result.get mustEqual SqlResult(expectedStatement, expParams)
     }
 
@@ -97,7 +104,8 @@ class TagsFilterMiniLangSped extends PlaySpec with StringUtils {
     "fails with invalid input" in {
       val statement = "((foo CONTAINS 'bar'))"
       val result = TagsFilterMiniLang.parseAsSql(statement)
-      val experrmsg = """Invalid input 'f', expected WhiteSpace, Tags, FilterExpr,
+      val experrmsg =
+        """Invalid input 'f', expected WhiteSpace, Tags, FilterExpr,
                        Connector or ')' (line 1, pos 3)""".cleanForComparison
       val errmsg = result.failed.get.asInstanceOf[ParsingError].message
       errmsg.cleanForComparison mustEqual errmsg.cleanForComparison
@@ -111,7 +119,8 @@ class TagsFilterMiniLangSped extends PlaySpec with StringUtils {
       Json.parse(search("cards").query(aQuery).request.entity.get.get)
     }
 
-    def run(statement: String): JsValue = toJson(TagsFilterMiniLang.parseAsES(statement).get)
+    def run(statement: String): JsValue =
+      toJson(TagsFilterMiniLang.parseAsES(statement).get)
 
     "simple query" in {
       val result = run(statement1)

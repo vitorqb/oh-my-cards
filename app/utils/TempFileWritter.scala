@@ -3,7 +3,6 @@ package utils
 import java.io.PrintWriter
 import play.api.libs.Files.SingletonTemporaryFileCreator
 
-
 object TempFileWritter {
 
   def write(contents: String) = {

@@ -8,7 +8,7 @@ import scala.util.Try
 /**
   * A service dedicated to encoding and decode user tokens.
   */
-class TokenEncrypter @Inject()(val secretKey: String) {
+class TokenEncrypter @Inject() (val secretKey: String) {
 
   private def secretBytes = new SecretKeySpec(secretKey.getBytes, "AES")
   private def getCipher = Cipher.getInstance("AES")

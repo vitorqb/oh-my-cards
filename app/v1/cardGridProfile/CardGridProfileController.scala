@@ -14,9 +14,10 @@ import play.api.Logger
 /**
   * A controller for the Cards Grid Profiles.
   */
-class CardGridProfileController @Inject()(
-  val controllerComponents: CardGridProfileControllerComponents
-) extends BaseController with I18nSupport {
+class CardGridProfileController @Inject() (
+    val controllerComponents: CardGridProfileControllerComponents
+) extends BaseController
+    with I18nSupport {
 
   val silhouette = controllerComponents.silhouette
   val handler = controllerComponents.handler
@@ -26,48 +27,67 @@ class CardGridProfileController @Inject()(
   /**
     * Creates a CardGridProfile from a request.
     */
-  def create = silhouette.SecuredAction.async { implicit request => {
+  def create =
+    silhouette.SecuredAction.async { implicit request =>
+      {
 
-    def handleValidInput(input: CardGridProfileInput) = {
-      logger.info(s"Valid input: $input")
-      handler.create(input, request.identity).map(resourceToResult _).recover(resultFromError _)
+        def handleValidInput(input: CardGridProfileInput) = {
+          logger.info(s"Valid input: $input")
+          handler
+            .create(input, request.identity)
+            .map(resourceToResult _)
+            .recover(resultFromError _)
+        }
+
+        logger.info(s"Trying to create from request $request")
+        CardGridProfileInput.form.bindFromRequest
+          .fold(handleInvalidInput, handleValidInput)
+      }
     }
-
-    logger.info(s"Trying to create from request $request")
-    CardGridProfileInput.form.bindFromRequest.fold(handleInvalidInput, handleValidInput)
-  }}
 
   /**
     * Reads a CardGridProfile from a request.
     */
-  def read(name: String) = silhouette.SecuredAction.async { implicit request => {
-    logger.info(s"Getting from name $name for user ${request.identity}")
-    handler.read(name, request.identity).map(maybeResourceToResult _).recover(resultFromError _)
-  }}
+  def read(name: String) =
+    silhouette.SecuredAction.async { implicit request =>
+      {
+        logger.info(s"Getting from name $name for user ${request.identity}")
+        handler
+          .read(name, request.identity)
+          .map(maybeResourceToResult _)
+          .recover(resultFromError _)
+      }
+    }
 
   /**
     * Updates a CardGridProfile from a request.
     */
-  def update(name: String) = silhouette.SecuredAction.async { implicit request =>
+  def update(name: String) =
+    silhouette.SecuredAction.async { implicit request =>
+      def handleValidInput(input: CardGridProfileInput) = {
+        logger.info(s"Valid input: $input")
+        handler
+          .update(name, request.identity, input)
+          .map(maybeResourceToResult _)
+          .recover(resultFromError _)
+      }
 
-    def handleValidInput(input: CardGridProfileInput) = {
-      logger.info(s"Valid input: $input")
-      handler
-        .update(name, request.identity, input)
-        .map(maybeResourceToResult _)
-        .recover(resultFromError _)
+      logger.info(
+        s"Updating profile with name [$name] for user [$request.identity]."
+      )
+      CardGridProfileInput.form.bindFromRequest
+        .fold(handleInvalidInput, handleValidInput)
     }
-
-    logger.info(s"Updating profile with name [$name] for user [$request.identity].")
-    CardGridProfileInput.form.bindFromRequest.fold(handleInvalidInput, handleValidInput)
-  }
 
   /**
     * Returns a list with the name for all CardGridProfiles.
     */
-  def listNames = silhouette.SecuredAction.async { implicit request =>
-    handler.listNames(request.identity).map(names => Ok(Json.obj("names" -> names)))
-  }
+  def listNames =
+    silhouette.SecuredAction.async { implicit request =>
+      handler
+        .listNames(request.identity)
+        .map(names => Ok(Json.obj("names" -> names)))
+    }
 
   /**
     * Maps an error during the handling of a request to a Result.
@@ -75,7 +95,8 @@ class CardGridProfileController @Inject()(
   def resultFromError(error: Throwable): Result = {
     logger.info(s"Handling error $error")
     error match {
-      case e: ProfileNameAlreadyExists => BadRequest(Json.obj("error" -> e.message))
+      case e: ProfileNameAlreadyExists =>
+        BadRequest(Json.obj("error" -> e.message))
       case _ => InternalServerError(Json.obj("error" -> "Unknown Error"))
     }
   }
@@ -94,14 +115,16 @@ class CardGridProfileController @Inject()(
   def maybeResourceToResult(maybeResource: Option[CardGridProfileResource]) = {
     maybeResource match {
       case Some(resource) => resourceToResult(resource)
-      case None => NotFound
+      case None           => NotFound
     }
   }
 
   /**
     * Handles when an invalid input was received.
     */
-  def handleInvalidInput[A](invalidForm: Form[A])(implicit r: Request[AnyContent]) = {
+  def handleInvalidInput[A](
+      invalidForm: Form[A]
+  )(implicit r: Request[AnyContent]) = {
     logger.info(s"Invalid input: $invalidForm")
     Future.successful(BadRequest(invalidForm.errorsAsJson))
   }
@@ -113,13 +136,15 @@ class CardGridProfileController @Inject()(
 case class CardGridProfileInput(name: String, config: CardGridConfigInput) {
 
   def copyConfig(
-    page: Option[Int] = config.page,
-    pageSize: Option[Int] = config.pageSize,
-    includeTags: Option[List[String]] = config.includeTags,
-    excludeTags: Option[List[String]] = config.excludeTags,
-    query: Option[String] = config.query
+      page: Option[Int] = config.page,
+      pageSize: Option[Int] = config.pageSize,
+      includeTags: Option[List[String]] = config.includeTags,
+      excludeTags: Option[List[String]] = config.excludeTags,
+      query: Option[String] = config.query
   ): CardGridProfileInput =
-    this.copy(config=config.copy(page, pageSize, includeTags, excludeTags, query))
+    this.copy(config =
+      config.copy(page, pageSize, includeTags, excludeTags, query)
+    )
 
 }
 
@@ -142,30 +167,33 @@ object CardGridProfileInput {
     )
   }
 
-  def fromData(d: CardGridProfileData): CardGridProfileInput = CardGridProfileInput(
-    d.name,
-    CardGridConfigInput.fromData(d.config)
-  )
+  def fromData(d: CardGridProfileData): CardGridProfileInput =
+    CardGridProfileInput(
+      d.name,
+      CardGridConfigInput.fromData(d.config)
+    )
 }
 
 /**
   * Input object for a Cards Grid Configuration.
   */
 case class CardGridConfigInput(
-  page: Option[Int],
-  pageSize: Option[Int],
-  includeTags: Option[List[String]],
-  excludeTags: Option[List[String]],
-  query: Option[String])
+    page: Option[Int],
+    pageSize: Option[Int],
+    includeTags: Option[List[String]],
+    excludeTags: Option[List[String]],
+    query: Option[String]
+)
 
 object CardGridConfigInput {
 
-  def fromData(d: CardGridConfigData): CardGridConfigInput = CardGridConfigInput(
-    d.page,
-    d.pageSize,
-    d.includeTags,
-    d.excludeTags,
-    d.query
-  )
+  def fromData(d: CardGridConfigData): CardGridConfigInput =
+    CardGridConfigInput(
+      d.page,
+      d.pageSize,
+      d.includeTags,
+      d.excludeTags,
+      d.query
+    )
 
 }

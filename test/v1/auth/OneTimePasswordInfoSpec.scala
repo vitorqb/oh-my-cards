@@ -4,12 +4,10 @@ import org.scalatestplus.play._
 import org.scalatestplus.mockito.MockitoSugar
 
 import org.mockito.Mockito._
-import org.mockito.{ ArgumentMatchersSugar }
+import org.mockito.{ArgumentMatchersSugar}
 import org.joda.time.DateTime
 import v1.auth.OneTimePasswordInfo
-import com.mohiva.play.silhouette.api.util.{Clock=>SilhouetteClock}
-
-
+import com.mohiva.play.silhouette.api.util.{Clock => SilhouetteClock}
 
 class OneTimePasswordInfoSpec
     extends PlaySpec
@@ -31,14 +29,18 @@ class OneTimePasswordInfoSpec
 
     "Be valid if has not been used, invalidated nor expired" in {
       validOneTimePasswordInfo.isValid(clockMock) mustBe true
-    } 
+    }
 
     "Be invalid if has been used" in {
-      validOneTimePasswordInfo.copy(hasBeenUsed=true).isValid(clockMock) mustBe false
+      validOneTimePasswordInfo
+        .copy(hasBeenUsed = true)
+        .isValid(clockMock) mustBe false
     }
 
     "Be invalid if has been invalidated" in {
-      validOneTimePasswordInfo.copy(hasBeenInvalidated=true).isValid(clockMock) mustBe false
+      validOneTimePasswordInfo
+        .copy(hasBeenInvalidated = true)
+        .isValid(clockMock) mustBe false
     }
   }
 

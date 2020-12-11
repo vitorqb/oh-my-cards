@@ -6,14 +6,14 @@ import anorm.{SQL}
 import play.api.libs.ws.WSClient
 import org.scalatest.time.Span
 import org.scalatest.time.Millis
-import play.api.libs.json.{Json,JsObject}
+import play.api.libs.json.{Json, JsObject}
 import play.api.libs.json.JsValue
-
 
 /**
   * Helper class that allows posting a card for testing.
   */
-class CardActionsWsHelper(wsClient: WSClient, port: Int, token: String) extends ScalaFutures {
+class CardActionsWsHelper(wsClient: WSClient, port: Int, token: String)
+    extends ScalaFutures {
 
   override implicit val patienceConfig: PatienceConfig = {
     new PatienceConfig(scaled(Span(2000, Millis)))
@@ -42,7 +42,10 @@ class CardActionsWsHelper(wsClient: WSClient, port: Int, token: String) extends 
 
   def getPagedCards(page: Int, pageSize: Int): JsValue =
     client()
-      .withQueryStringParameters("page" -> page.toString, "pageSize" -> pageSize.toString)
+      .withQueryStringParameters(
+        "page" -> page.toString,
+        "pageSize" -> pageSize.toString
+      )
       .get()
       .futureValue
       .json
@@ -62,18 +65,21 @@ class TestTokenProviderSvc(db: Database) extends ScalaFutures {
 
   private var token: Option[String] = None
 
-  def getToken(): String = token match {
-    case Some(x) => x
-    case None => {
-      db.withConnection { implicit c =>
-        SQL("""INSERT INTO users(id, email, isAdmin) VALUES(1, "test@test.com", FALSE)""").executeInsert()
-        SQL("""
+  def getToken(): String =
+    token match {
+      case Some(x) => x
+      case None => {
+        db.withConnection { implicit c =>
+          SQL(
+            """INSERT INTO users(id, email, isAdmin) VALUES(1, "test@test.com", FALSE)"""
+          ).executeInsert()
+          SQL("""
             | INSERT INTO userTokens(userId, token, expirationDateTime, hasBeenInvalidated)
             | VALUES(1, "FOOBARBAZ", "4102444800000", false)
             """.stripMargin).executeInsert()
-        token = Some("FOOBARBAZ")
-        getToken()
+          token = Some("FOOBARBAZ")
+          getToken()
+        }
       }
     }
-  }
 }

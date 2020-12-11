@@ -6,14 +6,13 @@ import play.api.mvc.Request
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext
 import com.google.inject.Inject
-import com.mohiva.play.silhouette.api.util.{Clock=>SilhouetteClock}
+import com.mohiva.play.silhouette.api.util.{Clock => SilhouetteClock}
 import play.api.Logger
 
-
-class BearerTokenRequestProvider @Inject()(
-  userTokenRepository: UserTokenRepository,
-  clock: SilhouetteClock)(
-  implicit ec: ExecutionContext)
+class BearerTokenRequestProvider @Inject() (
+    userTokenRepository: UserTokenRepository,
+    clock: SilhouetteClock
+)(implicit ec: ExecutionContext)
     extends RequestProvider {
 
   override def id = BearerTokenRequestProvider.ID
@@ -23,17 +22,18 @@ class BearerTokenRequestProvider @Inject()(
   def authenticate[B](request: Request[B]): Future[Option[LoginInfo]] = {
     logger.info("Authenticating new request...")
     BearerTokenRequestProvider.extractTokenValue(request) match {
-      case Some(tokenValue) => userTokenRepository.findByTokenValue(tokenValue).map {
-        case Some(userToken) if userToken.isValid(clock) => {
-          logger.info("Found token " + tokenValue)
-          Some(userToken.toLoginInfo(id))
+      case Some(tokenValue) =>
+        userTokenRepository.findByTokenValue(tokenValue).map {
+          case Some(userToken) if userToken.isValid(clock) => {
+            logger.info("Found token " + tokenValue)
+            Some(userToken.toLoginInfo(id))
+          }
+          case _ => {
+            logger.info("No token found")
+            None
+          }
         }
-        case _ => {
-          logger.info("No token found")
-          None
-        }
-      }
-      case None => Future{ None }
+      case None => Future { None }
     }
   }
 }

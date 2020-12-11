@@ -24,38 +24,39 @@ object AdminAction {
   type SecuredRequestWrapper[B] = SecuredRequest[DefaultEnv, B]
 }
 
-
 /**
   * An action that is only allowed if the user is an admin.
   */
-class AdminAction[A] @Inject()(
-  implicit ec: ExecutionContext
+class AdminAction[A] @Inject() (implicit
+    ec: ExecutionContext
 ) extends ActionFilter[AdminAction.SecuredRequestWrapper]
-    with play.api.mvc.Results{
+    with play.api.mvc.Results {
 
   override def executionContext: ExecutionContext = ec
 
-  override def filter[A](request: AdminAction.SecuredRequestWrapper[A]): Future[Option[Result]] = Future {
-    if (request.identity.isAdmin) None
-    else Some(Forbidden)
-  }
+  override def filter[A](
+      request: AdminAction.SecuredRequestWrapper[A]
+  ): Future[Option[Result]] =
+    Future {
+      if (request.identity.isAdmin) None
+      else Some(Forbidden)
+    }
 }
-
 
 /**
   * Plugs together all dependencies for the controller
   */
-class AdminControllerComponents @Inject()(
-  val executionContext: ExecutionContext,
-  val fileMimeTypes: FileMimeTypes,
-  val langs: Langs,
-  val messagesApi: MessagesApi,
-  val parsers: PlayBodyParsers,
-  val silhouette: Silhouette[DefaultEnv],
-  val elasticSearchSynchronizer: ElasticSearchSynchornizer,
-  val config: Configuration
-)(
-  implicit val ec: ExecutionContext
+class AdminControllerComponents @Inject() (
+    val executionContext: ExecutionContext,
+    val fileMimeTypes: FileMimeTypes,
+    val langs: Langs,
+    val messagesApi: MessagesApi,
+    val parsers: PlayBodyParsers,
+    val silhouette: Silhouette[DefaultEnv],
+    val elasticSearchSynchronizer: ElasticSearchSynchornizer,
+    val config: Configuration
+)(implicit
+    val ec: ExecutionContext
 ) extends ControllerComponents {
 
   val actionBuilder = silhouette.SecuredAction.andThen(new AdminAction)

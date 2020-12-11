@@ -13,7 +13,6 @@ import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.test.FakeRequest
 import play.api.test.Helpers._
 
-
 class AdminControllerSpec
     extends PlaySpec
     with LoggedInUserAuthContext
@@ -43,7 +42,7 @@ class AdminControllerSpec
       val response = controller.synchronizeElasticSearch()(request)
       status(response) mustEqual 403
     }
-    
+
   }
 
   "version" should {

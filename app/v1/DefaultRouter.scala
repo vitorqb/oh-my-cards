@@ -7,9 +7,9 @@ import com.google.inject.Inject
 import v1.admin.AdminController
 import play.api.Configuration
 
-class DefaultRouter @Inject()(
-  controller: AdminController,
-  config: Configuration
+class DefaultRouter @Inject() (
+    controller: AdminController,
+    config: Configuration
 ) extends SimpleRouter {
 
   val customAdminUrl = config.get[String]("adminDashboardSecretUrl")

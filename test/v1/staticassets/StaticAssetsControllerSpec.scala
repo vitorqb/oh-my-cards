@@ -26,7 +26,6 @@ import v1.auth.CookieUserIdentifierLike
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.libs.json.Json
 
-
 class StaticAssetsControllerSpec
     extends PlaySpec
     with ScalaFutures
@@ -41,7 +40,8 @@ class StaticAssetsControllerSpec
   ".store()" should {
 
     "store a file" in new Context() { c =>
-      when(c.permissionRegistry.grantAccess(any, any)).thenReturn(Future.successful(()))
+      when(c.permissionRegistry.grantAccess(any, any))
+        .thenReturn(Future.successful(()))
       when(c.uuidGenerator.generate()).thenReturn("MyKey")
       when(c.fileRepository.store(any, any)).thenReturn(Future.successful(()))
       val fakeRequest = RequestMaker().gen("foo")
@@ -55,7 +55,8 @@ class StaticAssetsControllerSpec
     }
 
     "returns key" in new Context() { c =>
-      when(c.permissionRegistry.grantAccess(any, any)).thenReturn(Future.successful(()))
+      when(c.permissionRegistry.grantAccess(any, any))
+        .thenReturn(Future.successful(()))
       when(c.uuidGenerator.generate()).thenReturn("MyKey")
       when(c.fileRepository.store(any, any)).thenReturn(Future.successful(()))
 
@@ -66,7 +67,8 @@ class StaticAssetsControllerSpec
 
     "gives user permission to the stored file" in new Context() { c =>
       when(c.uuidGenerator.generate()).thenReturn("theKey")
-      when(c.permissionRegistry.grantAccess(c.user, "theKey")).thenReturn(Future.successful(()))
+      when(c.permissionRegistry.grantAccess(c.user, "theKey"))
+        .thenReturn(Future.successful(()))
       when(c.fileRepository.store(any, any)).thenReturn(Future.successful(()))
       val request = RequestMaker().gen("content")
 
@@ -89,8 +91,10 @@ class StaticAssetsControllerSpec
 
     "retrieve the file for the user from the repository" in new Context { c =>
       val file = TempFileWritter.write("content")
-      when(c.cookieUserIdentifier.identifyUser(any)).thenReturn(Future.successful(Some(c.user)))
-      when(c.permissionRegistry.hasAccess(c.user, "theKey")).thenReturn(Future.successful(true))
+      when(c.cookieUserIdentifier.identifyUser(any))
+        .thenReturn(Future.successful(Some(c.user)))
+      when(c.permissionRegistry.hasAccess(c.user, "theKey"))
+        .thenReturn(Future.successful(true))
       when(c.fileRepository.read("theKey")).thenReturn(Future.successful(file))
       val request = RequestMaker().gen()
 
@@ -101,7 +105,8 @@ class StaticAssetsControllerSpec
     }
 
     "returns 401 if user not identifiable by cookies" in new Context { c =>
-      when(c.cookieUserIdentifier.identifyUser(any)).thenReturn(Future.successful(None))
+      when(c.cookieUserIdentifier.identifyUser(any))
+        .thenReturn(Future.successful(None))
       val request = RequestMaker().gen()
 
       val result = c.controller.retrieve("theKey")(request)
@@ -111,8 +116,10 @@ class StaticAssetsControllerSpec
 
     "returns 404 if user does not has access" in new Context { c =>
       val file = TempFileWritter.write("content")
-      when(c.cookieUserIdentifier.identifyUser(any)).thenReturn(Future.successful(Some(c.user)))
-      when(c.permissionRegistry.hasAccess(c.user, "theKey")).thenReturn(Future.successful(false))
+      when(c.cookieUserIdentifier.identifyUser(any))
+        .thenReturn(Future.successful(Some(c.user)))
+      when(c.permissionRegistry.hasAccess(c.user, "theKey"))
+        .thenReturn(Future.successful(false))
       when(c.fileRepository.read("theKey")).thenReturn(Future.successful(file))
       val request = RequestMaker().gen()
 
@@ -157,7 +164,8 @@ class StaticAssetsControllerSpec
         case None => result
         case Some(x) => {
           val file = TempFileWritter.write(x)
-          val filePart = MultipartFormData.FilePart("store", "foo.txt", None, file)
+          val filePart =
+            MultipartFormData.FilePart("store", "foo.txt", None, file)
           val formData = new MultipartFormData(Map(), Seq(filePart), Seq())
           result.withMultipartFormDataBody(formData)
         }

@@ -6,16 +6,15 @@ import com.mohiva.play.silhouette.api.LoginInfo
 import org.joda.time.DateTime
 import org.scalatest.concurrent.ScalaFutures
 
-
 class OneTimePasswordInfoRepositorySpec extends PlaySpec with ScalaFutures {
 
-  implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
+  implicit val ec: scala.concurrent.ExecutionContext =
+    scala.concurrent.ExecutionContext.global
 
   "OneTimePasswordInfoRepositorySpec add and find" should {
 
     "Be able to add and find an instance" in {
       test.utils.TestUtils.testDB { db =>
-
         val loginInfo = LoginInfo("foo", "a@b.com")
         val authInfo = OneTimePasswordInfo(
           "1",
@@ -83,9 +82,9 @@ class OneTimePasswordInfoRepositorySpec extends PlaySpec with ScalaFutures {
           added mustEqual authInfo
 
           val newAuthInfo = authInfo.copy(
-            hasBeenUsed=true,
-            hasBeenInvalidated=true,
-            expirationDateTime=DateTime.parse("2021-02-02T01:01:01")
+            hasBeenUsed = true,
+            hasBeenInvalidated = true,
+            expirationDateTime = DateTime.parse("2021-02-02T01:01:01")
           )
           val updated = repository.update(loginInfo, newAuthInfo).futureValue
           updated mustEqual newAuthInfo

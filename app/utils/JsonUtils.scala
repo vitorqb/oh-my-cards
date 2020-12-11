@@ -17,7 +17,7 @@ object JodaToJsonUtils {
   def convertToDatetime(s: String): DateTime = {
     val parsers = Array(
       ISODateTimeFormat.dateTime().getParser(),
-      ISODateTimeFormat.dateTimeNoMillis().getParser(),
+      ISODateTimeFormat.dateTimeNoMillis().getParser()
     )
     new DateTimeFormatterBuilder()
       .append(null, parsers)
@@ -36,11 +36,13 @@ object JodaToJsonUtils {
   }
 
   implicit val reads: Reads[DateTime] = new Reads[DateTime] {
-    def reads(js: JsValue) = js match {
-      case JsString(s) if validateDateTime(s) => JsSuccess(convertToDatetime(s))
-      case JsString(s) => JsError("error.expected.isoDateTime")
-      case _ => JsError("error.expected.jsstring")
-    }
+    def reads(js: JsValue) =
+      js match {
+        case JsString(s) if validateDateTime(s) =>
+          JsSuccess(convertToDatetime(s))
+        case JsString(s) => JsError("error.expected.isoDateTime")
+        case _           => JsError("error.expected.jsstring")
+      }
   }
 
   implicit val writes: Writes[DateTime] = new Writes[DateTime] {

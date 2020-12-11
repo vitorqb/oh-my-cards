@@ -14,8 +14,7 @@ import play.api.libs.json._
 class CardHistorySpec
     extends PlaySpec
     with GuiceOneServerPerSuite
-    with TestEsClient
-{
+    with TestEsClient {
 
   /**
     * Overrides the default application to provide the ES client.
@@ -27,7 +26,7 @@ class CardHistorySpec
     * Has the context for a test
     */
   case class TestContext(val cardActionsWsHelper: CardActionsWsHelper)
-  def testContext (block: TestContext => Any): Any = {
+  def testContext(block: TestContext => Any): Any = {
     val db = app.injector.instanceOf[Database]
     val tokenProvider = new TestTokenProviderSvc(db)
     val token = tokenProvider.getToken()
@@ -44,42 +43,61 @@ class CardHistorySpec
 
   "requesting a cards history" should {
 
-    "return history after create, update and delete" taggedAs(FunctionalTestsTag) in testContext { c =>
-      val id = c.cardActionsWsHelper.postNewCard("Old Title", "Old body")
-      val data = c.cardActionsWsHelper.getCard(id)
-      val newData = data
-        .transform(__.json.update((__ \ "title").json.put(JsString("New Title"))))
-        .get
-        .transform(__.json.update((__ \ "body").json.put(JsString("New body"))))
-        .get
-        .transform(__.json.update((__ \ "tags").json.put(JsArray(Seq(JsString("A"))))))
-        .get
-      c.cardActionsWsHelper.postCard(newData)
+    "return history after create, update and delete" taggedAs (FunctionalTestsTag) in testContext {
+      c =>
+        val id = c.cardActionsWsHelper.postNewCard("Old Title", "Old body")
+        val data = c.cardActionsWsHelper.getCard(id)
+        val newData = data
+          .transform(
+            __.json.update((__ \ "title").json.put(JsString("New Title")))
+          )
+          .get
+          .transform(
+            __.json.update((__ \ "body").json.put(JsString("New body")))
+          )
+          .get
+          .transform(
+            __.json.update((__ \ "tags").json.put(JsArray(Seq(JsString("A")))))
+          )
+          .get
+        c.cardActionsWsHelper.postCard(newData)
 
-      //!!!! TODO => Delete card and test for deletion update after _93
-      // c.cardActionsWsHelper.deleteCard(id)
+        //!!!! TODO => Delete card and test for deletion update after _93
+        // c.cardActionsWsHelper.deleteCard(id)
 
-      val history = c.cardActionsWsHelper.getHistory(id)
-      (history \ "history" \ 0 \ "eventType").as[String] mustEqual "creation"
-      (history \ "history" \ 1 \ "eventType").as[String] mustEqual "update"
+        val history = c.cardActionsWsHelper.getHistory(id)
+        (history \ "history" \ 0 \ "eventType").as[String] mustEqual "creation"
+        (history \ "history" \ 1 \ "eventType").as[String] mustEqual "update"
 
-      //!!!! TODO => Delete card and test for deletion update after _93
-      // (history \ "history" \ 2 \ "eventType").as[String] mustEqual "deletion"
+        //!!!! TODO => Delete card and test for deletion update after _93
+        // (history \ "history" \ 2 \ "eventType").as[String] mustEqual "deletion"
 
-      (history \ "history" \ 1 \ "fieldUpdates" \ 0 \ "fieldName").as[String] mustEqual "title"
-      (history \ "history" \ 1 \ "fieldUpdates" \ 0 \ "fieldType").as[String] mustEqual "string"
-      (history \ "history" \ 1 \ "fieldUpdates" \ 0 \ "oldValue").as[String] mustEqual "Old Title"
-      (history \ "history" \ 1 \ "fieldUpdates" \ 0 \ "newValue").as[String] mustEqual "New Title"
+        (history \ "history" \ 1 \ "fieldUpdates" \ 0 \ "fieldName")
+          .as[String] mustEqual "title"
+        (history \ "history" \ 1 \ "fieldUpdates" \ 0 \ "fieldType")
+          .as[String] mustEqual "string"
+        (history \ "history" \ 1 \ "fieldUpdates" \ 0 \ "oldValue")
+          .as[String] mustEqual "Old Title"
+        (history \ "history" \ 1 \ "fieldUpdates" \ 0 \ "newValue")
+          .as[String] mustEqual "New Title"
 
-      (history \ "history" \ 1 \ "fieldUpdates" \ 1 \ "fieldName").as[String] mustEqual "body"
-      (history \ "history" \ 1 \ "fieldUpdates" \ 1 \ "fieldType").as[String] mustEqual "string"
-      (history \ "history" \ 1 \ "fieldUpdates" \ 1 \ "oldValue").as[String] mustEqual "Old body"
-      (history \ "history" \ 1 \ "fieldUpdates" \ 1 \ "newValue").as[String] mustEqual "New body"
+        (history \ "history" \ 1 \ "fieldUpdates" \ 1 \ "fieldName")
+          .as[String] mustEqual "body"
+        (history \ "history" \ 1 \ "fieldUpdates" \ 1 \ "fieldType")
+          .as[String] mustEqual "string"
+        (history \ "history" \ 1 \ "fieldUpdates" \ 1 \ "oldValue")
+          .as[String] mustEqual "Old body"
+        (history \ "history" \ 1 \ "fieldUpdates" \ 1 \ "newValue")
+          .as[String] mustEqual "New body"
 
-      (history \ "history" \ 1 \ "fieldUpdates" \ 2 \ "fieldName").as[String] mustEqual "tags"
-      (history \ "history" \ 1 \ "fieldUpdates" \ 2 \ "fieldType").as[String] mustEqual "tags"
-      (history \ "history" \ 1 \ "fieldUpdates" \ 2 \ "oldValue").as[Seq[String]] mustEqual Seq()
-      (history \ "history" \ 1 \ "fieldUpdates" \ 2 \ "newValue").as[Seq[String]] mustEqual Seq("A")
+        (history \ "history" \ 1 \ "fieldUpdates" \ 2 \ "fieldName")
+          .as[String] mustEqual "tags"
+        (history \ "history" \ 1 \ "fieldUpdates" \ 2 \ "fieldType")
+          .as[String] mustEqual "tags"
+        (history \ "history" \ 1 \ "fieldUpdates" \ 2 \ "oldValue")
+          .as[Seq[String]] mustEqual Seq()
+        (history \ "history" \ 1 \ "fieldUpdates" \ 2 \ "newValue")
+          .as[Seq[String]] mustEqual Seq("A")
     }
 
   }

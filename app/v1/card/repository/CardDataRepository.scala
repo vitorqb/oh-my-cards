@@ -1,6 +1,6 @@
 package v1.card.datarepository
 
-import anorm.{SQL,RowParser,SqlParser}
+import anorm.{SQL, RowParser, SqlParser}
 import v1.auth.User
 import anorm.`package`.SqlStringInterpolation
 import java.sql.Connection
@@ -18,7 +18,8 @@ class CardDataRepository extends CardDataRepositoryLike {
   /**
     * The statement used to get a card.
     */
-  val sqlGetStatement: String = s"SELECT id, title, body, updatedAt, createdAt, ref FROM cards "
+  val sqlGetStatement: String =
+    s"SELECT id, title, body, updatedAt, createdAt, ref FROM cards "
 
   /**
     * A parser for CardData.
@@ -39,7 +40,9 @@ class CardDataRepository extends CardDataRepositoryLike {
     }
   }
 
-  def create(data: CardCreateData, context: CardCreationContext)(implicit c: Connection): Unit = {
+  def create(data: CardCreateData, context: CardCreationContext)(implicit
+      c: Connection
+  ): Unit = {
     SQL(
       """INSERT INTO cards(id, userId, title, body, createdAt, updatedAt, ref)
              VALUES ({id}, {userId}, {title}, {body}, {now}, {now}, {ref})"""
@@ -86,7 +89,9 @@ class CardDataRepository extends CardDataRepositoryLike {
   /**
     * Updates a card.
     */
-  def update(data: CardData, context: CardUpdateContext)(implicit c: Connection): Unit =
+  def update(data: CardData, context: CardUpdateContext)(implicit
+      c: Connection
+  ): Unit =
     SQL("""
         UPDATE cards SET title={title}, body={body}, updatedAt={now}
         WHERE id={id} AND userId={userId}

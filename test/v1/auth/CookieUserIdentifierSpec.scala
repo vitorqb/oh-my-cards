@@ -15,8 +15,7 @@ class CookieUserIdentifierSpec
     extends PlaySpec
     with MockitoSugar
     with ScalaFutures
-    with ArgumentMatchersSugar
-{
+    with ArgumentMatchersSugar {
 
   implicit val ec: ExecutionContext = ExecutionContext.global
 
@@ -50,18 +49,19 @@ class CookieUserIdentifierSpec
   }
 
   case class TestContext(
-    user: User,
-    token: UserToken,
-    tokenEncrypter: TokenEncrypter,
-    userTokenRepository: UserTokenRepository,
-    identifier: CookieUserIdentifierLike,
-    cookieName: String
+      user: User,
+      token: UserToken,
+      tokenEncrypter: TokenEncrypter,
+      userTokenRepository: UserTokenRepository,
+      identifier: CookieUserIdentifierLike,
+      cookieName: String
   )
 
   def testContext()(block: TestContext => Any): Any = {
     val cookieName = "foo"
     val user = User("id", "a@b.c")
-    val token = UserToken(user, "token", DateTime.parse("2020-01-01T00:00:00"), false)
+    val token =
+      UserToken(user, "token", DateTime.parse("2020-01-01T00:00:00"), false)
     val userTokenRepository = mock[UserTokenRepository]
     val tokenEncrypter = mock[TokenEncrypter]
     val clock = mock[SilhouetteClock]
@@ -80,6 +80,4 @@ class CookieUserIdentifierSpec
     block(context)
   }
 
-
 }
-

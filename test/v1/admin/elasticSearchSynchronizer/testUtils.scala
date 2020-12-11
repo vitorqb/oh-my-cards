@@ -9,7 +9,6 @@ import net.codingwell.scalaguice.ScalaModule
 import v1.card.repository.CardElasticClientLike
 import v1.card.elasticclient.CardElasticClientImpl
 
-
 //!!!! TODO -> Move to package v1.testUtils
 /**
   * Provides a ES client for testing purposes.
@@ -27,7 +26,9 @@ trait TestEsClient {
   /**
     * An instance of the test elastic client
     */
-  lazy val client = ElasticClient(JavaClient(ElasticProperties(s"http://$elasticHost:$elasticPort")))
+  lazy val client = ElasticClient(
+    JavaClient(ElasticProperties(s"http://$elasticHost:$elasticPort"))
+  )
 
   protected def cleanIndex(): Unit = cleanIndex("_all")
 
@@ -42,19 +43,21 @@ trait TestEsClient {
 
   protected def refreshIdx(): Unit = refreshIdx("_all")
 
-  protected def refreshIdx(indexName: String): Unit = Try {
-    val query = refreshIndex(indexName)
-    client.execute(query).await
-  }
+  protected def refreshIdx(indexName: String): Unit =
+    Try {
+      val query = refreshIndex(indexName)
+      client.execute(query).await
+    }
 
   /**
     * Provides a Guice Module to inject the test client as dependency.
     */
   class TestEsFakeModule extends AbstractModule with ScalaModule {
-    override def configure() = Seq(
-      bind[ElasticClient].toInstance(client),
-      bind[CardElasticClientLike].to[CardElasticClientImpl]
-    )
+    override def configure() =
+      Seq(
+        bind[ElasticClient].toInstance(client),
+        bind[CardElasticClientLike].to[CardElasticClientImpl]
+      )
   }
 
 }

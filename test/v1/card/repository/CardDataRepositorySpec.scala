@@ -7,7 +7,6 @@ import v1.auth.User
 import org.joda.time.DateTime
 import v1.card.models._
 
-
 class CardDataRepositorySpec extends PlaySpec {
 
   case class TestContext(repo: CardDataRepository, db: Database)
@@ -33,7 +32,8 @@ class CardDataRepositorySpec extends PlaySpec {
         val data = CardCreateData("title", "", List())
         val context = CardCreationContext(user, now, "1", 1)
         c.repo.create(data, context) mustEqual ()
-        val expected = Some(CardData("1", "title", "", List(), Some(now), Some(now), 1))
+        val expected =
+          Some(CardData("1", "title", "", List(), Some(now), Some(now), 1))
         c.repo.get("1", user) mustEqual expected
       }
     }
@@ -43,7 +43,8 @@ class CardDataRepositorySpec extends PlaySpec {
         val data = CardCreateData("title", "body", List("A", "B"))
         val context = CardCreationContext(user, now, "1", 1)
         c.repo.create(data, context) mustEqual ()
-        val expected = Some(CardData("1", "title", "body", List(), Some(now), Some(now), 1))
+        val expected =
+          Some(CardData("1", "title", "body", List(), Some(now), Some(now), 1))
         c.repo.get("1", user) mustEqual expected
       }
     }

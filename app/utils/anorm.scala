@@ -5,8 +5,8 @@ import anorm.MetaDataItem
 import anorm.TypeDoesNotMatch
 
 final case class RelatedObjectDoesNotExist(
-  private val message: String = "",
-  private val cause: Throwable = None.orNull
+    private val message: String = "",
+    private val cause: Throwable = None.orNull
 ) extends Exception(message, cause)
 
 trait AnormUtils {
@@ -17,7 +17,12 @@ trait AnormUtils {
       value match {
         case bool: Boolean => Right(bool) // Provided-default case
         case bit: Int      => Right(bit == 1) // Custom conversion
-        case _             => Left(TypeDoesNotMatch(s"Cannot convert $value: ${value.asInstanceOf[AnyRef].getClass} to Boolean for column $qualified"))
+        case _ =>
+          Left(
+            TypeDoesNotMatch(
+              s"Cannot convert $value: ${value.asInstanceOf[AnyRef].getClass} to Boolean for column $qualified"
+            )
+          )
       }
     }
 }

@@ -2,7 +2,6 @@ package services
 
 import org.scalatestplus.play.PlaySpec
 
-
 class CounterUUIDGeneratorSpec extends PlaySpec {
 
   "Generate" should {

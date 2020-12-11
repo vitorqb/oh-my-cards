@@ -1,12 +1,9 @@
 package services
 
-
 /**
   * Define helper methods to parse user inputs.
   */
-class InputParser {
-
-}
+class InputParser {}
 
 object InputParser {
 
@@ -23,10 +20,11 @@ object InputParser {
     * Parses an user-inputed uuid.
     */
   def parseUUID(input: String): Result[String] = {
-    val pattern = "^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$".r
+    val pattern =
+      "^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$".r
     input match {
       case pattern(_) => Good(input)
-      case _ => INVALID_UUID
+      case _          => INVALID_UUID
     }
   }
 

@@ -27,20 +27,25 @@ class CardUpdateDataRepository(uuidGenerator: UUIDGeneratorLike)
         SqlParser.str("oldValue") ~
         SqlParser.str("newValue")
     ) map {
-        case fieldName ~ oldValue ~ newValue =>
-          StringFieldUpdate(fieldName, oldValue, newValue)
-      }
+      case fieldName ~ oldValue ~ newValue =>
+        StringFieldUpdate(fieldName, oldValue, newValue)
+    }
   }
 
   override def create(
-    coreEventId: String,
-    oldData: CardData,
-    newData: CardData
-  )(
-    implicit c: Connection
+      coreEventId: String,
+      oldData: CardData,
+      newData: CardData
+  )(implicit
+      c: Connection
   ): Unit = {
     if (oldData.title != newData.title)
-      createStringFieldUpdate(coreEventId, "title", oldData.title, newData.title)
+      createStringFieldUpdate(
+        coreEventId,
+        "title",
+        oldData.title,
+        newData.title
+      )
     if (oldData.body != newData.body)
       createStringFieldUpdate(coreEventId, "body", oldData.body, newData.body)
     if (oldData.tags != newData.tags)
@@ -48,18 +53,22 @@ class CardUpdateDataRepository(uuidGenerator: UUIDGeneratorLike)
   }
 
   override def getFieldsUpdates(
-    coreEventId: String
-  )(
-    implicit c: Connection
+      coreEventId: String
+  )(implicit
+      c: Connection
   ): Seq[CardFieldUpdateLike] = {
     import anorm.SqlParser._
 
     val stringUpdates =
-      SQL("""SELECT * FROM cardStringFieldUpdates WHERE coreEventId = {coreEventId}""")
+      SQL(
+        """SELECT * FROM cardStringFieldUpdates WHERE coreEventId = {coreEventId}"""
+      )
         .on("coreEventId" -> coreEventId)
         .as(stringFieldUpdateParser.*)
     val tagsUpdates = TagsFieldUpdate.fromRows {
-      SQL("""SELECT * FROM cardTagsFieldUpdates WHERE coreEventId = {coreEventId}""")
+      SQL(
+        """SELECT * FROM cardTagsFieldUpdates WHERE coreEventId = {coreEventId}"""
+      )
         .on("coreEventId" -> coreEventId)
         .as(str("fieldName") ~ str("oldOrNew") ~ str("tag") map (flatten) *)
     }
@@ -68,19 +77,19 @@ class CardUpdateDataRepository(uuidGenerator: UUIDGeneratorLike)
 
   /**
     * Inserts into the db the data for an update for a string field.
-    * 
+    *
     * @param coreEventId the id of the historical card event.
     * @param fieldName the name of the string field that is being updated
     * @param oldValue the old string value
     * @param newValue the new string value
     */
   protected def createStringFieldUpdate(
-    coreEventId: String,
-    fieldName: String,
-    oldValue: String,
-    newValue: String
-  )(
-    implicit c: Connection
+      coreEventId: String,
+      fieldName: String,
+      oldValue: String,
+      newValue: String
+  )(implicit
+      c: Connection
   ): Unit =
     SQL("""INSERT INTO cardStringFieldUpdates(id, coreEventId, fieldName, oldValue, newValue)
            VALUES ({id}, {coreEventId}, {fieldName}, {oldValue}, {newValue})""")
@@ -95,19 +104,19 @@ class CardUpdateDataRepository(uuidGenerator: UUIDGeneratorLike)
 
   /**
     * Inserts into the db the data for an update for a tags field.
-    * 
+    *
     * @param coreEventId the id of the historical card event.
     * @param fieldName the name of the tags field that is being updated
     * @param oldValue the old tags value
     * @param newValue the new tags value
     */
   protected def createTagsFieldUpdate(
-    coreEventId: String,
-    fieldName: String,
-    oldValue: List[String],
-    newValue: List[String]
-  )(
-    implicit c: Connection
+      coreEventId: String,
+      fieldName: String,
+      oldValue: List[String],
+      newValue: List[String]
+  )(implicit
+      c: Connection
   ): Unit = {
     val insertSql = SQL(
       """INSERT INTO cardTagsFieldUpdates(id, coreEventId, fieldName, oldOrNew, tag)

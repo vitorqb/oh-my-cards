@@ -19,7 +19,8 @@ class CardHistoryRecorderSpec extends PlaySpec {
     TestUtils.testDB { db =>
       val coreRepo = new HistoricalEventCoreRepository
       val updateRepo = new CardUpdateDataRepository(new CounterUUIDGenerator)
-      val tracker = new CardHistoryTracker(new CounterUUIDGenerator, coreRepo, updateRepo)
+      val tracker =
+        new CardHistoryTracker(new CounterUUIDGenerator, coreRepo, updateRepo)
       val context = TestContext(db, tracker)
       block(context)
     }
@@ -31,7 +32,9 @@ class CardHistoryRecorderSpec extends PlaySpec {
 
       c.db.withTransaction { implicit conn =>
         c.tracker.registerCreation(context)
-        c.tracker.getEvents("1") mustEqual Seq(CardCreation(datetime, "1", user.id))
+        c.tracker.getEvents("1") mustEqual Seq(
+          CardCreation(datetime, "1", user.id)
+        )
       }
     }
 
@@ -44,7 +47,9 @@ class CardHistoryRecorderSpec extends PlaySpec {
         val oldData = CardData("1", "A", "B", List(), None, None, 1)
         val context = CardUpdateContext(user, datetime, oldData)
         c.tracker.registerDeletion(context)
-        c.tracker.getEvents("1") mustEqual Seq(CardDeletion(datetime, "1", user.id))
+        c.tracker.getEvents("1") mustEqual Seq(
+          CardDeletion(datetime, "1", user.id)
+        )
       }
     }
 
@@ -56,7 +61,8 @@ class CardHistoryRecorderSpec extends PlaySpec {
       c.db.withTransaction { implicit conn =>
         val oldData = CardData("1", "old", "OLD", List("A"), None, None, 1)
         val context = CardUpdateContext(user, datetime, oldData)
-        val newData = oldData.copy(title="new", body="NEW", tags=List("B"))
+        val newData =
+          oldData.copy(title = "new", body = "NEW", tags = List("B"))
 
         c.tracker.registerUpdate(newData, context)
 

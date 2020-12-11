@@ -25,8 +25,7 @@ class ElasticSearchSynchronizerSpec
     with GuiceOneAppPerSuite
     with TestEsClient
     with BeforeAndAfter
-    with ScalaFutures
-{
+    with ScalaFutures {
 
   import com.sksamuel.elastic4s.ElasticDsl._
 
@@ -59,21 +58,37 @@ class ElasticSearchSynchronizerSpec
     lazy val user = User("a", "b")
 
     def createThreeCardsOnDb() = {
-      val repository: CardRepositoryLike = app.injector.instanceOf[CardRepositoryLike]
+      val repository: CardRepositoryLike =
+        app.injector.instanceOf[CardRepositoryLike]
       val clock = app.injector.instanceOf[SilhouetteClock]
       val uuidGenerator = app.injector.instanceOf[UUIDGeneratorLike]
       val refGenerator = app.injector.instanceOf[ReferenceCounterLike]
       //!!!! TODO How could we make this nicer?
-      val context1 = CardCreationContext(user, clock.now, uuidGenerator.generate, refGenerator.nextRef)
+      val context1 = CardCreationContext(
+        user,
+        clock.now,
+        uuidGenerator.generate,
+        refGenerator.nextRef
+      )
       val idOne = repository.create(createData1, context1).futureValue
-      val context2 = CardCreationContext(user, clock.now, uuidGenerator.generate, refGenerator.nextRef)
+      val context2 = CardCreationContext(
+        user,
+        clock.now,
+        uuidGenerator.generate,
+        refGenerator.nextRef
+      )
       val idTwo = repository.create(createData2, context2).futureValue
-      val context3 = CardCreationContext(user, clock.now, uuidGenerator.generate, refGenerator.nextRef)
+      val context3 = CardCreationContext(
+        user,
+        clock.now,
+        uuidGenerator.generate,
+        refGenerator.nextRef
+      )
       val idThree = repository.create(createData3, context3).futureValue
       (idOne, idTwo, idThree)
     }
 
-    "Send all items to es client" taggedAs(FunctionalTestsTag) in {
+    "Send all items to es client" taggedAs (FunctionalTestsTag) in {
       val (idOne, idTwo, idThree) = createThreeCardsOnDb()
       cleanIndex()
       refreshIdx()
@@ -83,16 +98,25 @@ class ElasticSearchSynchronizerSpec
       synchronizer.updateAllEntries().await
       refreshIdx()
 
-      val hits = client.execute {
-        search(index).matchAllQuery()
-      }.await.result.hits.hits
+      val hits = client
+        .execute {
+          search(index).matchAllQuery()
+        }
+        .await
+        .result
+        .hits
+        .hits
 
       hits.map(_.sourceAsMap("title")) mustEqual List("t1", "t2", "t3")
       hits.map(_.id) mustEqual List(idOne, idTwo, idThree)
-      hits.map(_.sourceAsMap("tags")) mustEqual List(List("a"), List(), List("a", "b"))
+      hits.map(_.sourceAsMap("tags")) mustEqual List(
+        List("a"),
+        List(),
+        List("a", "b")
+      )
     }
 
-    "Erases stale items that do not exist in the db" taggedAs(FunctionalTestsTag) in {
+    "Erases stale items that do not exist in the db" taggedAs (FunctionalTestsTag) in {
       cleanIndex()
       client.execute {
         indexInto(index).id("FOO")

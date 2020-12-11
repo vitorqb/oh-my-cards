@@ -21,11 +21,15 @@ trait MockDb extends Database {
 
   override def withConnection[A](block: Connection => A): A = ???
 
-  override def withConnection[A](autocommit: Boolean)(block: Connection => A): A = ???
+  override def withConnection[A](autocommit: Boolean)(
+      block: Connection => A
+  ): A = ???
 
   override def withTransaction[A](block: Connection => A): A = ???
 
-  override def withTransaction[A](isolationLevel: TransactionIsolationLevel)(block: Connection => A): A = ???
+  override def withTransaction[A](isolationLevel: TransactionIsolationLevel)(
+      block: Connection => A
+  ): A = ???
 
   override def shutdown(): Unit = ???
 

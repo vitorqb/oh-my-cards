@@ -4,18 +4,17 @@ import org.scalatestplus.play._
 import org.scalatestplus.mockito.MockitoSugar
 
 import org.mockito.Mockito._
-import org.mockito.{ ArgumentMatchersSugar }
+import org.mockito.{ArgumentMatchersSugar}
 
 import org.joda.time.DateTime
 import services.RandomStringGenerator
 import services.UUIDGeneratorLike
-import com.mohiva.play.silhouette.api.util.{Clock=>SilhouetteClock}
-
+import com.mohiva.play.silhouette.api.util.{Clock => SilhouetteClock}
 
 class OneTimePasswordInfoGeneratorSpec
     extends PlaySpec
     with MockitoSugar
-    with ArgumentMatchersSugar{
+    with ArgumentMatchersSugar {
 
   "OneTimePasswordInfoGenerator.generate" should {
 
@@ -39,7 +38,9 @@ class OneTimePasswordInfoGeneratorSpec
         uuidGeneratorMock
       )
 
-      generator.generate(OneTimePasswordInput("a@b.com")) mustEqual OneTimePasswordInfo(
+      generator.generate(
+        OneTimePasswordInput("a@b.com")
+      ) mustEqual OneTimePasswordInfo(
         "bar",
         "a@b.com",
         "foo",

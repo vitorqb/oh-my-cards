@@ -24,12 +24,10 @@ import v1.card.models._
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 
-
 final case class CardElasticClientException(
-  val message: String = "Something went wrong on ElasticSearch",
-  val cause: Throwable = None.orNull
+    val message: String = "Something went wrong on ElasticSearch",
+    val cause: Throwable = None.orNull
 ) extends Exception(message, cause)
-
 
 /**
   * A mocked implementation of the CardElasticClient for tests.
@@ -41,7 +39,10 @@ class CardElasticClientMock() extends CardElasticClientLike {
 
   val logger = Logger(getClass)
 
-  override def create(data: CardCreateData, context: CardCreationContext): Unit = {
+  override def create(
+      data: CardCreateData,
+      context: CardCreationContext
+  ): Unit = {
     logger.info(s"Mocked create for $data with $context")
   }
 
@@ -57,7 +58,7 @@ class CardElasticClientMock() extends CardElasticClientLike {
     logger.info(s"Mocked findIds for $data")
     Future.successful(IdsFindResult(idsFound, countOfItems))
   }
-  
+
 }
 
 /**
@@ -84,10 +85,8 @@ object CardElasticClientMock {
   }
 }
 
-
-class CardElasticClientImpl @Inject()(
-  elasticClient: ElasticClient)(
-  implicit val ec: ExecutionContext
+class CardElasticClientImpl @Inject() (elasticClient: ElasticClient)(implicit
+    val ec: ExecutionContext
 ) extends CardElasticClientLike {
 
   import com.sksamuel.elastic4s.ElasticDsl._
@@ -97,39 +96,53 @@ class CardElasticClientImpl @Inject()(
 
   def wait[A](future: Future[A]): Unit = Await.ready(future, Duration("10 s"))
 
-  def handleResponse[T](response: Try[Response[T]]) = response match {
-    case Failure(exception) => logger.error("Elastic Search failed!", exception)
-    case Success(value) => logger.info(s"A request was completed successfully")
-  }
+  def handleResponse[T](response: Try[Response[T]]) =
+    response match {
+      case Failure(exception) =>
+        logger.error("Elastic Search failed!", exception)
+      case Success(value) =>
+        logger.info(s"A request was completed successfully")
+    }
 
-  override def create(data: CardCreateData, context: CardCreationContext): Unit = {
+  override def create(
+      data: CardCreateData,
+      context: CardCreationContext
+  ): Unit = {
     logger.info(s"Creating elastic search entry with $context")
     wait {
-      elasticClient.execute {
-        indexInto(index).id(context.id).fields(
-          "title" -> data.title,
-          "body" -> data.body,
-          "updatedAt" -> context.now,
-          "createdAt" -> context.now,
-          "userId" -> context.user.id,
-          "tags" -> data.tags.map(_.toLowerCase())
-        )
-      }.andThen(handleResponse(_))
+      elasticClient
+        .execute {
+          indexInto(index)
+            .id(context.id)
+            .fields(
+              "title" -> data.title,
+              "body" -> data.body,
+              "updatedAt" -> context.now,
+              "createdAt" -> context.now,
+              "userId" -> context.user.id,
+              "tags" -> data.tags.map(_.toLowerCase())
+            )
+        }
+        .andThen(handleResponse(_))
     }
   }
 
   override def update(cardData: CardData, context: CardUpdateContext): Unit = {
-    logger.info(s"Updating elastic search entry for ${cardData.id} with $context")
+    logger.info(
+      s"Updating elastic search entry for ${cardData.id} with $context"
+    )
     wait {
-      elasticClient.execute {
-        updateById(index, cardData.id).doc(
-          "title" -> cardData.title,
-          "body" -> cardData.body,
-          "updatedAt" -> context.now,
-          "userId" -> context.user.id,
-          "tags" -> cardData.tags.map(_.toLowerCase())
-        )
-      }.andThen(handleResponse(_))
+      elasticClient
+        .execute {
+          updateById(index, cardData.id).doc(
+            "title" -> cardData.title,
+            "body" -> cardData.body,
+            "updatedAt" -> context.now,
+            "userId" -> context.user.id,
+            "tags" -> cardData.tags.map(_.toLowerCase())
+          )
+        }
+        .andThen(handleResponse(_))
     }
   }
 
@@ -146,19 +159,21 @@ class CardElasticClientImpl @Inject()(
 }
 
 class CardElasticIdFinder(
-  elasticClient: ElasticClient,
-  val index: String
-)(
-  implicit val ec: ExecutionContext
+    elasticClient: ElasticClient,
+    val index: String
+)(implicit
+    val ec: ExecutionContext
 ) {
 
-  import com.sksamuel.elastic4s.ElasticDsl._  
+  import com.sksamuel.elastic4s.ElasticDsl._
   val logger = Logger(getClass)
 
   /**
     * Handles a success ES query.
     */
-  def onSuccess(response: RequestSuccess[SearchResponse]): Future[IdsFindResult] = {
+  def onSuccess(
+      response: RequestSuccess[SearchResponse]
+  ): Future[IdsFindResult] = {
     Future.successful {
       val result = IdsFindResult(
         response.result.hits.hits.map(x => x.id).toSeq,
@@ -173,7 +188,9 @@ class CardElasticIdFinder(
     * Handles a failed ES query.
     */
   def onFailure[T](response: RequestFailure): Future[T] = {
-    val exception = CardElasticClientException(response.body.getOrElse("Unknown Exception"))
+    val exception = CardElasticClientException(
+      response.body.getOrElse("Unknown Exception")
+    )
     logger.error("Error when querying ElasticSearch", exception)
     Future.failed(exception)
   }
@@ -182,55 +199,72 @@ class CardElasticIdFinder(
     * Find all ids matching a query.
     * The result has the matching ids and the count of total matches.
     */
-  def findIds(data: CardListData): Future[IdsFindResult] = Future {
-    logger.info(s"Getting ids for $data")
+  def findIds(data: CardListData): Future[IdsFindResult] =
+    Future {
+      logger.info(s"Getting ids for $data")
 
-    var queries : List[Query] = List(matchAllQuery())
-    def appendQuery(q: Query) = { queries = q :: queries }
-    def simpleTagQuery(tag: String) = termQuery("tags.keyword", tag.toLowerCase())
+      var queries: List[Query] = List(matchAllQuery())
+      def appendQuery(q: Query) = { queries = q :: queries }
+      def simpleTagQuery(tag: String) =
+        termQuery("tags.keyword", tag.toLowerCase())
 
-    //Add userid query
-    appendQuery {
-      termQuery("userId.keyword", data.userId)
-    }
-
-    //Search term query
-    data.searchTerm.foreach { searchTerm => appendQuery {
-      multiMatchQuery(searchTerm).fields("title", "body").operator("or").fuzziness("AUTO")
-    }}
-
-    //Tag lang query
-    data.query.foreach { statement => appendQuery {
-      TagsFilterMiniLang.parseAsES(statement) match {
-        case Success(query) => query
-        case Failure(e: ParsingError) => throw new TagsFilterMiniLangSyntaxError(e.message, e)
-        case Failure(e) => throw e
+      //Add userid query
+      appendQuery {
+        termQuery("userId.keyword", data.userId)
       }
-    }}
 
-    //Tags query
-    data.tags.foreach { tag => appendQuery {
-      simpleTagQuery(tag)
-    }}
+      //Search term query
+      data.searchTerm.foreach { searchTerm =>
+        appendQuery {
+          multiMatchQuery(searchTerm)
+            .fields("title", "body")
+            .operator("or")
+            .fuzziness("AUTO")
+        }
+      }
 
-    //Tags not query
-    data.tagsNot.foreach { tag => appendQuery {
-      boolQuery().not(simpleTagQuery(tag))
-    }}
+      //Tag lang query
+      data.query.foreach { statement =>
+        appendQuery {
+          TagsFilterMiniLang.parseAsES(statement) match {
+            case Success(query) => query
+            case Failure(e: ParsingError) =>
+              throw new TagsFilterMiniLangSyntaxError(e.message, e)
+            case Failure(e) => throw e
+          }
+        }
+      }
 
-    val request = search(index)
-      .query(boolQuery().must(queries))
-      .sortBy(ScoreSort(SortOrder.DESC), FieldSort("createdAt", order=SortOrder.DESC))
-      .from((data.page - 1) * data.pageSize)
-      .size(data.pageSize)
-      .trackTotalHits(true)
+      //Tags query
+      data.tags.foreach { tag =>
+        appendQuery {
+          simpleTagQuery(tag)
+        }
+      }
 
-    logger.info(s"Sending search request for $data")
-    elasticClient.execute(request).flatMap {
-      case success: RequestSuccess[SearchResponse] => onSuccess(success)
-      case failure: RequestFailure => onFailure(failure)
-    }
+      //Tags not query
+      data.tagsNot.foreach { tag =>
+        appendQuery {
+          boolQuery().not(simpleTagQuery(tag))
+        }
+      }
 
-  }.flatten
+      val request = search(index)
+        .query(boolQuery().must(queries))
+        .sortBy(
+          ScoreSort(SortOrder.DESC),
+          FieldSort("createdAt", order = SortOrder.DESC)
+        )
+        .from((data.page - 1) * data.pageSize)
+        .size(data.pageSize)
+        .trackTotalHits(true)
+
+      logger.info(s"Sending search request for $data")
+      elasticClient.execute(request).flatMap {
+        case success: RequestSuccess[SearchResponse] => onSuccess(success)
+        case failure: RequestFailure                 => onFailure(failure)
+      }
+
+    }.flatten
 
 }

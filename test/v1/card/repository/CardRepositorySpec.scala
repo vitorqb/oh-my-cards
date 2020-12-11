@@ -4,7 +4,7 @@ import org.scalatestplus.play.PlaySpec
 import org.mockito.MockitoSugar
 import v1.auth.User
 import java.sql.Connection
-import org.mockito.{ ArgumentMatchersSugar }
+import org.mockito.{ArgumentMatchersSugar}
 import v1.card.testUtils.MockDb
 import org.joda.time.DateTime
 import test.utils.TestUtils
@@ -34,17 +34,17 @@ class CardRepositorySpec
     extends PlaySpec
     with MockitoSugar
     with ArgumentMatchersSugar
-    with ScalaFutures
-{
+    with ScalaFutures {
 
-  implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
-  
+  implicit val ec: scala.concurrent.ExecutionContext =
+    scala.concurrent.ExecutionContext.global
+
   case class TestContext(
-    val dataRepo: CardDataRepositoryLike,
-    val tagsRepo: TagsRepositoryLike,
-    val esClient: CardElasticClientLike,
-    val historyRecorder: CardHistoryRecorderLike,
-    val repo: CardRepositoryLike
+      val dataRepo: CardDataRepositoryLike,
+      val tagsRepo: TagsRepositoryLike,
+      val esClient: CardElasticClientLike,
+      val historyRecorder: CardHistoryRecorderLike,
+      val repo: CardRepositoryLike
   )
 
   val user = User("A", "A@B.com")
@@ -52,16 +52,20 @@ class CardRepositorySpec
   val context = CardCreationContext(user, now, "id", 1)
   val connection = mock[Connection]
   val db = new MockDb {
-    override def withTransaction[A](block: Connection => A): A = block(connection)
-    override def withConnection[A](block: Connection => A): A = block(connection)
+    override def withTransaction[A](block: Connection => A): A =
+      block(connection)
+    override def withConnection[A](block: Connection => A): A =
+      block(connection)
   }
   def testContext(block: TestContext => Any): Any = {
     val dataRepo = mock[CardDataRepositoryLike]
     val tagsRepo = mock[TagsRepositoryLike]
     val esClient = mock[CardElasticClientLike]
     val historyRecorder = mock[CardHistoryRecorderLike]
-    val repo = new CardRepository(dataRepo, tagsRepo, esClient, historyRecorder, db)
-    val testContext = TestContext(dataRepo, tagsRepo, esClient, historyRecorder, repo)
+    val repo =
+      new CardRepository(dataRepo, tagsRepo, esClient, historyRecorder, db)
+    val testContext =
+      TestContext(dataRepo, tagsRepo, esClient, historyRecorder, repo)
     block(testContext)
   }
 
@@ -100,7 +104,8 @@ class CardRepositorySpec
 
   "delete" should {
 
-    val cardData = CardData("1", "title", "body", List("A"), Some(now), Some(now), 1)
+    val cardData =
+      CardData("1", "title", "body", List("A"), Some(now), Some(now), 1)
     val context = CardUpdateContext(user, now, cardData)
 
     "send delete msg to card data repository" in testContext { c =>
@@ -126,7 +131,8 @@ class CardRepositorySpec
 
   "update" should {
 
-    val oldData = CardData("1", "to", "bo", List("A", "O"), Some(now), Some(now), 1)
+    val oldData =
+      CardData("1", "to", "bo", List("A", "O"), Some(now), Some(now), 1)
     val data = CardData("1", "t", "b", List("A"), Some(now), Some(now), 1)
     val context = CardUpdateContext(user, now, oldData)
 
@@ -149,7 +155,7 @@ class CardRepositorySpec
       c.repo.update(data, context).futureValue
       verify(c.historyRecorder).registerUpdate(data, context)(connection)
     }
-}
+  }
 
 }
 
@@ -167,7 +173,8 @@ class CardRepositoryIntegrationSpec
   val otherUser = User("otherUser", "other@user.com")
   val now = new DateTime(2000, 1, 1, 0, 0, 0)
   val baseCreateContext = CardCreationContext(user, now, "1", 1)
-  val baseCreateCardData = CardCreateData("Title", "Body", List("Tag1", "TagTwo"))
+  val baseCreateCardData =
+    CardCreateData("Title", "Body", List("Tag1", "TagTwo"))
   val baseExpectedCardData = baseCreateContext.genCardData(baseCreateCardData)
   val baseUpdateContext = CardUpdateContext(user, now, baseExpectedCardData)
 
@@ -184,7 +191,8 @@ class CardRepositoryIntegrationSpec
         new HistoricalEventCoreRepository,
         new CardUpdateDataRepository(new CounterUUIDGenerator)
       )
-      val repo = new CardRepository(dataRepo, tagsRepo, esClient, historyRecorder, db)
+      val repo =
+        new CardRepository(dataRepo, tagsRepo, esClient, historyRecorder, db)
       val testContext = TestContext(repo)
       try {
         block(testContext)
@@ -197,99 +205,123 @@ class CardRepositoryIntegrationSpec
 
   "Functional tests for card creation and deletion" should {
 
-    "create and get c card without tag not body" taggedAs(FunctionalTestsTag) in testContext { c =>
-      val createData = baseCreateCardData.copy(tags=List(), body="")
-      c.repo.create(createData, baseCreateContext).futureValue mustEqual "1"
-      val expectedData = baseExpectedCardData.copy(body="", tags=List())
-      c.repo.get("1", user).futureValue mustEqual Some(expectedData)
+    "create and get c card without tag not body" taggedAs (FunctionalTestsTag) in testContext {
+      c =>
+        val createData = baseCreateCardData.copy(tags = List(), body = "")
+        c.repo.create(createData, baseCreateContext).futureValue mustEqual "1"
+        val expectedData = baseExpectedCardData.copy(body = "", tags = List())
+        c.repo.get("1", user).futureValue mustEqual Some(expectedData)
     }
 
-    "create and get a card" taggedAs(FunctionalTestsTag) in testContext { c =>
-      c.repo.create(baseCreateCardData, baseCreateContext).futureValue mustEqual "1"
+    "create and get a card" taggedAs (FunctionalTestsTag) in testContext { c =>
+      c.repo
+        .create(baseCreateCardData, baseCreateContext)
+        .futureValue mustEqual "1"
       c.repo.get("1", user).futureValue mustEqual Some(baseExpectedCardData)
       c.repo.get("1", otherUser).futureValue mustEqual None
     }
 
-    "create and find 2 cards" taggedAs(FunctionalTestsTag) in testContext { c =>
-      val createData1 = baseCreateCardData
-      val context1 = baseCreateContext
-      val data1 = context1.genCardData(createData1)
-      val createData2 = createData1.copy(title="input2")
-      val context2 = baseCreateContext.copy(id="2", ref=2)
-      val data2 = context2.genCardData(createData2)
-      c.repo.create(createData1, context1).futureValue
-      c.repo.create(createData2, context2).futureValue
-      refreshIdx()
+    "create and find 2 cards" taggedAs (FunctionalTestsTag) in testContext {
+      c =>
+        val createData1 = baseCreateCardData
+        val context1 = baseCreateContext
+        val data1 = context1.genCardData(createData1)
+        val createData2 = createData1.copy(title = "input2")
+        val context2 = baseCreateContext.copy(id = "2", ref = 2)
+        val data2 = context2.genCardData(createData2)
+        c.repo.create(createData1, context1).futureValue
+        c.repo.create(createData2, context2).futureValue
+        refreshIdx()
 
-      val listData = CardListData(1, 2, user.id, List(), List(), None, None)
-      val response = c.repo.find(listData).futureValue
+        val listData = CardListData(1, 2, user.id, List(), List(), None, None)
+        val response = c.repo.find(listData).futureValue
 
-      response.countOfItems mustEqual 2
-      response.cards.length mustEqual 2
-      response.cards(0) mustEqual data1
-      response.cards(1) mustEqual data2
+        response.countOfItems mustEqual 2
+        response.cards.length mustEqual 2
+        response.cards(0) mustEqual data1
+        response.cards(1) mustEqual data2
     }
 
-    "update a card" taggedAs(FunctionalTestsTag) in testContext { c =>
+    "update a card" taggedAs (FunctionalTestsTag) in testContext { c =>
       c.repo.create(baseCreateCardData, baseCreateContext).futureValue
       refreshIdx()
 
       val oldCardData = baseExpectedCardData
-      val newCardData = baseExpectedCardData.copy(title="A", body="B", tags=List())
+      val newCardData =
+        baseExpectedCardData.copy(title = "A", body = "B", tags = List())
       val context = CardUpdateContext(user, now, oldCardData)
       c.repo.update(newCardData, context).futureValue
 
       c.repo.get("1", user).futureValue mustEqual Some(newCardData)
     }
 
-    "create and delete a card" taggedAs(FunctionalTestsTag) in testContext { c =>
-      c.repo.create(baseCreateCardData, baseCreateContext).futureValue
-      refreshIdx()
-      c.repo.delete(baseExpectedCardData, baseUpdateContext).futureValue
+    "create and delete a card" taggedAs (FunctionalTestsTag) in testContext {
+      c =>
+        c.repo.create(baseCreateCardData, baseCreateContext).futureValue
+        refreshIdx()
+        c.repo.delete(baseExpectedCardData, baseUpdateContext).futureValue
 
-      c.repo.get("1", user).futureValue mustEqual None
+        c.repo.get("1", user).futureValue mustEqual None
     }
 
-    "deletes a card that does not exist" taggedAs(FunctionalTestsTag) in testContext { c =>
-      c.repo.delete(baseExpectedCardData, baseUpdateContext).failed.futureValue mustBe a[CardDoesNotExist]
+    "deletes a card that does not exist" taggedAs (FunctionalTestsTag) in testContext {
+      c =>
+        c.repo
+          .delete(baseExpectedCardData, baseUpdateContext)
+          .failed
+          .futureValue mustBe a[CardDoesNotExist]
     }
 
-    "deletes a card from other user" taggedAs(FunctionalTestsTag) in testContext { c =>
-      val updateContext = baseUpdateContext.copy(user=otherUser)
-      c.repo.create(baseCreateCardData, baseCreateContext).futureValue
-      refreshIdx()
-      c.repo.delete(baseExpectedCardData, updateContext).failed.futureValue mustBe a[CardDoesNotExist]
+    "deletes a card from other user" taggedAs (FunctionalTestsTag) in testContext {
+      c =>
+        val updateContext = baseUpdateContext.copy(user = otherUser)
+        c.repo.create(baseCreateCardData, baseCreateContext).futureValue
+        refreshIdx()
+        c.repo
+          .delete(baseExpectedCardData, updateContext)
+          .failed
+          .futureValue mustBe a[CardDoesNotExist]
     }
 
-    "create three cards and find 2 with search term" taggedAs(FunctionalTestsTag) in testContext { c =>
-      val createData1 = baseCreateCardData.copy(title="SomeLongWord")
-      val context1 = baseCreateContext.copy(id="1", ref=1)
-      val data1 = context1.genCardData(createData1)
-      val createData2 = baseCreateCardData.copy(title="SomeLongWo")
-      val context2 = baseCreateContext.copy(id="2", ref=2)
-      val data2 = context2.genCardData(createData2)
-      val createData3 = baseCreateCardData.copy(title="Nothing to do with the others")
-      val context3 = baseCreateContext.copy(id="3", ref=3)
-      val data3 = context3.genCardData(createData3)
+    "create three cards and find 2 with search term" taggedAs (FunctionalTestsTag) in testContext {
+      c =>
+        val createData1 = baseCreateCardData.copy(title = "SomeLongWord")
+        val context1 = baseCreateContext.copy(id = "1", ref = 1)
+        val data1 = context1.genCardData(createData1)
+        val createData2 = baseCreateCardData.copy(title = "SomeLongWo")
+        val context2 = baseCreateContext.copy(id = "2", ref = 2)
+        val data2 = context2.genCardData(createData2)
+        val createData3 =
+          baseCreateCardData.copy(title = "Nothing to do with the others")
+        val context3 = baseCreateContext.copy(id = "3", ref = 3)
+        val data3 = context3.genCardData(createData3)
 
-      c.repo.create(createData1, context1).futureValue
-      c.repo.create(createData2, context2).futureValue
-      c.repo.create(createData3, context3).futureValue
-      refreshIdx()
+        c.repo.create(createData1, context1).futureValue
+        c.repo.create(createData2, context2).futureValue
+        c.repo.create(createData3, context3).futureValue
+        refreshIdx()
 
-      val listData = CardListData(1, 3, user.id, List(), List(), None, Some("SomeLongWord"))
-      val response = c.repo.find(listData).futureValue
+        val listData = CardListData(
+          1,
+          3,
+          user.id,
+          List(),
+          List(),
+          None,
+          Some("SomeLongWord")
+        )
+        val response = c.repo.find(listData).futureValue
 
-      response.countOfItems mustEqual 2
-      response.cards mustEqual Seq(data1, data2)
+        response.countOfItems mustEqual 2
+        response.cards mustEqual Seq(data1, data2)
     }
 
-    "get with pagination" taggedAs(FunctionalTestsTag) in testContext { c =>
+    "get with pagination" taggedAs (FunctionalTestsTag) in testContext { c =>
       val createData1 = baseCreateCardData
       val context1 = baseCreateContext
 
-      val createData2 = baseCreateCardData.copy(title="input2")
-      val context2 = baseCreateContext.copy(id="2", ref=2)
+      val createData2 = baseCreateCardData.copy(title = "input2")
+      val context2 = baseCreateContext.copy(id = "2", ref = 2)
 
       c.repo.create(createData1, context1).futureValue
       c.repo.create(createData2, context2).futureValue
@@ -309,7 +341,7 @@ class CardRepositoryIntegrationSpec
 
   "Functional tests for find" should {
 
-    "Match by tag" taggedAs(FunctionalTestsTag) in testContext { c =>
+    "Match by tag" taggedAs (FunctionalTestsTag) in testContext { c =>
       val createData1 = CardCreateData("Title", "Body", List("Tag1", "Tag2"))
       val context1 = CardCreationContext(user, now, "1", 1)
 
@@ -318,7 +350,8 @@ class CardRepositoryIntegrationSpec
 
       c.repo.create(createData1, context1).futureValue
       c.repo.create(createData2, context2).futureValue
-      val listData = CardListData(1, 10, user.id, List("Tag3"), List(), None, None)
+      val listData =
+        CardListData(1, 10, user.id, List("Tag3"), List(), None, None)
       refreshIdx()
 
       val result = c.repo.find(listData).futureValue
@@ -327,29 +360,31 @@ class CardRepositoryIntegrationSpec
       result mustEqual expResult
     }
 
-    "Match by search term returning in order" taggedAs(FunctionalTestsTag) in testContext { c =>
-      val createData1 = CardCreateData("Title", "Body", List("Tag1", "Tag2"))
-      val context1 = CardCreationContext(user, now, "1", 1)
+    "Match by search term returning in order" taggedAs (FunctionalTestsTag) in testContext {
+      c =>
+        val createData1 = CardCreateData("Title", "Body", List("Tag1", "Tag2"))
+        val context1 = CardCreationContext(user, now, "1", 1)
 
-      val createData2 = createData1.copy(title="Titlee")
-      val context2 = context1.copy(id="2", ref=2)
+        val createData2 = createData1.copy(title = "Titlee")
+        val context2 = context1.copy(id = "2", ref = 2)
 
-      val createData3 = createData2.copy(title="Tilleee")
-      val context3 = context2.copy(id="3", ref=3)
+        val createData3 = createData2.copy(title = "Tilleee")
+        val context3 = context2.copy(id = "3", ref = 3)
 
-      c.repo.create(createData1, context1).futureValue
-      c.repo.create(createData2, context2).futureValue
-      c.repo.create(createData3, context3).futureValue
-      refreshIdx()
+        c.repo.create(createData1, context1).futureValue
+        c.repo.create(createData2, context2).futureValue
+        c.repo.create(createData3, context3).futureValue
+        refreshIdx()
 
-      val listData = CardListData(1, 10, user.id, List(), List(), None, Some("Titleee"))
-      val result = c.repo.find(listData).futureValue
+        val listData =
+          CardListData(1, 10, user.id, List(), List(), None, Some("Titleee"))
+        val result = c.repo.find(listData).futureValue
 
-      val cardData1 = context1.genCardData(createData1)
-      val cardData2 = context2.genCardData(createData2)
-      val cardData3 = context3.genCardData(createData3)
-      val expResult = FindResult(Seq(cardData3, cardData2, cardData1), 3)
-      result mustEqual expResult
+        val cardData1 = context1.genCardData(createData1)
+        val cardData2 = context2.genCardData(createData2)
+        val cardData3 = context3.genCardData(createData3)
+        val expResult = FindResult(Seq(cardData3, cardData2, cardData1), 3)
+        result mustEqual expResult
     }
   }
 

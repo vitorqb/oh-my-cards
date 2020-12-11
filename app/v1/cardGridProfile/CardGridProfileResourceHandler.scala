@@ -11,10 +11,9 @@ import play.api.libs.json.Writes
   * Custom exceptions
   */
 final case class ProfileNameAlreadyExists(
-  val message: String = "A profile with this name already exists",
-  val cause: Throwable = None.orNull
+    val message: String = "A profile with this name already exists",
+    val cause: Throwable = None.orNull
 ) extends Exception(message, cause)
-
 
 /**
   * A resource is a User representation of a CardGridProfile.
@@ -31,74 +30,87 @@ object CardGridProfileResource {
     import play.api.libs.functional.syntax._
     (
       (JsPath \ "name").write[String] and
-      (JsPath \ "config" \ "page").write[Option[Int]] and
-      (JsPath \ "config" \ "pageSize").write[Option[Int]] and
-      (JsPath \ "config" \ "includeTags").writeNullable[List[String]] and
-      (JsPath \ "config" \ "excludeTags").writeNullable[List[String]] and
-      (JsPath \ "config" \ "query").writeNullable[String]
-
-    )(r => (
-      r.profile.name,
-      r.profile.config.page,
-      r.profile.config.pageSize,
-      r.profile.config.includeTags,
-      r.profile.config.excludeTags,
-      r.profile.config.query
-    ))
+        (JsPath \ "config" \ "page").write[Option[Int]] and
+        (JsPath \ "config" \ "pageSize").write[Option[Int]] and
+        (JsPath \ "config" \ "includeTags").writeNullable[List[String]] and
+        (JsPath \ "config" \ "excludeTags").writeNullable[List[String]] and
+        (JsPath \ "config" \ "query").writeNullable[String]
+    )(r =>
+      (
+        r.profile.name,
+        r.profile.config.page,
+        r.profile.config.pageSize,
+        r.profile.config.includeTags,
+        r.profile.config.excludeTags,
+        r.profile.config.query
+      )
+    )
   }
 
   /**
     * Transforms a data into a resource
     */
-  def fromData(x: CardGridProfileData): CardGridProfileResource = CardGridProfileResource(x)
+  def fromData(x: CardGridProfileData): CardGridProfileResource =
+    CardGridProfileResource(x)
 }
 
 /**
   * A resource handle for all card grid profiles.
   */
-class CardGridProfileResourceHandler @Inject()(
-  val repository: CardGridProfileRepository)(
-  implicit val ec: ExecutionContext
+class CardGridProfileResourceHandler @Inject() (
+    val repository: CardGridProfileRepository
+)(implicit
+    val ec: ExecutionContext
 ) {
 
-  def create(input: CardGridProfileInput, user: User): Future[CardGridProfileResource] = {
-    repository.userHasProfileWithName(user, input.name).map { nameExists =>
-      if (nameExists) throw ProfileNameAlreadyExists()
-    }.flatMap { _ =>
-      repository.create(input, user).map(CardGridProfileResource.fromData)
-    }
+  def create(
+      input: CardGridProfileInput,
+      user: User
+  ): Future[CardGridProfileResource] = {
+    repository
+      .userHasProfileWithName(user, input.name)
+      .map { nameExists =>
+        if (nameExists) throw ProfileNameAlreadyExists()
+      }
+      .flatMap { _ =>
+        repository.create(input, user).map(CardGridProfileResource.fromData)
+      }
   }
 
   def read(name: String, user: User): Future[Option[CardGridProfileResource]] =
-    repository.readFromName(name, user).map(x => x.map(y => CardGridProfileResource.fromData(y)))
+    repository
+      .readFromName(name, user)
+      .map(x => x.map(y => CardGridProfileResource.fromData(y)))
 
   /**
     * Updates a card grid profile, if found. If not found, returns None.
     */
   def update(
-    name: String,
-    user: User,
-    input: CardGridProfileInput
+      name: String,
+      user: User,
+      input: CardGridProfileInput
   ): Future[Option[CardGridProfileResource]] = {
 
     def checkNewNameDoesNotExist: Future[Unit] = {
       val newName = input.name
       if (name == newName) Future.successful(())
-      else for {
-        hasProfileWithName <- repository.userHasProfileWithName(user, newName)
-      } yield {
-        if (hasProfileWithName) throw new ProfileNameAlreadyExists
-        else ()
-      }
+      else
+        for {
+          hasProfileWithName <- repository.userHasProfileWithName(user, newName)
+        } yield {
+          if (hasProfileWithName) throw new ProfileNameAlreadyExists
+          else ()
+        }
     }
 
     repository.readFromName(name, user).flatMap {
       case None => Future.successful(None)
-      case Some(existingData) => for {
-        _ <- checkNewNameDoesNotExist
-        updatedData <- repository.update(existingData, input, user)
-        updatedResource = CardGridProfileResource.fromData(updatedData)
-      } yield Some(updatedResource)
+      case Some(existingData) =>
+        for {
+          _ <- checkNewNameDoesNotExist
+          updatedData <- repository.update(existingData, input, user)
+          updatedResource = CardGridProfileResource.fromData(updatedData)
+        } yield Some(updatedResource)
     }
   }
 

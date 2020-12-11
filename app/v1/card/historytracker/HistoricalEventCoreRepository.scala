@@ -33,12 +33,12 @@ class HistoricalEventCoreRepository extends HistoricalEventCoreRepositoryLike {
   }
 
   override def create(
-    id: String,
-    cardId: String,
-    context: CardEventContextLike,
-    eventType: String
-  )(
-    implicit c: Connection
+      id: String,
+      cardId: String,
+      context: CardEventContextLike,
+      eventType: String
+  )(implicit
+      c: Connection
   ): Unit = {
     SQL("""INSERT INTO cardHistoricalEvents(id, cardId, userId, datetime, eventType)
            VALUES ({id}, {cardId}, {userId}, {datetime}, {eventType})""")
@@ -52,7 +52,9 @@ class HistoricalEventCoreRepository extends HistoricalEventCoreRepositoryLike {
       .executeInsert()
   }
 
-  override def list(cardId: String)(implicit c: Connection): Seq[CoreHistoricalEventData] =
+  override def list(
+      cardId: String
+  )(implicit c: Connection): Seq[CoreHistoricalEventData] =
     SQL("""SELECT id, cardId, userId, datetime, eventType
            FROM cardHistoricalEvents
            WHERE cardId = {cardId} """)
