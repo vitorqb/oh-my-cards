@@ -16,7 +16,6 @@ import services.CounterUUIDGenerator
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.Span
 import org.scalatest.time.Millis
-import v1.card.CardDataRepository
 import v1.card.elasticclient.CardElasticClientImpl
 import v1.card.historytracker.CardHistoryTracker
 import v1.card.historytracker.HistoricalEventCoreRepository
@@ -34,6 +33,7 @@ import v1.card.repository.CardUpdateContext
 import v1.card.repository.CardListData
 import v1.card.repository.CardDoesNotExist
 import v1.card.repository.FindResult
+import v1.card.datarepository.CardDataRepository
 
 class CardRepositorySpec
     extends PlaySpec

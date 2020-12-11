@@ -16,7 +16,7 @@ import com.sksamuel.elastic4s.http.JavaClient
 import v1.card.elasticclient.{CardElasticClientMock,CardElasticClientImpl}
 import services.SendgridMailServiceImpl
 import play.api.db.Database
-import v1.card.CardDataRepository
+import v1.card.datarepository.CardDataRepository
 import v1.card.tagsrepository.TagsRepository
 import v1.card.repository.{TagsRepositoryLike, CardRepositoryLike, CardDataRepositoryLike, CardRepository, CardElasticClientLike, CardHistoryRecorderLike}
 import com.mohiva.play.silhouette.api.util.{Clock=>SilhouetteClock}

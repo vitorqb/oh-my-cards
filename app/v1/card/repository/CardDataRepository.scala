@@ -1,4 +1,4 @@
-package v1.card
+package v1.card.datarepository
 
 import anorm.{SQL,RowParser,SqlParser}
 import v1.auth.User

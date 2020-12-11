@@ -24,6 +24,7 @@ import v1.card.repository.CardDoesNotExist
 import v1.card.repository.CardElasticClientLike
 import v1.card.repository.CardHistoryRecorderLike
 import v1.card.repository.CardRepository
+import v1.card.datarepository.CardDataRepository
 
 class CardResourceSpec extends PlaySpec {
 

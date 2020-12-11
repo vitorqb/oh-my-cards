@@ -36,7 +36,7 @@ import v1.card.repository.CardUpdateContext
 import v1.card.repository.CardCreateData
 import v1.card.repository.CardListData
 import v1.card.repository.TagsFilterMiniLangSyntaxError
-import v1.card.CardDataRepository
+import v1.card.datarepository.CardDataRepository
 
 class CardElasticIdFinderSpec extends PlaySpec with MockitoSugar with ScalaFutures {
 
