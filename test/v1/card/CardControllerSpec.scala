@@ -239,6 +239,18 @@ class CardControllerSpec
 
   }
 
+  "getByRef" should {
+
+    "create and get a card by ref" in {
+      val card = createCard()
+      val ref = (contentAsJson(card) \ "ref").as[Int]
+      val response = controller.getByRef(ref)(FakeRequest())
+      status(response) mustEqual 200
+      contentAsJson(response) mustEqual contentAsJson(card)
+    }
+
+  }
+
 }
 
 class CardListRequestInputSpec extends PlaySpec {

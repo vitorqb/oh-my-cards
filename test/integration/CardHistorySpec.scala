@@ -46,7 +46,7 @@ class CardHistorySpec
     "return history after create, update and delete" taggedAs (FunctionalTestsTag) in testContext {
       c =>
         val id = c.cardActionsWsHelper.postNewCard("Old Title", "Old body")
-        val data = c.cardActionsWsHelper.getCard(id)
+        val data = c.cardActionsWsHelper.getCard(id).json
         val newData = data
           .transform(
             __.json.update((__ \ "title").json.put(JsString("New Title")))

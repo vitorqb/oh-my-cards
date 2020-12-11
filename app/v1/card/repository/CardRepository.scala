@@ -37,6 +37,7 @@ trait CardDataRepositoryLike {
       c: Connection
   ): Unit
   def get(id: String, user: User)(implicit c: Connection): Option[CardData]
+  def getIdFromRef(ref: Int)(implicit c: Connection): Option[String]
   def find(idsResult: IdsFindResult)(implicit c: Connection): FindResult
   def delete(id: String, user: User)(implicit c: Connection): Unit
   def update(data: CardData, context: CardUpdateContext)(implicit
@@ -55,6 +56,7 @@ trait CardDataRepositoryLike {
 trait CardRepositoryLike {
   def create(data: CardCreateData, context: CardCreationContext): Future[String]
   def get(id: String, user: User): Future[Option[CardData]]
+  def getByRef(cardRef: Int, user: User): Future[Option[CardData]]
   def find(data: CardListData): Future[FindResult]
   def delete(data: CardData, context: CardUpdateContext): Future[Unit]
   def update(data: CardData, context: CardUpdateContext): Future[Unit]
@@ -152,12 +154,22 @@ class CardRepository(
 
   override def get(id: String, user: User): Future[Option[CardData]] =
     Future {
-      db.withTransaction { implicit c =>
+      db.withConnection { implicit c =>
         dataRepo.get(id, user).map { data =>
           tagsRepo.fill(data)
         }
       }
     }
+
+  override def getByRef(ref: Int, user: User): Future[Option[CardData]] =
+    Future {
+      db.withConnection { implicit c =>
+        dataRepo.getIdFromRef(ref) match {
+          case None     => Future.successful(None)
+          case Some(id) => get(id, user)
+        }
+      }
+    }.flatten
 
   override def find(data: CardListData): Future[FindResult] =
     esClient.findIds(data).map { idsResult =>

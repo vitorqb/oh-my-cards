@@ -232,6 +232,16 @@ class CardController @Inject() (
         case None       => NotFound
       }
     }
+
+  def getByRef(ref: Int) =
+    silhouette.SecuredAction.async { implicit request =>
+      resourceHandler.getByRef(ref, request.identity) map {
+        case Some(card) => Ok(Json.toJson(card))
+        case None       => NotFound
+      }
+    }
+
+  def notFound() = Action { NotFound }
 }
 
 /**

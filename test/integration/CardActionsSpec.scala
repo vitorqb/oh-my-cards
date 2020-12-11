@@ -76,11 +76,11 @@ class CardActionsSpec
 
   }
 
-  "Card creationg" should {
+  "Card creation" should {
     "create a card with ref, updatedAt, createdAt" taggedAs (FunctionalTestsTag) in {
       val id = cardActionWsHelper.postNewCard("FOO", "BAR")
       refreshIdx(index)
-      val card = cardActionWsHelper.getCard(id)
+      val card = cardActionWsHelper.getCard(id).json
 
       (card \ "id").as[String] mustEqual id
       (card \ "ref").as[Int] mustEqual 1001
@@ -89,6 +89,16 @@ class CardActionsSpec
       (card \ "title").as[String] mustEqual "FOO"
       (card \ "body").as[String] mustEqual "BAR"
       (card \ "tags").as[List[String]] mustEqual Seq()
+    }
+  }
+
+  "Card get 404" should {
+    "return 404 for cards that do not exist" taggedAs (FunctionalTestsTag) in {
+      Seq("not uuid not int", "1", "5c86cfd8-f147-4f25-ab55-5bfd472c7365")
+        .foreach { id =>
+          val result = cardActionWsHelper.getCard(id)
+          result.status mustEqual 404
+        }
     }
   }
 }

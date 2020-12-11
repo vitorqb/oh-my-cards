@@ -8,6 +8,7 @@ import org.scalatest.time.Span
 import org.scalatest.time.Millis
 import play.api.libs.json.{Json, JsObject}
 import play.api.libs.json.JsValue
+import play.api.libs.ws.WSResponse
 
 /**
   * Helper class that allows posting a card for testing.
@@ -50,8 +51,8 @@ class CardActionsWsHelper(wsClient: WSClient, port: Int, token: String)
       .futureValue
       .json
 
-  def getCard(id: String): JsValue =
-    client(url + s"/${id}").get().futureValue.json
+  def getCard(id: String): WSResponse =
+    client(url + s"/${id}").get().futureValue
 
   def getHistory(id: String): JsValue =
     client(url + "/" + id + "/history").get().futureValue.json
