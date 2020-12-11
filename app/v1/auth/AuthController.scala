@@ -9,7 +9,7 @@ import scala.concurrent.ExecutionContext
 import scala.util.Success
 import scala.util.Failure
 import play.api.libs.json.Json
-import com.mohiva.play.silhouette.api.util.{Clock=>SilhouetteClock}
+import com.mohiva.play.silhouette.api.util.{Clock => SilhouetteClock}
 
 /**
   * Wrapper for sending emails with tokens.
@@ -22,8 +22,15 @@ private object MailHelper {
     "Your OhMyCards one time password is: " + oneTimePassword
   }
 
-  def sendOneTimePasswordMail(mailService: MailService, oneTimePassword: OneTimePasswordInfo) = {
-    mailService.sendSimple(oneTimePassword.email, subject, body(oneTimePassword.oneTimePassword))
+  def sendOneTimePasswordMail(
+      mailService: MailService,
+      oneTimePassword: OneTimePasswordInfo
+  ) = {
+    mailService.sendSimple(
+      oneTimePassword.email,
+      subject,
+      body(oneTimePassword.oneTimePassword)
+    )
     ()
   }
 
@@ -59,71 +66,86 @@ object Forms {
 /**
   * A controller to handle the entire authentication flow.
   */
-class AuthController @Inject()(
-  val silhouette: Silhouette[DefaultEnv],
-  val controllerComponents: ControllerComponents,
-  val oneTimePasswordRepository: OneTimePasswordInfoRepository,
-  val oneTimePasswordProvider: OneTimePasswordProvider,
-  val oneTimePasswordInfoGenerator: OneTimePasswordInfoGenerator,
-  val mailService: MailService,
-  val userService: UserService,
-  val tokenService: TokenService,
-  val cookieTokenManager: CookieTokenManagerLike,
-  val clock: SilhouetteClock
-)(
-  implicit val ec: ExecutionContext)
+class AuthController @Inject() (
+    val silhouette: Silhouette[DefaultEnv],
+    val controllerComponents: ControllerComponents,
+    val oneTimePasswordRepository: OneTimePasswordInfoRepository,
+    val oneTimePasswordProvider: OneTimePasswordProvider,
+    val oneTimePasswordInfoGenerator: OneTimePasswordInfoGenerator,
+    val mailService: MailService,
+    val userService: UserService,
+    val tokenService: TokenService,
+    val cookieTokenManager: CookieTokenManagerLike,
+    val clock: SilhouetteClock
+)(implicit val ec: ExecutionContext)
     extends BaseController {
 
-  def createOneTimePassword = silhouette.UnsecuredAction.async { implicit request =>
-    Forms.OneTimePasswordInputForm.bindFromRequest.fold(
-      _ => Future.successful(BadRequest("Invalid post data!")),
-      oneTimePasswordInput => {
-        val loginInfo = LoginInfo(oneTimePasswordProvider.id, oneTimePasswordInput.email)
-        val authInfo = oneTimePasswordInfoGenerator.generate(oneTimePasswordInput)
-        oneTimePasswordRepository.add[OneTimePasswordInfo](loginInfo, authInfo).map {
-          oneTimePasswordInfo: OneTimePasswordInfo =>
-
-          MailHelper.sendOneTimePasswordMail(mailService, oneTimePasswordInfo)
-          Ok("")
+  def createOneTimePassword =
+    silhouette.UnsecuredAction.async { implicit request =>
+      Forms.OneTimePasswordInputForm.bindFromRequest.fold(
+        _ => Future.successful(BadRequest("Invalid post data!")),
+        oneTimePasswordInput => {
+          val loginInfo =
+            LoginInfo(oneTimePasswordProvider.id, oneTimePasswordInput.email)
+          val authInfo =
+            oneTimePasswordInfoGenerator.generate(oneTimePasswordInput)
+          oneTimePasswordRepository
+            .add[OneTimePasswordInfo](loginInfo, authInfo)
+            .map { oneTimePasswordInfo: OneTimePasswordInfo =>
+              MailHelper
+                .sendOneTimePasswordMail(mailService, oneTimePasswordInfo)
+              Ok("")
+            }
         }
-      }
-    )
-  }
-
-  def createToken = silhouette.UnsecuredAction.async { implicit request =>
-    Forms.TokenInputForm.bindFromRequest.fold(
-      _ => Future.successful(BadRequest("Invalid post data!")),
-      tokenInput => {
-        val credentials = OneTimePasswordCredentials.fromTokenInput(tokenInput)
-        oneTimePasswordProvider.authenticate(credentials).flatMap {
-          case Failure(e) => Future(Failure(e))
-          case Success(loginInfo) => userService.retrieve(loginInfo).flatMap {
-            case Some(x) => Future(Success(x))
-            case None => userService.add(loginInfo).map(Success(_))
-          }
-        }.flatMap {
-          case Failure(e: AuthenticationException) => Future(BadRequest("Invalid credentials."))
-          case Failure(e) => throw e
-          case Success(user) => for {
-            token <- tokenService.generateTokenForUser(user)
-            result = Ok(Json.toJson(token))
-            resultWithCookie = cookieTokenManager.setToken(result, token)
-          } yield resultWithCookie
-        }
-      }
-    )
-  }
-
-  def recoverTokenFromCookie = silhouette.UserAwareAction.async { implicit request =>
-    cookieTokenManager.extractToken(request).map {
-      case None  => BadRequest
-      case Some(token) if ! token.isValid(clock) => BadRequest
-      case Some(token) => Ok(Json.toJson(token))
+      )
     }
-  }
 
-  def getUser = silhouette.SecuredAction.async { implicit request => Future {
-    Ok(Json.toJson(Json.obj("email" -> request.identity.email)))
-  }}
+  def createToken =
+    silhouette.UnsecuredAction.async { implicit request =>
+      Forms.TokenInputForm.bindFromRequest.fold(
+        _ => Future.successful(BadRequest("Invalid post data!")),
+        tokenInput => {
+          val credentials =
+            OneTimePasswordCredentials.fromTokenInput(tokenInput)
+          oneTimePasswordProvider
+            .authenticate(credentials)
+            .flatMap {
+              case Failure(e) => Future(Failure(e))
+              case Success(loginInfo) =>
+                userService.retrieve(loginInfo).flatMap {
+                  case Some(x) => Future(Success(x))
+                  case None    => userService.add(loginInfo).map(Success(_))
+                }
+            }
+            .flatMap {
+              case Failure(e: AuthenticationException) =>
+                Future(BadRequest("Invalid credentials."))
+              case Failure(e) => throw e
+              case Success(user) =>
+                for {
+                  token <- tokenService.generateTokenForUser(user)
+                  result = Ok(Json.toJson(token))
+                  resultWithCookie = cookieTokenManager.setToken(result, token)
+                } yield resultWithCookie
+            }
+        }
+      )
+    }
+
+  def recoverTokenFromCookie =
+    silhouette.UserAwareAction.async { implicit request =>
+      cookieTokenManager.extractToken(request).map {
+        case None                                 => BadRequest
+        case Some(token) if !token.isValid(clock) => BadRequest
+        case Some(token)                          => Ok(Json.toJson(token))
+      }
+    }
+
+  def getUser =
+    silhouette.SecuredAction.async { implicit request =>
+      Future {
+        Ok(Json.toJson(Json.obj("email" -> request.identity.email)))
+      }
+    }
 
 }

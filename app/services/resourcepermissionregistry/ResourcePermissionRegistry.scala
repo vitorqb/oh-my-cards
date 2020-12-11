@@ -20,31 +20,33 @@ trait ResourcePermissionRegistryLike {
 
 }
 
-class ResourcePermissionRegistry(db: Database)(implicit val ec: ExecutionContext)
-    extends ResourcePermissionRegistryLike {
+class ResourcePermissionRegistry(db: Database)(implicit
+    val ec: ExecutionContext
+) extends ResourcePermissionRegistryLike {
 
-  override def hasAccess(user: User, key: String): Future[Boolean] = Future {
-    db.withConnection { implicit c =>
-      SQL(
-        "SELECT 1 FROM resourceUserPermissions WHERE userId={userId} AND resourceKey={key}"
-      )
-        .on("userId" -> user.id, "key" -> key)
-        .as(SqlParser.int(1).*)
-        .headOption
-        .isDefined
+  override def hasAccess(user: User, key: String): Future[Boolean] =
+    Future {
+      db.withConnection { implicit c =>
+        SQL(
+          "SELECT 1 FROM resourceUserPermissions WHERE userId={userId} AND resourceKey={key}"
+        )
+          .on("userId" -> user.id, "key" -> key)
+          .as(SqlParser.int(1).*)
+          .headOption
+          .isDefined
+      }
     }
-  }
 
-  override def grantAccess(user: User, key: String): Future[Unit] = Future {
-    db.withConnection { implicit c =>
-      SQL(
-        """INSERT INTO resourceUserPermissions(resourceKey, userId)
+  override def grantAccess(user: User, key: String): Future[Unit] =
+    Future {
+      db.withConnection { implicit c =>
+        SQL(
+          """INSERT INTO resourceUserPermissions(resourceKey, userId)
            VALUES({key}, {userId})"""
-      )
-        .on("userId" -> user.id, "key" -> key)
-        .executeInsert()
+        )
+          .on("userId" -> user.id, "key" -> key)
+          .executeInsert()
+      }
     }
-  }
-
 
 }

@@ -11,7 +11,9 @@ import play.api.libs.json.Json
   * A trait defining the base functionalities for the Card History Tracker.
   */
 trait CardHistoryTrackerLike {
-  def getEvents(cardId: String)(implicit c: Connection): Seq[CardHistoricalEventLike]
+  def getEvents(cardId: String)(implicit
+      c: Connection
+  ): Seq[CardHistoricalEventLike]
 }
 
 /**
@@ -33,14 +35,15 @@ object CardHistoryResource {
   * The implementation of the handler.
   */
 class HistoryTrackerHandler(
-  db: Database,
-  tracker: CardHistoryTrackerLike
-)(
-  implicit ec: ExecutionContext
+    db: Database,
+    tracker: CardHistoryTrackerLike
+)(implicit
+    ec: ExecutionContext
 ) extends HistoryTrackerHandlerLike {
-  def get(id: String): Future[CardHistoryResource] = Future {
-    db.withConnection { implicit c =>
-      CardHistoryResource(tracker.getEvents(id))
+  def get(id: String): Future[CardHistoryResource] =
+    Future {
+      db.withConnection { implicit c =>
+        CardHistoryResource(tracker.getEvents(id))
+      }
     }
-  }
 }

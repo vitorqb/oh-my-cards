@@ -6,10 +6,10 @@ import scala.concurrent.Future
 import com.google.inject.Inject
 import services.UUIDGeneratorLike
 
-class UserService @Inject()(
-  userRepository: UserRepository,
-  uuidGenerator: UUIDGeneratorLike)
-    extends IdentityService[User] {
+class UserService @Inject() (
+    userRepository: UserRepository,
+    uuidGenerator: UUIDGeneratorLike
+) extends IdentityService[User] {
 
   def retrieve(loginInfo: LoginInfo): Future[Option[User]] = {
     userRepository.findByEmail(loginInfo.providerKey)

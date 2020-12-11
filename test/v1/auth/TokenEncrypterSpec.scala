@@ -14,7 +14,7 @@ class TokenEncrypterSpec extends PlaySpec with MockitoSugar {
       val encrypter = new TokenEncrypter("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
       val encrypted = encrypter.encrypt(token)
       val decrypted = encrypter.decrypt(encrypted)
-      decrypted.map(_.map(_.toChar).mkString)  mustEqual Some("TOKEN")
+      decrypted.map(_.map(_.toChar).mkString) mustEqual Some("TOKEN")
     }
   }
 

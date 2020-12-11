@@ -14,13 +14,13 @@ import play.api.mvc.DefaultActionBuilder
 /**
   * Plugs together all dependencies for the controller
   */
-class CardGridProfileControllerComponents @Inject()(
-  val actionBuilder: DefaultActionBuilder,
-  val executionContext: ExecutionContext,
-  val fileMimeTypes: FileMimeTypes,
-  val langs: Langs,
-  val messagesApi: MessagesApi,
-  val parsers: PlayBodyParsers,
-  val silhouette: Silhouette[DefaultEnv],
-  val handler: CardGridProfileResourceHandler
+class CardGridProfileControllerComponents @Inject() (
+    val actionBuilder: DefaultActionBuilder,
+    val executionContext: ExecutionContext,
+    val fileMimeTypes: FileMimeTypes,
+    val langs: Langs,
+    val messagesApi: MessagesApi,
+    val parsers: PlayBodyParsers,
+    val silhouette: Silhouette[DefaultEnv],
+    val handler: CardGridProfileResourceHandler
 ) extends ControllerComponents

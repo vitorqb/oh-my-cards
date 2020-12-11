@@ -32,7 +32,9 @@ trait SilhouetteInjectorContext {
     */
   lazy val requestProvider = new RequestProvider {
     override def id = "fakeRequestProvider"
-    override def authenticate[B](request: Request[B]): Future[Option[LoginInfo]] = {
+    override def authenticate[B](
+        request: Request[B]
+    ): Future[Option[LoginInfo]] = {
       Future.successful(Some(loginInfo))
     }
   }
@@ -40,7 +42,8 @@ trait SilhouetteInjectorContext {
   /**
     * The mocked silhouette environment.
     */
-  lazy val env = FakeEnvironment[DefaultEnv](Seq((loginInfo -> user)), Seq(requestProvider))
+  lazy val env =
+    FakeEnvironment[DefaultEnv](Seq((loginInfo -> user)), Seq(requestProvider))
 
   /**
     * The GuiceModule with the bindings for the env
@@ -54,16 +57,17 @@ trait SilhouetteInjectorContext {
   /**
     * The app
     */
-  lazy val app = new GuiceApplicationBuilder().overrides(new GuiceModule).build()
+  lazy val app =
+    new GuiceApplicationBuilder().overrides(new GuiceModule).build()
 
   /**
     * The silhouette instance
     */
   lazy val silhouette = app.injector.instanceOf[SilhouetteEnvWrapper].silhouette
-  def silhouette(app: Application) = app.injector.instanceOf[SilhouetteEnvWrapper].silhouette
+  def silhouette(app: Application) =
+    app.injector.instanceOf[SilhouetteEnvWrapper].silhouette
 
 }
-
 
 object SilhouetteTestUtils {
 

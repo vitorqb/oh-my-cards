@@ -4,7 +4,8 @@ import org.scalatestplus.play._
 
 class RandomStringGeneratorSpec extends PlaySpec {
 
-  val alphanumeric = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+  val alphanumeric =
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
   "RandomStringGeneratorSpec.generate" should {
 
@@ -18,7 +19,7 @@ class RandomStringGeneratorSpec extends PlaySpec {
 
       "With alphanumeric values only" in {
         generated.foreach { x =>
-          generated must contain (x)
+          generated must contain(x)
         }
       }
     }
@@ -26,7 +27,8 @@ class RandomStringGeneratorSpec extends PlaySpec {
     "With a given seed" should {
       val seed: Int = 111
       val len: Int = 20
-      val generated: String = (new RandomStringGenerator(Some(seed))).generate(len)
+      val generated: String =
+        (new RandomStringGenerator(Some(seed))).generate(len)
 
       "Generates expected string" in {
         generated mustBe "dPuBwqCZDvS3sYJaU8nT"
@@ -38,7 +40,8 @@ class RandomStringGeneratorSpec extends PlaySpec {
       val chars = "a1".toSet
       val seed = 1231231
 
-      val generated: String = (new RandomStringGenerator(Some(seed)).generate(len, Some(chars)))
+      val generated: String =
+        (new RandomStringGenerator(Some(seed)).generate(len, Some(chars)))
 
       "generates expexted string with valid chars only" in {
         generated mustEqual "a1111111111a1a111a1aa1aaa1111111a11aa1aa"

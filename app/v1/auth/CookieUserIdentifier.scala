@@ -16,10 +16,10 @@ trait CookieUserIdentifierLike {
 }
 
 class CookieUserIdentifier(
-  cookieTokenManager: CookieTokenManagerLike,
-  clock: SilhouetteClock
-)(
-  implicit val ec: ExecutionContext
+    cookieTokenManager: CookieTokenManagerLike,
+    clock: SilhouetteClock
+)(implicit
+    val ec: ExecutionContext
 ) extends CookieUserIdentifierLike {
 
   override def identifyUser(r: Request[AnyContent]): Future[Option[User]] = {

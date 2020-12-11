@@ -17,12 +17,15 @@ class UserServiceSpec extends PlaySpec with MockitoSugar with ScalaFutures {
       val loginInfo = LoginInfo(OneTimePasswordProvider.ID, user.email)
 
       val userRepositoryMock = mock[UserRepository]
-      when(userRepositoryMock.findByEmail(user.email)).thenReturn(Future.successful(Some(user)))
+      when(userRepositoryMock.findByEmail(user.email))
+        .thenReturn(Future.successful(Some(user)))
 
       val uuidGeneratorMock = mock[UUIDGeneratorLike]
       when(uuidGeneratorMock.generate).thenReturn("foo")
 
-      ((new UserService(userRepositoryMock, uuidGeneratorMock)).retrieve(loginInfo).futureValue
+      ((new UserService(userRepositoryMock, uuidGeneratorMock))
+        .retrieve(loginInfo)
+        .futureValue
         mustEqual Some(user))
     }
 
@@ -40,7 +43,9 @@ class UserServiceSpec extends PlaySpec with MockitoSugar with ScalaFutures {
       val userRepositoryMock = mock[UserRepository]
       when(userRepositoryMock.add(user)).thenReturn(Future.successful(user))
 
-      ((new UserService(userRepositoryMock, uuidGeneratorMock)).add(loginInfo).futureValue
+      ((new UserService(userRepositoryMock, uuidGeneratorMock))
+        .add(loginInfo)
+        .futureValue
         mustEqual user)
     }
 

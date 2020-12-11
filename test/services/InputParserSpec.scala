@@ -15,8 +15,12 @@ class InputParserSpec extends PlaySpec {
 
     "fails with an incorrect uuid" in {
       InputParser.parseUUID("") mustEqual INVALID_UUID
-      InputParser.parseUUID("d0cf12dd-0bd1-44e0-b8d4-d511bf5d96b") mustEqual INVALID_UUID
-      InputParser.parseUUID("d0cf12dd0bd144e0b8d4d511bf5d96bs") mustEqual INVALID_UUID
+      InputParser.parseUUID(
+        "d0cf12dd-0bd1-44e0-b8d4-d511bf5d96b"
+      ) mustEqual INVALID_UUID
+      InputParser.parseUUID(
+        "d0cf12dd0bd144e0b8d4d511bf5d96bs"
+      ) mustEqual INVALID_UUID
     }
 
   }

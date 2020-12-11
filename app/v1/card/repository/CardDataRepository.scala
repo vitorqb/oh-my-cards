@@ -1,11 +1,14 @@
-package v1.card
+package v1.card.datarepository
 
-import anorm.{SQL,RowParser,SqlParser}
+import anorm.{SQL, RowParser, SqlParser}
 import v1.auth.User
 import anorm.`package`.SqlStringInterpolation
 import java.sql.Connection
 import org.joda.time.DateTime
 import anorm.JodaParameterMetaData._
+import v1.card.repository.{CardDataRepositoryLike}
+import v1.card.models._
+import v1.card.exceptions._
 
 /**
   * An implementation for a card repository.
@@ -15,7 +18,8 @@ class CardDataRepository extends CardDataRepositoryLike {
   /**
     * The statement used to get a card.
     */
-  val sqlGetStatement: String = s"SELECT id, title, body, updatedAt, createdAt, ref FROM cards "
+  val sqlGetStatement: String =
+    s"SELECT id, title, body, updatedAt, createdAt, ref FROM cards "
 
   /**
     * A parser for CardData.
@@ -36,18 +40,17 @@ class CardDataRepository extends CardDataRepositoryLike {
     }
   }
 
-  def create(
-    cardFormInput: CardFormInput,
-    context: CardCreationContext
-  )(implicit c: Connection): Unit = {
+  def create(data: CardCreateData, context: CardCreationContext)(implicit
+      c: Connection
+  ): Unit = {
     SQL(
       """INSERT INTO cards(id, userId, title, body, createdAt, updatedAt, ref)
              VALUES ({id}, {userId}, {title}, {body}, {now}, {now}, {ref})"""
     ).on(
       "id" -> context.id,
       "userId" -> context.user.id,
-      "title" -> cardFormInput.getTitle(),
-      "body" -> cardFormInput.getBody(),
+      "title" -> data.title,
+      "body" -> data.body,
       "now" -> context.now,
       "ref" -> context.ref
     ).executeInsert()
@@ -86,7 +89,9 @@ class CardDataRepository extends CardDataRepositoryLike {
   /**
     * Updates a card.
     */
-  def update(data: CardData, context: CardUpdateContext)(implicit c: Connection): Unit =
+  def update(data: CardData, context: CardUpdateContext)(implicit
+      c: Connection
+  ): Unit =
     SQL("""
         UPDATE cards SET title={title}, body={body}, updatedAt={now}
         WHERE id={id} AND userId={userId}

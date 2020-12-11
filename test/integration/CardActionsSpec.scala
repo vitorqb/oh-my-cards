@@ -26,7 +26,8 @@ class CardActionsSpec
   var token: String = ""
 
   override def beforeEach() = {
-    token = (new TestTokenProviderSvc(app.injector.instanceOf[Database])).getToken()
+    token =
+      (new TestTokenProviderSvc(app.injector.instanceOf[Database])).getToken()
   }
 
   override def afterEach() = {
@@ -46,23 +47,29 @@ class CardActionsSpec
 
   val index = "cards"
 
-  "test create and get two cards paginated" taggedAs(FunctionalTestsTag) in {
-    val cardOneId:   String = cardActionWsHelper.postNewCard("Foo1", "Bar1")
-    val cardTwoId:   String = cardActionWsHelper.postNewCard("Foo2", "Bar2")
+  "test create and get two cards paginated" taggedAs (FunctionalTestsTag) in {
+    val cardOneId: String = cardActionWsHelper.postNewCard("Foo1", "Bar1")
+    val cardTwoId: String = cardActionWsHelper.postNewCard("Foo2", "Bar2")
     val cardThreeId: String = cardActionWsHelper.postNewCard("Foo3", "Bar3")
 
     refreshIdx(index)
 
     waitUntil { () =>
-      (cardActionWsHelper.getPagedCards(1, 2) \ "items" \ 1 \ "title").asOpt[String].isDefined
+      (cardActionWsHelper.getPagedCards(1, 2) \ "items" \ 1 \ "title")
+        .asOpt[String]
+        .isDefined
     }
 
     val pagedData = cardActionWsHelper.getPagedCards(1, 2)
 
     (pagedData \ "page").as[Int] mustEqual 1
-      (pagedData \ "pageSize").as[Int] mustEqual 2
-    Array("Foo1", "Foo2", "Foo3") must contain ((pagedData \ "items" \ 0 \ "title").as[String])
-    Array("Foo1", "Foo2", "Foo3") must contain ((pagedData \ "items" \ 1 \ "title").as[String])
+    (pagedData \ "pageSize").as[Int] mustEqual 2
+    Array("Foo1", "Foo2", "Foo3") must contain(
+      (pagedData \ "items" \ 0 \ "title").as[String]
+    )
+    Array("Foo1", "Foo2", "Foo3") must contain(
+      (pagedData \ "items" \ 1 \ "title").as[String]
+    )
     ((pagedData \ "items" \ 0 \ "title").as[String]
       must not equal
       (pagedData \ "items" \ 1 \ "title").as[String])
@@ -70,7 +77,7 @@ class CardActionsSpec
   }
 
   "Card creationg" should {
-    "create a card with ref, updatedAt, createdAt" taggedAs(FunctionalTestsTag) in {
+    "create a card with ref, updatedAt, createdAt" taggedAs (FunctionalTestsTag) in {
       val id = cardActionWsHelper.postNewCard("FOO", "BAR")
       refreshIdx(index)
       val card = cardActionWsHelper.getCard(id)

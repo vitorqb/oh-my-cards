@@ -1,9 +1,7 @@
 package v1.card.historytracker
 
 import org.scalatestplus.play.PlaySpec
-import v1.card.{
-  CardData
-}
+import v1.card.models._
 import services.CounterUUIDGenerator
 import play.api.db.Database
 import test.utils.TestUtils
@@ -36,7 +34,9 @@ class CardUpdateDataRepositorySpec extends PlaySpec {
 
         repo.create("2", oldData, newData)
 
-        repo.getFieldsUpdates("2") mustEqual Seq(new StringFieldUpdate("title", "foo", "bar"))
+        repo.getFieldsUpdates("2") mustEqual Seq(
+          new StringFieldUpdate("title", "foo", "bar")
+        )
       }
     }
 
@@ -48,7 +48,9 @@ class CardUpdateDataRepositorySpec extends PlaySpec {
 
         repo.create("2", oldData, newData)
 
-        repo.getFieldsUpdates("2") mustEqual Seq(new StringFieldUpdate("body", "foo", ""))
+        repo.getFieldsUpdates("2") mustEqual Seq(
+          new StringFieldUpdate("body", "foo", "")
+        )
       }
     }
 
@@ -60,7 +62,10 @@ class CardUpdateDataRepositorySpec extends PlaySpec {
 
         repo.create("2", oldData, newData)
 
-        val exp = Seq(StringFieldUpdate("title", "bar", "foo"), StringFieldUpdate("body", "A", ""))
+        val exp = Seq(
+          StringFieldUpdate("title", "bar", "foo"),
+          StringFieldUpdate("body", "A", "")
+        )
         repo.getFieldsUpdates("2").toSet mustEqual exp.toSet
       }
     }
@@ -80,8 +85,10 @@ class CardUpdateDataRepositorySpec extends PlaySpec {
 
     "all together" in testContext { c =>
       c.db.withTransaction { implicit t =>
-        val oldData = CardData("1", "OldTitle", "OldBody", List("A"), None, None, 1)
-        val newData = CardData("1", "NewTitle", "NewBody", List("B"), None, None, 1)
+        val oldData =
+          CardData("1", "OldTitle", "OldBody", List("A"), None, None, 1)
+        val newData =
+          CardData("1", "NewTitle", "NewBody", List("B"), None, None, 1)
         val repo = new CardUpdateDataRepository(new CounterUUIDGenerator)
 
         repo.create("2", oldData, newData)
@@ -89,7 +96,7 @@ class CardUpdateDataRepositorySpec extends PlaySpec {
         val expUpdates = Seq(
           StringFieldUpdate("title", "OldTitle", "NewTitle"),
           StringFieldUpdate("body", "OldBody", "NewBody"),
-          TagsFieldUpdate("tags", List("A"), List("B")),
+          TagsFieldUpdate("tags", List("A"), List("B"))
         )
         repo.getFieldsUpdates("2") mustEqual expUpdates
 

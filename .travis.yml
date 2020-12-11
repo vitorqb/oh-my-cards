@@ -14,6 +14,11 @@ jobs:
   include:
 
     - stage: "Tests"
+      name: "Scala Format"
+      script: sbt scalafmtCheckAll
+      if: branch = master
+    
+    - stage: "Tests"
       name: "Unit Tests"
       script: make unitTests
       if: branch = master

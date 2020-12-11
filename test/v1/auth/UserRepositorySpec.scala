@@ -3,10 +3,10 @@ package v1.auth
 import org.scalatestplus.play.PlaySpec
 import org.scalatest.concurrent.ScalaFutures
 
-
 class UserRepositorySpec extends PlaySpec with ScalaFutures {
 
-  implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
+  implicit val ec: scala.concurrent.ExecutionContext =
+    scala.concurrent.ExecutionContext.global
 
   "UserRepository" should {
 

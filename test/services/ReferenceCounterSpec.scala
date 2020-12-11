@@ -3,7 +3,6 @@ package services.referencecounter
 import org.scalatestplus.play.PlaySpec
 import test.utils.TestUtils
 
-
 class ReferenceCounterSpec extends PlaySpec {
 
   "nextRef" should {

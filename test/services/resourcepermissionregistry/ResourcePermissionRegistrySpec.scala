@@ -6,9 +6,7 @@ import v1.auth.User
 import scala.concurrent.ExecutionContext
 import org.scalatest.concurrent.ScalaFutures
 
-class ResourcePermissionRegistrySpec
-    extends PlaySpec
-    with ScalaFutures {
+class ResourcePermissionRegistrySpec extends PlaySpec with ScalaFutures {
 
   implicit val ec: ExecutionContext = ExecutionContext.global
 

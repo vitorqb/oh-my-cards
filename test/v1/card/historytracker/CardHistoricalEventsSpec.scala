@@ -87,7 +87,7 @@ class TagsFieldUpdateSpec extends PlaySpec {
         ("field1", "OLD", "B"),
         ("field1", "NEW", "C"),
         ("field2", "NEW", "D"),
-        ("field3", "OLD", "E"),
+        ("field3", "OLD", "E")
       )
       val updates = Seq(
         TagsFieldUpdate("field1", List("A", "B"), List("C")),

@@ -5,7 +5,6 @@ import utils.JodaToJsonUtils._
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 
-
 class JsonUtilsSpec extends PlaySpec {
 
   "convertToDatetime" should {
@@ -13,13 +12,13 @@ class JsonUtilsSpec extends PlaySpec {
     "convert to datetime with timezone" in {
       val result = convertToDatetime("2020-05-11T20:05:41.394+04:00")
       val expected = new DateTime(2020, 5, 11, 16, 5, 41, 394, DateTimeZone.UTC)
-      result mustEqual expected        
+      result mustEqual expected
     }
 
     "convert to datetime without milliseconds but with timezone" in {
       val result = convertToDatetime("2020-05-11T20:05:41+03:00")
       val expected = new DateTime(2020, 5, 11, 17, 5, 41, DateTimeZone.UTC)
-      result mustEqual expected        
+      result mustEqual expected
     }
 
     "fails to convert if no timezone" should {
@@ -29,7 +28,8 @@ class JsonUtilsSpec extends PlaySpec {
           convertToDatetime("2020-05-11T20:05:41")
           fail()
         } catch {
-          case e: IllegalArgumentException => e.getMessage() must include ("Invalid format")
+          case e: IllegalArgumentException =>
+            e.getMessage() must include("Invalid format")
         }
       }
 
@@ -38,7 +38,8 @@ class JsonUtilsSpec extends PlaySpec {
           convertToDatetime("2020-05-11T20:05:41.123")
           fail()
         } catch {
-          case e: IllegalArgumentException => e.getMessage() must include ("Invalid format")
+          case e: IllegalArgumentException =>
+            e.getMessage() must include("Invalid format")
         }
       }
 
@@ -47,7 +48,8 @@ class JsonUtilsSpec extends PlaySpec {
           convertToDatetime("2020-05-11")
           fail()
         } catch {
-          case e: IllegalArgumentException => e.getMessage() must include ("Invalid format")
+          case e: IllegalArgumentException =>
+            e.getMessage() must include("Invalid format")
         }
       }
 

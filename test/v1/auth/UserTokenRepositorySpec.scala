@@ -6,10 +6,11 @@ import org.scalatest.concurrent.ScalaFutures
 
 class UserTokenRepositorySpec extends PlaySpec with ScalaFutures {
 
-  implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
-  
+  implicit val ec: scala.concurrent.ExecutionContext =
+    scala.concurrent.ExecutionContext.global
+
   "UserTokenRepositorySpec add and find" should {
- 
+
     "Create and find an user token" in {
       test.utils.TestUtils.testDB { db =>
         val userToken = UserToken(

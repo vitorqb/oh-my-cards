@@ -3,7 +3,7 @@ package services
 import javax.inject.Inject
 
 import scala.concurrent.ExecutionContext
-import play.api.libs.ws.{WSAuthScheme,WSClient}
+import play.api.libs.ws.{WSAuthScheme, WSClient}
 import play.api.Configuration
 import play.api.Logger
 import play.api.libs.json.Json
@@ -17,10 +17,9 @@ trait MailService {
 /**
   * Service to send emails using MailGun.
   */
-class MailGunMailServiceImpl @Inject()(
-  ws: WSClient,
-  conf: Configuration)(
-  implicit ec: ExecutionContext) extends MailService {
+class MailGunMailServiceImpl @Inject() (ws: WSClient, conf: Configuration)(
+    implicit ec: ExecutionContext
+) extends MailService {
 
   private val logger = Logger(getClass)
 
@@ -31,10 +30,14 @@ class MailGunMailServiceImpl @Inject()(
     val url = conf.get[String]("mailgun.url")
     val from = conf.get[String]("mailgun.from")
     val key = conf.get[String]("mailgun.key")
-    logger.info("Sending email with url=" + url + ", from=" + from + ", body=" + body)
+    logger.info(
+      "Sending email with url=" + url + ", from=" + from + ", body=" + body
+    )
     ws.url(url)
       .withAuth("api", key, WSAuthScheme.BASIC)
-      .post(Map("from" -> from, "to" -> to, "subject" -> subject, "text" -> body))
+      .post(
+        Map("from" -> from, "to" -> to, "subject" -> subject, "text" -> body)
+      )
     ()
   }
 }
@@ -42,10 +45,9 @@ class MailGunMailServiceImpl @Inject()(
 /**
   * Service to send emails using SendGrid.
   */
-class SendgridMailServiceImpl @Inject()(
-  ws: WSClient,
-  conf: Configuration)(
-  implicit ec: ExecutionContext) extends MailService {
+class SendgridMailServiceImpl @Inject() (ws: WSClient, conf: Configuration)(
+    implicit ec: ExecutionContext
+) extends MailService {
 
   private val logger = Logger(getClass)
 
@@ -77,7 +79,7 @@ class SendgridMailServiceImpl @Inject()(
 /**
   * Fake service for testing purposes.
   */
-class MailServiceFakeImpl @Inject()(conf: Configuration) extends MailService {
+class MailServiceFakeImpl @Inject() (conf: Configuration) extends MailService {
 
   private val logger = Logger(getClass)
 
@@ -88,7 +90,9 @@ class MailServiceFakeImpl @Inject()(conf: Configuration) extends MailService {
     val url = conf.get[String]("mailgun.url")
     val from = conf.get[String]("mailgun.from")
     val key = conf.get[String]("mailgun.key")
-    logger.info("PRETENDING to send email with url=" + url + ", from=" + from + ", body=" + body)
+    logger.info(
+      "PRETENDING to send email with url=" + url + ", from=" + from + ", body=" + body
+    )
     ()
   }
 

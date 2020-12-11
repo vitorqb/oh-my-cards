@@ -2,7 +2,6 @@ package utils
 
 import org.scalatestplus.play.PlaySpec
 
-
 class Base64ConverterSpec extends PlaySpec {
 
   "encode and decode" should {

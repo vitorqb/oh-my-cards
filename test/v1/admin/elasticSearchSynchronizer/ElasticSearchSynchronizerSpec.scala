@@ -11,23 +11,21 @@ import play.api.inject.guice.GuiceApplicationBuilder
 import test.utils.FunctionalTestsTag
 import org.scalatest.BeforeAndAfter
 import play.api.inject.bind
-import v1.card.CardFormInput
-import v1.card.CardRepositoryLike
+import v1.card.repository.CardRepositoryLike
 import org.scalatest.concurrent.ScalaFutures
-import v1.card.CardElasticClientLike
+import v1.card.repository.CardElasticClientLike
 import v1.card.elasticclient.CardElasticClientImpl
-import v1.card.CardCreationContext
 import com.mohiva.play.silhouette.api.util.{Clock => SilhouetteClock}
 import services.UUIDGeneratorLike
 import services.referencecounter.ReferenceCounterLike
+import v1.card.models._
 
 class ElasticSearchSynchronizerSpec
     extends PlaySpec
     with GuiceOneAppPerSuite
     with TestEsClient
     with BeforeAndAfter
-    with ScalaFutures
-{
+    with ScalaFutures {
 
   import com.sksamuel.elastic4s.ElasticDsl._
 
@@ -53,28 +51,44 @@ class ElasticSearchSynchronizerSpec
 
   "run" should {
 
-    lazy val cardInput1 = CardFormInput("t1", Some("b1"), Some(List("A")))
-    lazy val cardInput2 = CardFormInput("t2", Some("b2"), Some(List()))
-    lazy val cardInput3 = CardFormInput("t3", Some("b3"), Some(List("a", "B")))
+    lazy val createData1 = CardCreateData("t1", "b1", List("A"))
+    lazy val createData2 = CardCreateData("t2", "b2", List())
+    lazy val createData3 = CardCreateData("t3", "b3", List("a", "B"))
 
     lazy val user = User("a", "b")
 
     def createThreeCardsOnDb() = {
-      val repository: CardRepositoryLike = app.injector.instanceOf[CardRepositoryLike]
+      val repository: CardRepositoryLike =
+        app.injector.instanceOf[CardRepositoryLike]
       val clock = app.injector.instanceOf[SilhouetteClock]
       val uuidGenerator = app.injector.instanceOf[UUIDGeneratorLike]
       val refGenerator = app.injector.instanceOf[ReferenceCounterLike]
       //!!!! TODO How could we make this nicer?
-      val context1 = CardCreationContext(user, clock.now, uuidGenerator.generate, refGenerator.nextRef)
-      val idOne = repository.create(cardInput1, context1).futureValue
-      val context2 = CardCreationContext(user, clock.now, uuidGenerator.generate, refGenerator.nextRef)
-      val idTwo = repository.create(cardInput2, context2).futureValue
-      val context3 = CardCreationContext(user, clock.now, uuidGenerator.generate, refGenerator.nextRef)
-      val idThree = repository.create(cardInput3, context3).futureValue
+      val context1 = CardCreationContext(
+        user,
+        clock.now,
+        uuidGenerator.generate,
+        refGenerator.nextRef
+      )
+      val idOne = repository.create(createData1, context1).futureValue
+      val context2 = CardCreationContext(
+        user,
+        clock.now,
+        uuidGenerator.generate,
+        refGenerator.nextRef
+      )
+      val idTwo = repository.create(createData2, context2).futureValue
+      val context3 = CardCreationContext(
+        user,
+        clock.now,
+        uuidGenerator.generate,
+        refGenerator.nextRef
+      )
+      val idThree = repository.create(createData3, context3).futureValue
       (idOne, idTwo, idThree)
     }
 
-    "Send all items to es client" taggedAs(FunctionalTestsTag) in {
+    "Send all items to es client" taggedAs (FunctionalTestsTag) in {
       val (idOne, idTwo, idThree) = createThreeCardsOnDb()
       cleanIndex()
       refreshIdx()
@@ -84,16 +98,25 @@ class ElasticSearchSynchronizerSpec
       synchronizer.updateAllEntries().await
       refreshIdx()
 
-      val hits = client.execute {
-        search(index).matchAllQuery()
-      }.await.result.hits.hits
+      val hits = client
+        .execute {
+          search(index).matchAllQuery()
+        }
+        .await
+        .result
+        .hits
+        .hits
 
       hits.map(_.sourceAsMap("title")) mustEqual List("t1", "t2", "t3")
       hits.map(_.id) mustEqual List(idOne, idTwo, idThree)
-      hits.map(_.sourceAsMap("tags")) mustEqual List(List("a"), List(), List("a", "b"))
+      hits.map(_.sourceAsMap("tags")) mustEqual List(
+        List("a"),
+        List(),
+        List("a", "b")
+      )
     }
 
-    "Erases stale items that do not exist in the db" taggedAs(FunctionalTestsTag) in {
+    "Erases stale items that do not exist in the db" taggedAs (FunctionalTestsTag) in {
       cleanIndex()
       client.execute {
         indexInto(index).id("FOO")

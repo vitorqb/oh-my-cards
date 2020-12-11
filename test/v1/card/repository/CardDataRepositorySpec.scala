@@ -1,13 +1,11 @@
-package v1.card.carddatarepositoryspec
-
-import v1.card._
+package v1.card.datarepository
 
 import play.api.db.Database
 import org.scalatestplus.play.PlaySpec
 import test.utils.TestUtils
 import v1.auth.User
 import org.joda.time.DateTime
-
+import v1.card.models._
 
 class CardDataRepositorySpec extends PlaySpec {
 
@@ -31,20 +29,22 @@ class CardDataRepositorySpec extends PlaySpec {
 
     "create and retrieve a card" in testContext { c =>
       c.db.withConnection { implicit conn =>
-        val formInput = CardFormInput("title", None, None)
+        val data = CardCreateData("title", "", List())
         val context = CardCreationContext(user, now, "1", 1)
-        c.repo.create(formInput, context) mustEqual ()
-        val expected = Some(CardData("1", "title", "", List(), Some(now), Some(now), 1))
+        c.repo.create(data, context) mustEqual ()
+        val expected =
+          Some(CardData("1", "title", "", List(), Some(now), Some(now), 1))
         c.repo.get("1", user) mustEqual expected
       }
     }
 
     "create and retrieve with body and tags" in testContext { c =>
       c.db.withConnection { implicit conn =>
-        val formInput = CardFormInput("title", Some("body"), Some(List("A", "B")))
+        val data = CardCreateData("title", "body", List("A", "B"))
         val context = CardCreationContext(user, now, "1", 1)
-        c.repo.create(formInput, context) mustEqual ()
-        val expected = Some(CardData("1", "title", "body", List(), Some(now), Some(now), 1))
+        c.repo.create(data, context) mustEqual ()
+        val expected =
+          Some(CardData("1", "title", "body", List(), Some(now), Some(now), 1))
         c.repo.get("1", user) mustEqual expected
       }
     }
@@ -60,9 +60,9 @@ class CardDataRepositorySpec extends PlaySpec {
 
     "returns None if not exist for User" in testContext { c =>
       c.db.withConnection { implicit conn =>
-        val formInput = CardFormInput("title", None, None)
+        val data = CardCreateData("title", "", List())
         val context = CardCreationContext(user, now, "1", 1)
-        c.repo.create(formInput, context)
+        c.repo.create(data, context)
         c.repo.get("1", user) must not equal None
         c.repo.get("1", otherUser) mustEqual None
       }
@@ -81,14 +81,14 @@ class CardDataRepositorySpec extends PlaySpec {
 
     "return two cards in order" in testContext { c =>
       c.db.withConnection { implicit conn =>
-        val input1 = CardFormInput("A", None, None)
+        val createData1 = CardCreateData("A", "", List())
         val context1 = CardCreationContext(user, now, "1", 1)
-        val data1 = input1.asCardData("1", Some(now), Some(now), 1)
-        val input2 = CardFormInput("B", None, None)
+        val data1 = context1.genCardData(createData1)
+        val createData2 = CardCreateData("B", "", List())
         val context2 = CardCreationContext(user, now, "2", 2)
-        val data2 = input2.asCardData("2", Some(now), Some(now), 2)
-        c.repo.create(input1, context1)
-        c.repo.create(input2, context2)
+        val data2 = context2.genCardData(createData2)
+        c.repo.create(createData1, context1)
+        c.repo.create(createData2, context2)
 
         val idsResult = IdsFindResult(Seq("2", "1"), 5)
         val result = c.repo.find(idsResult)

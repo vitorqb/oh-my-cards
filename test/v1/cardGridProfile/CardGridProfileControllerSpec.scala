@@ -1,7 +1,7 @@
 package v1.cardGridProfile
 
 import org.scalatestplus.play._
-import play.api.test.{ FakeRequest }
+import play.api.test.{FakeRequest}
 import play.api.libs.json.Json
 import play.api.mvc.Request
 import play.api.libs.json.JsValue
@@ -22,7 +22,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import org.scalatest.BeforeAndAfter
 
 sealed trait SharedTestUtils {
-  val emptyConfig: CardGridConfigInput = CardGridConfigInput(None, None, None, None, None)
+  val emptyConfig: CardGridConfigInput =
+    CardGridConfigInput(None, None, None, None, None)
 }
 
 class CardGridProfileControllerSpec
@@ -45,11 +46,14 @@ class CardGridProfileControllerSpec
 
     def controller = app.injector.instanceOf[CardGridProfileController]
 
-
     "successfully create a request and" should {
       val body = Json.obj(
         "name" -> "Foo",
-        "config" -> Json.obj("page" -> 1, "pageSize" -> 2, "includeTags" -> List("A"))
+        "config" -> Json.obj(
+          "page" -> 1,
+          "pageSize" -> 2,
+          "includeTags" -> List("A")
+        )
       )
       val request = FakeRequest().withJsonBody(body)
       val response = controller.create(request)
@@ -59,9 +63,15 @@ class CardGridProfileControllerSpec
       Await.ready(getResponse, 5000 millis)
 
       "create request returns 200" in { status(response) mustBe 200 }
-      "create request returns the json in the body" in { contentAsJson(response) mustEqual body }
-      "get created resource returns 200" in { status(getResponse) mustEqual 200 }
-      "get created retsource returns body" in { contentAsJson(getResponse) mustEqual body }
+      "create request returns the json in the body" in {
+        contentAsJson(response) mustEqual body
+      }
+      "get created resource returns 200" in {
+        status(getResponse) mustEqual 200
+      }
+      "get created retsource returns body" in {
+        contentAsJson(getResponse) mustEqual body
+      }
     }
 
     "return the form errors as json" in new WithImplicitMessageProvider {
@@ -69,18 +79,22 @@ class CardGridProfileControllerSpec
       val request = FakeRequest().withJsonBody(Json.obj("foo" -> "bar"))
       val result = controller.create(request)
       status(result) mustEqual 400
-      contentAsJson(result) mustEqual Json.obj("name" -> List("This field is required"))
+      contentAsJson(result) mustEqual Json.obj(
+        "name" -> List("This field is required")
+      )
     }
 
     "create, get and update a request with a query" in {
       val query = "((tags CONTAINS 'Bar!'"
-      val body = Json.obj("name" -> "Bar!", "config" -> Json.obj("query" -> query))
+      val body =
+        Json.obj("name" -> "Bar!", "config" -> Json.obj("query" -> query))
       val postResponse = controller.create(FakeRequest().withJsonBody(body))
       status(postResponse) mustEqual 200
       val getResponse = controller.read("Bar!")(FakeRequest())
       status(getResponse) mustEqual 200
       (contentAsJson(getResponse) \ "name").as[String] mustEqual "Bar!"
-      (contentAsJson(getResponse) \ "config" \ "query").as[String] mustEqual query
+      (contentAsJson(getResponse) \ "config" \ "query")
+        .as[String] mustEqual query
     }
   }
 
@@ -90,7 +104,11 @@ class CardGridProfileControllerSpec
     def repository = app.injector.instanceOf[CardGridProfileRepository]
     val modifiedJson = Json.obj(
       "name" -> "Foo",
-      "config" -> Json.obj("page" -> 1, "pageSize" -> 2, "includeTags" -> List("A"))
+      "config" -> Json.obj(
+        "page" -> 1,
+        "pageSize" -> 2,
+        "includeTags" -> List("A")
+      )
     )
     val request = FakeRequest().withJsonBody(modifiedJson)
     def controller = app.injector.instanceOf[CardGridProfileController]
@@ -124,10 +142,10 @@ class CardGridProfileControllerSpec
   "listNames" should {
 
     def createProfile(
-      input: CardGridProfileInput,
-      user: User
-    )(
-      implicit repository: CardGridProfileRepository
+        input: CardGridProfileInput,
+        user: User
+    )(implicit
+        repository: CardGridProfileRepository
     ): Unit = {
       val future = repository.create(input, user)
       Await.ready(future, 5000 millis)
@@ -138,7 +156,8 @@ class CardGridProfileControllerSpec
 
     "return a list with names for all profiles for the user " in {
       TestUtils.testDB { implicit db =>
-        implicit val repository = new CardGridProfileRepository(db, uuidGenerator)
+        implicit val repository =
+          new CardGridProfileRepository(db, uuidGenerator)
         val controller = app.injector.instanceOf[CardGridProfileController]
 
         createProfile(CardGridProfileInput("1", emptyConfig), user)
@@ -176,27 +195,40 @@ class CardGridProfileInputSpec extends PlaySpec with SharedTestUtils {
     }
 
     "With page and page size" in {
-      val body = Json.obj("name" -> "Foo", "config" -> Json.obj("page" -> 1, "pageSize" -> 2))
+      val body = Json.obj(
+        "name" -> "Foo",
+        "config" -> Json.obj("page" -> 1, "pageSize" -> 2)
+      )
       runFromJson(body) mustEqual CardGridProfileInput(
         "Foo",
-        emptyConfig.copy(page=Some(1), pageSize=Some(2))
+        emptyConfig.copy(page = Some(1), pageSize = Some(2))
       )
     }
 
     "With includeTags and excludeTags" in {
       val body = Json.obj(
         "name" -> "Foo",
-        "config" -> Json.obj("includeTags" -> List("A"), "excludeTags" -> List("B", "C"))
+        "config" -> Json.obj(
+          "includeTags" -> List("A"),
+          "excludeTags" -> List("B", "C")
+        )
       )
       runFromJson(body) mustEqual CardGridProfileInput(
         "Foo",
-        emptyConfig.copy(includeTags=Some(List("A")), excludeTags=Some(List("B", "C")))
+        emptyConfig.copy(
+          includeTags = Some(List("A")),
+          excludeTags = Some(List("B", "C"))
+        )
       )
     }
 
     "With query" in {
-      val body = Json.obj("name" -> "foo", "config" -> Json.obj("query" -> "()"))
-      runFromJson(body) mustEqual CardGridProfileInput("foo", emptyConfig.copy(query=Some("()")))
+      val body =
+        Json.obj("name" -> "foo", "config" -> Json.obj("query" -> "()"))
+      runFromJson(body) mustEqual CardGridProfileInput(
+        "foo",
+        emptyConfig.copy(query = Some("()"))
+      )
     }
 
   }

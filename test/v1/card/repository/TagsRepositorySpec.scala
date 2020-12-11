@@ -3,10 +3,10 @@ package v1.card.tagsrepositoryspec
 import v1.card.tagsrepository._
 
 import org.scalatestplus.play.PlaySpec
-import v1.card.TagsRepositoryLike
 import test.utils.TestUtils
 import play.api.db.Database
-import v1.card.CardData
+import v1.card.models._
+import v1.card.repository.TagsRepositoryLike
 
 case class TestContext(val db: Database, val tagsRepo: TagsRepositoryLike)
 
@@ -60,7 +60,7 @@ class TagsRepositorySpec extends PlaySpec {
       c.db.withTransaction { implicit t =>
         c.tagsRepo.create("1", List("Bar", "Foo"))
         val data = CardData("1", "A", "B", List(), None, None, 1)
-        c.tagsRepo.fill(data) mustEqual data.copy(tags=List("Bar", "Foo"))
+        c.tagsRepo.fill(data) mustEqual data.copy(tags = List("Bar", "Foo"))
       }
     }
   }

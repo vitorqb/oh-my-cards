@@ -7,7 +7,6 @@ import utils.Base64Converter
 import play.api.mvc.Result
 import play.api.mvc.Cookie
 
-
 /**
   * Set's an extracts the cookie with the token from http request or results.
   */
@@ -17,20 +16,25 @@ trait CookieTokenManagerLike {
 }
 
 class CookieTokenManager(
-  userTokenRepository: UserTokenRepository,
-  tokenEncrypter: TokenEncrypter,
-  authCookieName: String,
+    userTokenRepository: UserTokenRepository,
+    tokenEncrypter: TokenEncrypter,
+    authCookieName: String
 ) extends CookieTokenManagerLike {
 
-  override def extractToken(r: Request[AnyContent]): Future[Option[UserToken]] = {
-    r.cookies.get(authCookieName)
+  override def extractToken(
+      r: Request[AnyContent]
+  ): Future[Option[UserToken]] = {
+    r.cookies
+      .get(authCookieName)
       .map { cookie => Base64Converter.decode(cookie.value) }
-      .flatMap { encryptedTokenBytes => tokenEncrypter.decrypt(encryptedTokenBytes) }
+      .flatMap { encryptedTokenBytes =>
+        tokenEncrypter.decrypt(encryptedTokenBytes)
+      }
       .map { tokenBytes => tokenBytes.map(_.toChar).mkString }
       .map { token => userTokenRepository.findByTokenValue(token) } match {
-        case None => Future.successful(None)
-        case Some(x) => x
-      }
+      case None    => Future.successful(None)
+      case Some(x) => x
+    }
   }
 
   override def setToken(r: Result, token: UserToken): Result = {

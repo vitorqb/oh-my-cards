@@ -4,7 +4,6 @@ import play.api.mvc.Request
 import play.api.mvc.AnyContent
 import java.io.File
 
-
 object RequestExtractorHelper {
 
   /**
@@ -13,7 +12,7 @@ object RequestExtractorHelper {
   def singleFile(request: Request[AnyContent]): Option[File] = {
     request.body.asMultipartFormData match {
       case Some(data) if data.files.length == 1 => Some(data.files.head.ref)
-      case _ => None
+      case _                                    => None
     }
   }
 

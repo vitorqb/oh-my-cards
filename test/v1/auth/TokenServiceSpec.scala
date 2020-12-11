@@ -9,9 +9,7 @@ import org.mockito.Mockito._
 import services.RandomStringGenerator
 import org.scalatest.PrivateMethodTester
 import scala.concurrent.Future
-import com.mohiva.play.silhouette.api.util.{Clock=>SilhouetteClock}
-
-
+import com.mohiva.play.silhouette.api.util.{Clock => SilhouetteClock}
 
 class TokenServiceSpec
     extends PlaySpec
@@ -19,7 +17,8 @@ class TokenServiceSpec
     with MockitoSugar
     with PrivateMethodTester {
 
-  implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global  
+  implicit val ec: scala.concurrent.ExecutionContext =
+    scala.concurrent.ExecutionContext.global
 
   "TokenService.generateTokenForUser" should {
 
@@ -28,13 +27,17 @@ class TokenServiceSpec
       when(clockMock.now).thenReturn(DateTime.parse("2020-01-01T00:00:00"))
 
       val randomStringGeneratorMock = mock[RandomStringGenerator]
-      when(randomStringGeneratorMock.generate(TokenService.length)).thenReturn("foo")
+      when(randomStringGeneratorMock.generate(TokenService.length))
+        .thenReturn("foo")
 
       val user = User("foo", "bar@haz.com")
-      val userToken = UserToken(user, "foo", DateTime.parse("2020-01-02T00:00:00"), false)
+      val userToken =
+        UserToken(user, "foo", DateTime.parse("2020-01-02T00:00:00"), false)
 
       val userTokenRepositoryMock = mock[UserTokenRepository]
-      when(userTokenRepositoryMock.add(userToken)).thenReturn(Future { userToken })
+      when(userTokenRepositoryMock.add(userToken)).thenReturn(Future {
+        userToken
+      })
 
       val tokenService = new TokenService(
         randomStringGeneratorMock,
@@ -54,7 +57,8 @@ class TokenServiceSpec
       when(clockMock.now).thenReturn(DateTime.parse("2020-01-01T00:00:00"))
 
       val randomStringGeneratorMock = mock[RandomStringGenerator]
-      when(randomStringGeneratorMock.generate(TokenService.length)).thenReturn("foo")
+      when(randomStringGeneratorMock.generate(TokenService.length))
+        .thenReturn("foo")
 
       val userTokenRepositoryMock = mock[UserTokenRepository]
       val tokenService = new TokenService(
@@ -65,7 +69,12 @@ class TokenServiceSpec
       val user = User("foo", "bar@haz.com")
       val newTokenFor = PrivateMethod[UserToken](Symbol("newTokenFor"))
       val result = tokenService invokePrivate newTokenFor(user)
-      result mustEqual UserToken(user, "foo", DateTime.parse("2020-01-02T00:00:00"), false)
+      result mustEqual UserToken(
+        user,
+        "foo",
+        DateTime.parse("2020-01-02T00:00:00"),
+        false
+      )
     }
 
   }

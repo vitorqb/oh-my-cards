@@ -12,21 +12,20 @@ import org.mockito.ArgumentMatchersSugar
 import services.MailService
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
-import com.mohiva.play.silhouette.api.util.{Clock=>SilhouetteClock}
+import com.mohiva.play.silhouette.api.util.{Clock => SilhouetteClock}
 import play.api.libs.json.Json
-
 
 class AuthControllerSpec
     extends PlaySpec
     with MockitoSugar
-    with ArgumentMatchersSugar
-{
+    with ArgumentMatchersSugar {
 
   "recoverTokenFromCookie" should {
     "recover the token from the cookie" in new Injector() { c =>
       when(c.token.isValid(c.clock)).thenReturn(true)
       when(c.token.token).thenReturn("token")
-      when(c.cookieTokenManager.extractToken(any)).thenReturn(Future.successful(Some(token)))
+      when(c.cookieTokenManager.extractToken(any))
+        .thenReturn(Future.successful(Some(token)))
       val cookie = Cookie("OHMYCARDS_AUTH", "foo")
       val request = FakeRequest().withCookies(cookie)
 
@@ -37,7 +36,8 @@ class AuthControllerSpec
     }
     "fail if invalid cookie" in new Injector() { c =>
       when(c.token.isValid(c.clock)).thenReturn(false)
-      when(c.cookieTokenManager.extractToken(any)).thenReturn(Future.successful(Some(token)))
+      when(c.cookieTokenManager.extractToken(any))
+        .thenReturn(Future.successful(Some(token)))
       val cookie = Cookie("OHMYCARDS_AUTH", "foo")
       val request = FakeRequest().withCookies(cookie)
 
@@ -87,4 +87,3 @@ class AuthControllerSpec
     }
   }
 }
-

@@ -66,7 +66,7 @@ object TestUtils {
     * Used as a context manager for tests with db.
     */
   def testDB[T](block: Database => T) = {
-    if (! dbInitialized) {
+    if (!dbInitialized) {
       Evolutions.cleanupEvolutions(db)
       Evolutions.applyEvolutions(db)
       dbInitialized = true
@@ -86,10 +86,11 @@ object TestUtils {
 trait JsonUtils {
   import play.api.libs.json._
   implicit class EnrichedJsonForTest(val js: JsValue) {
-    def hasKey(key: String): Boolean = (js \ key) match {
-      case JsDefined(_) => true
-      case JsUndefined() => false
-    }
+    def hasKey(key: String): Boolean =
+      (js \ key) match {
+        case JsDefined(_)  => true
+        case JsUndefined() => false
+      }
   }
 }
 
@@ -99,7 +100,8 @@ trait JsonUtils {
 trait StringUtils {
 
   implicit class EnrichedStringForTest(val s: String) {
-    def cleanForComparison: String = s.trim.replaceAll("\\n+", "").replaceAll(" +", " ")
+    def cleanForComparison: String =
+      s.trim.replaceAll("\\n+", "").replaceAll(" +", " ")
   }
 
 }

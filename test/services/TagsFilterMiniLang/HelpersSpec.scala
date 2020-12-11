@@ -10,7 +10,10 @@ class SqlParamNameGeneratorSpec extends PlaySpec {
       generator.gen() mustEqual "__TAGSMINILANG_PARAM_0__"
       generator.gen() mustEqual "__TAGSMINILANG_PARAM_1__"
       generator.count mustEqual 2
-      generator.generated mustEqual List("__TAGSMINILANG_PARAM_0__", "__TAGSMINILANG_PARAM_1__")
+      generator.generated mustEqual List(
+        "__TAGSMINILANG_PARAM_0__",
+        "__TAGSMINILANG_PARAM_1__"
+      )
     }
   }
 
