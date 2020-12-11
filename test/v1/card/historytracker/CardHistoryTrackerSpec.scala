@@ -6,9 +6,7 @@ import v1.auth.User
 import play.api.db.Database
 import test.utils.TestUtils
 import services.CounterUUIDGenerator
-import v1.card.repository.CardCreationContext
-import v1.card.repository.CardUpdateContext
-import v1.card.repository.CardData
+import v1.card.models._
 
 class CardHistoryRecorderSpec extends PlaySpec {
 

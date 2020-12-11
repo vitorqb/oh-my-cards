@@ -1,6 +1,6 @@
 package v1.card.historytracker
 
-import v1.card.repository.CardEventContextLike
+import v1.card.models._
 import anorm.{SQL}
 import anorm.JodaParameterMetaData._
 import java.sql.Connection

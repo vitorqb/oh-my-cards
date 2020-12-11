@@ -15,11 +15,10 @@ import v1.card.repository.CardRepositoryLike
 import org.scalatest.concurrent.ScalaFutures
 import v1.card.repository.CardElasticClientLike
 import v1.card.elasticclient.CardElasticClientImpl
-import v1.card.repository.CardCreationContext
 import com.mohiva.play.silhouette.api.util.{Clock => SilhouetteClock}
 import services.UUIDGeneratorLike
 import services.referencecounter.ReferenceCounterLike
-import v1.card.repository.CardCreateData
+import v1.card.models._
 
 class ElasticSearchSynchronizerSpec
     extends PlaySpec

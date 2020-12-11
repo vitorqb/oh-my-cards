@@ -17,7 +17,7 @@ import services.InputParser
 import play.api.i18n.MessagesProvider
 import utils.StringUtils
 import v1.card.exceptions._
-import v1.card.repository.{CardCreateData}
+import v1.card.models._
 
 /**
   * Represents the user-inputted data for a card.

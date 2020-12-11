@@ -1,7 +1,7 @@
 package v1.card.historytracker
 
 import org.scalatestplus.play.PlaySpec
-import v1.card.repository.CardData
+import v1.card.models._
 import services.CounterUUIDGenerator
 import play.api.db.Database
 import test.utils.TestUtils

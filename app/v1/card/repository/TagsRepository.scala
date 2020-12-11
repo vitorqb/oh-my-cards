@@ -1,6 +1,7 @@
 package v1.card.tagsrepository
 
-import v1.card.repository.{TagsRepositoryLike, CardData}
+import v1.card.repository.{TagsRepositoryLike}
+import v1.card.models._
 import java.sql.Connection
 import anorm.SqlParser
 import anorm.`package`.SqlStringInterpolation

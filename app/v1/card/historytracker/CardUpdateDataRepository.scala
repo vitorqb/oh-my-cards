@@ -2,7 +2,7 @@ package v1.card.historytracker
 
 import scala.language.postfixOps
 
-import v1.card.repository.CardData
+import v1.card.models._
 import anorm.{SQL}
 import services.UUIDGeneratorLike
 import java.sql.Connection

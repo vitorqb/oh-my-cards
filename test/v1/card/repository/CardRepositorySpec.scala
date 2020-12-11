@@ -25,13 +25,8 @@ import v1.card.repository.TagsRepositoryLike
 import v1.card.repository.CardElasticClientLike
 import v1.card.repository.CardHistoryRecorderLike
 import v1.card.repository.CardRepositoryLike
-import v1.card.repository.CardCreationContext
+import v1.card.models._
 import v1.card.repository.CardRepository
-import v1.card.repository.CardCreateData
-import v1.card.repository.CardData
-import v1.card.repository.CardUpdateContext
-import v1.card.repository.CardListData
-import v1.card.repository.FindResult
 import v1.card.exceptions._
 import v1.card.datarepository.CardDataRepository
 

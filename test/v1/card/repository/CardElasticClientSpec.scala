@@ -28,14 +28,11 @@ import v1.card.historytracker.HistoricalEventCoreRepository
 import v1.card.historytracker.CardUpdateDataRepository
 import services.CounterUUIDGenerator
 import v1.card.historytracker.CardHistoryTracker
-import v1.card.repository.CardCreationContext
 import v1.card.repository.CardRepositoryLike
 import v1.card.repository.TagsRepositoryLike
 import v1.card.repository.CardElasticClientLike
-import v1.card.repository.CardUpdateContext
-import v1.card.repository.CardCreateData
-import v1.card.repository.CardListData
 import v1.card.exceptions._
+import v1.card.models._
 import v1.card.datarepository.CardDataRepository
 
 class CardElasticIdFinderSpec extends PlaySpec with MockitoSugar with ScalaFutures {

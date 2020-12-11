@@ -1,12 +1,7 @@
 package v1.card.historytracker
 
-import v1.card.repository.{
-  CardHistoryRecorderLike,
-  CardCreationContext,
-  CardUpdateContext,
-  CardEventContextLike,
-  CardData
-}
+import v1.card.repository.CardHistoryRecorderLike
+import v1.card.models._
 import services.UUIDGeneratorLike
 import java.sql.Connection
 import org.joda.time.DateTime

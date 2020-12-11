@@ -5,12 +5,7 @@ import org.scalatestplus.play.PlaySpec
 import test.utils.TestUtils
 import v1.auth.User
 import org.joda.time.DateTime
-import v1.card.repository.CardCreateData
-import v1.card.repository.CardCreationContext
-import v1.card.repository.CardData
-import v1.card.repository.IdsFindResult
-import v1.card.repository.FindResult
-
+import v1.card.models._
 
 
 class CardDataRepositorySpec extends PlaySpec {

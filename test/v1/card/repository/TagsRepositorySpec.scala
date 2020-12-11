@@ -5,7 +5,7 @@ import v1.card.tagsrepository._
 import org.scalatestplus.play.PlaySpec
 import test.utils.TestUtils
 import play.api.db.Database
-import v1.card.repository.CardData
+import v1.card.models._
 import v1.card.repository.TagsRepositoryLike
 
 case class TestContext(val db: Database, val tagsRepo: TagsRepositoryLike)
