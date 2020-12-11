@@ -1,12 +1,17 @@
 package v1.card.carddatarepositoryspec
 
-import v1.card._
-
 import play.api.db.Database
 import org.scalatestplus.play.PlaySpec
 import test.utils.TestUtils
 import v1.auth.User
 import org.joda.time.DateTime
+import v1.card.CardDataRepository
+import v1.card.repository.CardCreateData
+import v1.card.repository.CardCreationContext
+import v1.card.repository.CardData
+import v1.card.repository.IdsFindResult
+import v1.card.repository.FindResult
+
 
 
 class CardDataRepositorySpec extends PlaySpec {

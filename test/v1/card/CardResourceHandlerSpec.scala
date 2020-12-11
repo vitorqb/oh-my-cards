@@ -16,6 +16,14 @@ import org.joda.time.DateTime
 import com.mohiva.play.silhouette.api.util.{Clock=>SilhouetteClock}
 import services.UUIDGenerator
 import services.referencecounter.ReferenceCounterLike
+import v1.card.repository.CardData
+import v1.card.repository.CardCreationContext
+import v1.card.repository.CardRepositoryLike
+import v1.card.repository.FindResult
+import v1.card.repository.CardDoesNotExist
+import v1.card.repository.CardElasticClientLike
+import v1.card.repository.CardHistoryRecorderLike
+import v1.card.repository.CardRepository
 
 class CardResourceSpec extends PlaySpec {
 

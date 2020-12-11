@@ -2,13 +2,13 @@ package v1.card.historytracker
 
 import org.scalatestplus.play.PlaySpec
 import org.joda.time.DateTime
-import v1.card.CardCreationContext
 import v1.auth.User
 import play.api.db.Database
 import test.utils.TestUtils
 import services.CounterUUIDGenerator
-import v1.card.CardUpdateContext
-import v1.card.CardData
+import v1.card.repository.CardCreationContext
+import v1.card.repository.CardUpdateContext
+import v1.card.repository.CardData
 
 class CardHistoryRecorderSpec extends PlaySpec {
 

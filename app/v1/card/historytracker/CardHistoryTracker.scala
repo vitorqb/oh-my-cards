@@ -1,6 +1,6 @@
 package v1.card.historytracker
 
-import v1.card.{
+import v1.card.repository.{
   CardHistoryRecorderLike,
   CardCreationContext,
   CardUpdateContext,

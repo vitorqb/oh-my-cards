@@ -19,11 +19,10 @@ import com.sksamuel.elastic4s.requests.searches.sort.FieldSort
 import com.sksamuel.elastic4s.requests.searches.sort.ScoreSort
 import com.sksamuel.elastic4s.requests.searches.sort.SortOrder
 
-import v1.card.{CardData,CardCreationContext,CardUpdateContext,IdsFindResult,TagsFilterMiniLangSyntaxError,CardElasticClientLike}
+import v1.card.repository.{CardData,CardCreationContext,CardUpdateContext,IdsFindResult,TagsFilterMiniLangSyntaxError,CardElasticClientLike,CardCreateData,CardListData}
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
-import v1.card.CardCreateData
-import v1.card.CardListData
+
 
 final case class CardElasticClientException(
   val message: String = "Something went wrong on ElasticSearch",

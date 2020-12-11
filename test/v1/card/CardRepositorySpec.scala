@@ -1,6 +1,5 @@
-package v1.card.cardrepositoryspec
+package v1.card.repository.spec
 
-import v1.card._
 import org.scalatestplus.play.PlaySpec
 import org.mockito.MockitoSugar
 import v1.auth.User
@@ -17,10 +16,24 @@ import services.CounterUUIDGenerator
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.Span
 import org.scalatest.time.Millis
+import v1.card.CardDataRepository
 import v1.card.elasticclient.CardElasticClientImpl
 import v1.card.historytracker.CardHistoryTracker
 import v1.card.historytracker.HistoricalEventCoreRepository
 import v1.card.historytracker.CardUpdateDataRepository
+import v1.card.repository.CardDataRepositoryLike
+import v1.card.repository.TagsRepositoryLike
+import v1.card.repository.CardElasticClientLike
+import v1.card.repository.CardHistoryRecorderLike
+import v1.card.repository.CardRepositoryLike
+import v1.card.repository.CardCreationContext
+import v1.card.repository.CardRepository
+import v1.card.repository.CardCreateData
+import v1.card.repository.CardData
+import v1.card.repository.CardUpdateContext
+import v1.card.repository.CardListData
+import v1.card.repository.CardDoesNotExist
+import v1.card.repository.FindResult
 
 class CardRepositorySpec
     extends PlaySpec

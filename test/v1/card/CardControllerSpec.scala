@@ -30,6 +30,7 @@ import v1.card.historytrackerhandler.HistoryTrackerHandlerLike
 import scala.concurrent.ExecutionContext
 import v1.auth.SilhouetteEnvWrapper
 import v1.card.historytrackerhandler.CardHistoryResource
+import v1.card.repository.CardData
 
 
 trait CardListRequestParserTestUtils extends JsonUtils {

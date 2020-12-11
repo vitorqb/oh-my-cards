@@ -3,10 +3,10 @@ package v1.card.tagsrepositoryspec
 import v1.card.tagsrepository._
 
 import org.scalatestplus.play.PlaySpec
-import v1.card.TagsRepositoryLike
 import test.utils.TestUtils
 import play.api.db.Database
-import v1.card.CardData
+import v1.card.repository.CardData
+import v1.card.repository.TagsRepositoryLike
 
 case class TestContext(val db: Database, val tagsRepo: TagsRepositoryLike)
 

@@ -11,15 +11,15 @@ import play.api.inject.guice.GuiceApplicationBuilder
 import test.utils.FunctionalTestsTag
 import org.scalatest.BeforeAndAfter
 import play.api.inject.bind
-import v1.card.CardRepositoryLike
+import v1.card.repository.CardRepositoryLike
 import org.scalatest.concurrent.ScalaFutures
-import v1.card.CardElasticClientLike
+import v1.card.repository.CardElasticClientLike
 import v1.card.elasticclient.CardElasticClientImpl
-import v1.card.CardCreationContext
+import v1.card.repository.CardCreationContext
 import com.mohiva.play.silhouette.api.util.{Clock => SilhouetteClock}
 import services.UUIDGeneratorLike
 import services.referencecounter.ReferenceCounterLike
-import v1.card.CardCreateData
+import v1.card.repository.CardCreateData
 
 class ElasticSearchSynchronizerSpec
     extends PlaySpec

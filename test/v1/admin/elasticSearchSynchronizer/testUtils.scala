@@ -6,7 +6,7 @@ import com.sksamuel.elastic4s.ElasticProperties
 import scala.util.Try
 import com.google.inject.AbstractModule
 import net.codingwell.scalaguice.ScalaModule
-import v1.card.CardElasticClientLike
+import v1.card.repository.CardElasticClientLike
 import v1.card.elasticclient.CardElasticClientImpl
 
 

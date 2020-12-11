@@ -1,4 +1,4 @@
-package v1.card
+package v1.card.repository
 
 import java.sql.Connection
 import org.joda.time.DateTime
