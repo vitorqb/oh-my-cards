@@ -153,6 +153,11 @@ trait CardResourceHandlerLike {
   def get(id: String, user: User): Future[Option[CardResource]]
 
   /**
+    * Get's and returns a card by it's ref.
+    */
+  def getByRef(ref: Int, user: User): Future[Option[CardResource]]
+
+  /**
     * Updates a card
     */
   def update(id: String, input: CardFormInput, user: User): Future[CardResource]
@@ -216,6 +221,10 @@ class CardResourceHandler(
 
   def get(id: String, user: User): Future[Option[CardResource]] = {
     repository.get(id, user).map(_.map(CardResource.fromCardData))
+  }
+
+  def getByRef(ref: Int, user: User): Future[Option[CardResource]] = {
+    repository.getByRef(ref, user).map(_.map(CardResource.fromCardData))
   }
 
   def update(

@@ -62,6 +62,12 @@ class CardDataRepository extends CardDataRepositoryLike {
       .as(cardDataParser.*)
       .headOption
 
+  def getIdFromRef(ref: Int)(implicit c: Connection): Option[String] =
+    SQL("SELECT id FROM cards WHERE ref = {ref}")
+      .on("ref" -> ref)
+      .as(SqlParser.str("id").*)
+      .headOption
+
   /**
     * Finds a list of cards for a given user.
     */
