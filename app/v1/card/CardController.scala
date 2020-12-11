@@ -16,22 +16,17 @@ import scala.concurrent.ExecutionContext
 import services.InputParser
 import play.api.i18n.MessagesProvider
 import utils.StringUtils
-import org.joda.time.DateTime
-import v1.card.repository.{CardData, CardCreationContext, CardCreateData, CardDoesNotExist, CardRepositoryUserException, TagsFilterMiniLangSyntaxError}
+import v1.card.exceptions._
+import v1.card.repository.{CardCreateData}
 
 /**
   * Represents the user-inputted data for a card.
   */
 case class CardFormInput(title: String, body: Option[String], tags: Option[List[String]]) {
 
-  def asCardData(id: String, createdAt: Option[DateTime], updatedAt: Option[DateTime], ref: Int): CardData =
-    CardData(id, getTitle(), getBody(), getTags(), createdAt, updatedAt, ref)
-  def asCardData(creationContext: CardCreationContext): CardData =
-    asCardData(creationContext.id, Some(creationContext.now), Some(creationContext.now), creationContext.ref)
   def getTitle(): String = title
   def getBody(): String = body.getOrElse("")
   def getTags(): List[String] = tags.getOrElse(List())
-
   def toCreateData(): CardCreateData = new CardCreateData(getTitle(), getBody(), getTags())
 
 }

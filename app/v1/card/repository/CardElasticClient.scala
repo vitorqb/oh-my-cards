@@ -18,8 +18,8 @@ import services.TagsFilterMiniLang.ParsingError
 import com.sksamuel.elastic4s.requests.searches.sort.FieldSort
 import com.sksamuel.elastic4s.requests.searches.sort.ScoreSort
 import com.sksamuel.elastic4s.requests.searches.sort.SortOrder
-
-import v1.card.repository.{CardData,CardCreationContext,CardUpdateContext,IdsFindResult,TagsFilterMiniLangSyntaxError,CardElasticClientLike,CardCreateData,CardListData}
+import v1.card.exceptions._
+import v1.card.repository.{CardData,CardCreationContext,CardUpdateContext,IdsFindResult,CardElasticClientLike,CardCreateData,CardListData}
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 

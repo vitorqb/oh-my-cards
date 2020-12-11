@@ -31,8 +31,8 @@ import v1.card.repository.CardCreateData
 import v1.card.repository.CardData
 import v1.card.repository.CardUpdateContext
 import v1.card.repository.CardListData
-import v1.card.repository.CardDoesNotExist
 import v1.card.repository.FindResult
+import v1.card.exceptions._
 import v1.card.datarepository.CardDataRepository
 
 class CardRepositorySpec

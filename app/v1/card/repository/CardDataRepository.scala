@@ -6,7 +6,8 @@ import anorm.`package`.SqlStringInterpolation
 import java.sql.Connection
 import org.joda.time.DateTime
 import anorm.JodaParameterMetaData._
-import v1.card.repository.{CardDataRepositoryLike, CardData, CardCreationContext, CardCreateData, IdsFindResult, FindResult, CardDoesNotExist, CardUpdateContext}
+import v1.card.repository.{CardDataRepositoryLike, CardData, CardCreationContext, CardCreateData, IdsFindResult, FindResult, CardUpdateContext}
+import v1.card.exceptions._
 
 /**
   * An implementation for a card repository.

@@ -10,7 +10,8 @@ import utils.JodaToJsonUtils._
 import com.mohiva.play.silhouette.api.util.{Clock=>SilhouetteClock}
 import services.referencecounter.ReferenceCounterLike
 import services.UUIDGeneratorLike
-import v1.card.repository.{CardDoesNotExist, CardData, CardListData, CardRepositoryLike, CardCreationContext, CardUpdateContext}
+import v1.card.exceptions._
+import v1.card.repository.{CardData, CardListData, CardRepositoryLike, CardCreationContext, CardUpdateContext}
 
 /**
   * Custom exceptions.

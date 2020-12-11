@@ -8,27 +8,6 @@ import scala.concurrent.ExecutionContext
 import play.api.db.Database
 
 /**
-  * A trait for all known user exceptions.
-  */
-sealed trait CardRepositoryUserException { val message: String }
-
-/**
-  * Custom exception signaling that a card does not exist.
-  */
-final case class CardDoesNotExist(
-  val message: String = "The required card does not exist.",
-  val cause: Throwable = None.orNull
-) extends Exception(message, cause) with CardRepositoryUserException
-
-/**
-  * Custom exception signaling that an error ocurred when parsing the tags mini lang.
-  */
-final case class TagsFilterMiniLangSyntaxError(
-  val message: String,
-  val cause: Throwable = None.orNull
-) extends Exception(message, cause) with CardRepositoryUserException
-
-/**
   * A trait for a tags repository.
   * 
   * The TagsRepository's single responsibility is to store the tags and

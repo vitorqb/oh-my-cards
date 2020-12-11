@@ -20,11 +20,11 @@ import v1.card.repository.CardData
 import v1.card.repository.CardCreationContext
 import v1.card.repository.CardRepositoryLike
 import v1.card.repository.FindResult
-import v1.card.repository.CardDoesNotExist
 import v1.card.repository.CardElasticClientLike
 import v1.card.repository.CardHistoryRecorderLike
 import v1.card.repository.CardRepository
 import v1.card.datarepository.CardDataRepository
+import v1.card.exceptions._
 
 class CardResourceSpec extends PlaySpec {
 
