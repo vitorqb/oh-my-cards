@@ -51,3 +51,19 @@ OHMYCARDS_ELASTICSEARCH_HOST="127.0.0.1"
 OHMYCARDS_ADMIN_DASHBOARD_SECRET_URL="admin"
 ```
 
+### Development
+
+#### Testing
+
+Unit tests:
+
+```sh
+make uniTests
+```
+
+Functional/Integration tests depend on a running ES client:
+
+```sh
+(. .env.test && make devTools/elasticSearch)
+(. .env.test && make functionalTests)
+```

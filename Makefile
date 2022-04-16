@@ -12,10 +12,12 @@ DOCKER ?= sudo -A docker
 run:
 	sbt 'run $(SBT_RUN_ARGS)'
 
-unitTests:
+unitTests: unitTest
+unitTest:
 	sbt 'unitTests'
 
-functionalTests:
+functionalTests: functionalTest
+functionalTest: 
 	sbt 'functionalTests'
 
 test: tests
