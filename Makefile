@@ -1,4 +1,4 @@
-.PHONY: run test ~test tests unitTests functionalTests
+.PHONY: run test ~test tests unitTests functionalTests lint/check lint build sbt
 
 # 
 # Arguments
@@ -20,6 +20,10 @@ functionalTests: functionalTest
 functionalTest: 
 	sbt 'functionalTests'
 
+ci/functionalTests: ci/functionalTest
+ci/functionalTest:
+	devops/ci/run-functional-tests.bash
+
 test: tests
 tests:
 	sbt 'test'
@@ -37,3 +41,9 @@ devTools/%:
 # creates a .tgz artifact with all needed dependencies
 build:
 	sbt 'universal:packageZipTarball'
+
+lint/check:
+	sbt scalafmtCheckAll
+
+lint:
+	sbt scalafmtAll

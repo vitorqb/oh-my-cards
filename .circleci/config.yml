@@ -1,0 +1,78 @@
+version: 2.1
+
+commands:
+  restore_ohmycards_cache:
+    steps:
+      - restore_cache:
+          key: ohmycards
+  save_ohmycards_cache:
+    steps:
+      - save_cache:
+          paths: [$HOME/.cache/coursier, $HOME/.m2, $HOME/.ivy2, $HOME/.sbt]
+          key: ohmycards
+jobs:
+  unit-tests:
+    docker:
+      - image: vitorqb23/oh-my-cards-circle-ci-primary:9
+    steps:
+      - checkout
+      - restore_ohmycards_cache
+      - run:
+          name: Run unit tests
+          command: '( . .env_test_example && make unitTests )'
+      - save_ohmycards_cache
+  functional-tests:
+    docker:
+      - image: vitorqb23/oh-my-cards-circle-ci-primary:9
+    steps:
+      - checkout
+      - restore_ohmycards_cache
+      - setup_remote_docker
+      - run:
+          name: Run functional tests
+          command: '( . .env_test_example && make ci/functionalTests )'
+      - save_ohmycards_cache    
+  linter:
+    docker:
+      - image: vitorqb23/oh-my-cards-circle-ci-primary:9
+    steps:
+      - checkout
+      - restore_ohmycards_cache
+      - run:
+          name: Check for lint errors
+          command: '( . .env_test_example && make lint/check )'
+      - save_ohmycards_cache
+  build:
+    docker:
+      - image: vitorqb23/oh-my-cards-circle-ci-primary:9
+    steps:
+      - checkout
+      - restore_ohmycards_cache
+      - setup_remote_docker
+      - run:
+          name: Builds the app
+          command: ( . .env_example && devops/ci/build.bash )
+      - save_ohmycards_cache
+      - when:
+          condition:
+            equal: [ master, << pipeline.git.branch >> ]
+          steps:
+            - run: ( . .env_example && devops/ci/publish.bash )
+    environment:
+      - DOCKER_IMG_PREFIX: vitorqb23/oh-my-cards
+
+workflows:
+  version: 2
+  unit-tests:
+    jobs:
+      - unit-tests: {}
+  functional-tests:
+    jobs:
+      - functional-tests: {}
+  linter:
+    jobs:
+      - linter: {}
+  build:
+    jobs:
+      - build:
+          context: main

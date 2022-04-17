@@ -45,5 +45,17 @@ do
     esac
 done
 
-echo "==>> Sending health status check request..."
-curl -v "${ENDPOINT}/_cluster/health?wait_for_status=yellow&timeout=${TIMEOUT}s"
+SUCCESS=false
+ATTEMPTS=0
+while [ "$SUCCESS" = "false" ] && [[ "$ATTEMPTS" -lt 10 ]]
+do
+    ATTEMPTS=$((ATTEMPTS+1))
+    echo "==>> [ATTEMPTS=$ATTEMPTS] Sending health status check request..."
+    curl -v "${ENDPOINT}/_cluster/health?wait_for_status=yellow&timeout=${TIMEOUT}s"
+    if [ "$?" = "0" ]
+    then
+        SUCCESS=true
+    fi
+    sleep 10
+done
+[ "$SUCCESS" = "true" ] && exit 0 || exit 1
