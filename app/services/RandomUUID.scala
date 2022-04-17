@@ -22,11 +22,25 @@ class UUIDGenerator extends UUIDGeneratorLike {
   */
 class CounterUUIDGenerator extends UUIDGeneratorLike {
 
-  var counter = 0
+  private var counter = 0
 
   def generate(): String = {
     counter += 1
     s"$counter"
+  }
+
+}
+
+/**
+  * Fake UUID generator based on fixed seed.
+  */
+class CounterSeedUUIDGenerator extends UUIDGeneratorLike {
+
+  private var counter = 0
+
+  def generate(): String = {
+    counter += 1
+    ju.UUID.nameUUIDFromBytes(counter.toString().getBytes()).toString()
   }
 
 }

@@ -29,6 +29,7 @@ import v1.card.models._
 import v1.card.repository.CardRepository
 import v1.card.exceptions._
 import v1.card.datarepository.CardDataRepository
+import testutils.TestDataFactory
 
 class CardRepositorySpec
     extends PlaySpec
@@ -386,6 +387,35 @@ class CardRepositoryIntegrationSpec
         val expResult = FindResult(Seq(cardData3, cardData2, cardData1), 3)
         result mustEqual expResult
     }
+  }
+
+  "Functional tests for getAllTags" should {
+
+    "Return deduplicated tags" taggedAs (FunctionalTestsTag) in testContext {
+      c =>
+        TestDataFactory.run { factory =>
+          val tags = List("A")
+          val createData1 = factory.buildCardCreateData(tags = tags)
+          val context1 = factory.buildCardCreationContext()
+          val createData2 = factory.buildCardCreateData(tags = tags)
+          val context2 =
+            factory.buildCardCreationContext(user = Some(context1.user))
+
+          c.repo.create(createData1, context1).futureValue
+          c.repo.create(createData2, context2).futureValue
+
+          c.repo.getAllTags(context1.user).futureValue mustEqual tags
+        }
+    }
+
+    "return empty array when no tags" taggedAs (FunctionalTestsTag) in testContext {
+      c =>
+        TestDataFactory.run { factory =>
+          val user = factory.buildUser()
+          c.repo.getAllTags(user).futureValue mustEqual List()
+        }
+    }
+
   }
 
 }
