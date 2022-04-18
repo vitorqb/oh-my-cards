@@ -1,0 +1,88 @@
+version: 2.1
+
+commands:
+  restore_ohmycards_cache:
+    steps:
+      - restore_cache:
+          key: ohmycards
+  save_ohmycards_cache:
+    steps:
+      - save_cache:
+          paths: [$HOME/.cache/coursier, $HOME/.m2, $HOME/.ivy2, $HOME/.sbt]
+          key: ohmycards
+jobs:
+  unit-tests:
+    docker:
+      - image: vitorqb23/oh-my-cards-circle-ci-primary:9
+    steps:
+      - checkout
+      - restore_ohmycards_cache
+      - run:
+          name: Run unit tests
+          command: 'dev/ci/ci-run-unit-tests.bash'
+      - save_ohmycards_cache
+  functional-tests:
+    machine:
+      image: ubuntu-2004:202010-01
+    steps:
+      - checkout
+      - run:
+          name: Start ES
+          command: 'dev/ci/ci-start-es.bash'
+          background: true
+      - run:
+          name: Start test container
+          command: "dev/ci/ci-start-functional-test-container.bash"
+          background: true
+      - run:
+          name: Wait for test container
+          command: "dev/ci/ci-wait-for-test-container.bash"
+      - run:
+          name: Wait for ES
+          command: "dev/ci/ci-wait-for-es.bash"
+      - run:
+          name: Run functional tests
+          command: 'dev/ci/ci-run-functional-tests.bash'
+  linter:
+    docker:
+      - image: vitorqb23/oh-my-cards-circle-ci-primary:9
+    steps:
+      - checkout
+      - restore_ohmycards_cache
+      - run:
+          name: Check for lint errors
+          command: 'dev/ci/ci-run-linter.bash'
+  build:
+    docker:
+      - image: vitorqb23/oh-my-cards-circle-ci-primary:9
+    steps:
+      - checkout
+      - restore_ohmycards_cache
+      - setup_remote_docker
+      - run:
+          name: Builds the app
+          command: 'dev/ci/ci-build.bash'
+      - when:
+          condition:
+            equal: [ master, << pipeline.git.branch >> ]
+          steps:
+            - run: 'dev/ci/push-image.bash'
+      - save_ohmycards_cache
+    environment:
+      - DOCKER_IMG_PREFIX: vitorqb23/oh-my-cards
+
+workflows:
+  version: 2
+  unit-tests:
+    jobs:
+      - unit-tests: {}
+  functional-tests:
+    jobs:
+      - functional-tests: {}
+  linter:
+    jobs:
+      - linter: {}
+  build:
+    jobs:
+      - build:
+          context: main

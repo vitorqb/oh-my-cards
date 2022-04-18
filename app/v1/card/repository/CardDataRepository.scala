@@ -117,7 +117,7 @@ class CardDataRepository extends CardDataRepositoryLike {
   def getAllTags(user: User)(implicit c: Connection): List[String] = {
     import anorm.SqlParser._
     SQL"""
-       SELECT tag
+       SELECT DISTINCT tag
        FROM cardsTags
        JOIN cards ON cards.id = cardId
        WHERE cards.userId = ${user.id}

@@ -63,3 +63,7 @@ libraryDependencies ++= Seq(
 semanticdbEnabled := true // enable SemanticDB
 semanticdbVersion := scalafixSemanticdb.revision // use Scalafix compatible version
 scalacOptions += "-Wunused:imports" // required by `RemoveUnused` rule
+
+//Don't include docs
+sources in (Compile, doc) := Seq.empty
+publishArtifact in (Compile, packageDoc) := false

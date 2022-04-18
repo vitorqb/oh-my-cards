@@ -53,17 +53,28 @@ OHMYCARDS_ADMIN_DASHBOARD_SECRET_URL="admin"
 
 ### Development
 
-#### Testing
-
-Unit tests:
+#### Sbt console
+The sbt console is usefull and can be used for many of the tasks.
 
 ```sh
-make uniTests
+(. $ENV_FILE && sbt)
+
+#### Unit Tests
+
+```sh
+(. .env.test && sbt unitTests)
 ```
 
-Functional/Integration tests depend on a running ES client:
+#### Functional Tests
 
 ```sh
-(. .env.test && make devTools/elasticSearch)
-(. .env.test && make functionalTests)
+./dev/start-es.bash -p 9999 -d ohmycards-es-test
+(. .env.test && sbt functionalTests)
+```
+
+#### Running the app
+
+```sh
+./dev/start-es.bash -p 9200 -d ohmycards-es-local
+(. .env && sbt run)
 ```
