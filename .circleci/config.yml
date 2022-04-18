@@ -70,8 +70,6 @@ jobs:
       - save_ohmycards_cache
     environment:
       - DOCKER_IMG_PREFIX: vitorqb23/oh-my-cards
-    context:
-      - main
 
 workflows:
   version: 2

@@ -4,7 +4,7 @@ USAGE="$0"'
 Pushes the built image in the CI
 
 Requires the following env vars:
- - DOCKER_PASSWORD
+ - DOCKER_PASS
  - DOCKER_USER
  - DOCKER_IMG_PREFIX'
 set -e
@@ -40,12 +40,12 @@ source ${REPO_ROOT}/dev/utils.bash
 
 
 # Script
-ensure_var DOCKER_PASSWORD $DOCKER_PASSWORD
+ensure_var DOCKER_PASS $DOCKER_PASS
 ensure_var DOCKER_USER $DOCKER_USER
 ensure_var DOCKER_IMG_PREFIX $DOCKER_IMG_PREFIX
 
 msg "Logging in to docker..."
-echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USER" --password-stdin
+echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
 
 msg "Pushing..."
 docker push "${DOCKER_IMG_PREFIX}:$(get_version)"
