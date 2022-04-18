@@ -76,7 +76,7 @@ trap "pushd -0 && dirs -c" EXIT
 
 
 # Helpers
-SOURCE_FILES=(app build.sbt conf Makefile project test .java-version)
+SOURCE_FILES=(app build.sbt conf project test .java-version)
 
 
 # Script
