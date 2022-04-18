@@ -1,6 +1,6 @@
 #!/bin/bash
 USAGE="$0"'
-Runs functional tests for the CI. Must be run at the repo level.'
+Runs functional tests for the CI. Must be run at the repo root level.'
 
 
 # 

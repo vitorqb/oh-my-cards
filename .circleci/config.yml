@@ -19,19 +19,31 @@ jobs:
       - restore_ohmycards_cache
       - run:
           name: Run unit tests
-          command: '( . .env_test_example && make unitTests )'
+          command: 'dev/ci/ci-run-unit-tests.bash'
       - save_ohmycards_cache
   functional-tests:
-    docker:
-      - image: vitorqb23/oh-my-cards-circle-ci-primary:9
+    machine:
+      image: ubuntu-2004:202010-01
+      docker_layer_caching: true
     steps:
       - checkout
-      - restore_ohmycards_cache
-      - setup_remote_docker
+      - run:
+          name: Start ES
+          command: 'dev/ci/ci-start-es.bash'
+          background: true
+      - run:
+          name: Start test container
+          command: "dev/ci/ci-start-functional-test-container.bash"
+          background: true
+      - run:
+          name: Wait for test container
+          command: "dev/ci/ci-wait-for-test-container.bash"
+      - run:
+          name: Wait for ES
+          command: "dev/ci/ci-wait-for-es.bash"
       - run:
           name: Run functional tests
-          command: '( . .env_test_example && make ci/functionalTests )'
-      - save_ohmycards_cache    
+          command: 'dev/ci/ci-run-functional-tests.bash'
   linter:
     docker:
       - image: vitorqb23/oh-my-cards-circle-ci-primary:9
