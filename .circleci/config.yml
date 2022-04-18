@@ -24,7 +24,6 @@ jobs:
   functional-tests:
     machine:
       image: ubuntu-2004:202010-01
-      docker_layer_caching: true
     steps:
       - checkout
       - run:
@@ -52,8 +51,7 @@ jobs:
       - restore_ohmycards_cache
       - run:
           name: Check for lint errors
-          command: '( . .env_test_example && make lint/check )'
-      - save_ohmycards_cache
+          command: 'dev/ci/ci-run-linter.bash'
   build:
     docker:
       - image: vitorqb23/oh-my-cards-circle-ci-primary:9
@@ -63,13 +61,13 @@ jobs:
       - setup_remote_docker
       - run:
           name: Builds the app
-          command: ( . .env_example && devops/ci/build.bash )
-      - save_ohmycards_cache
+          command: 'dev/ci/ci-build.bash'
       - when:
           condition:
             equal: [ master, << pipeline.git.branch >> ]
           steps:
-            - run: ( . .env_example && devops/ci/publish.bash )
+            - run: 'dev/ci/push-image.bash'
+      - save_ohmycards_cache
     environment:
       - DOCKER_IMG_PREFIX: vitorqb23/oh-my-cards
 
