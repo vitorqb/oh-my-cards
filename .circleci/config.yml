@@ -66,7 +66,7 @@ jobs:
           condition:
             equal: [ master, << pipeline.git.branch >> ]
           steps:
-            - run: 'dev/ci/push-image.bash'
+            - run: 'dev/ci/ci-push-image.bash'
       - save_ohmycards_cache
     environment:
       - DOCKER_IMG_PREFIX: vitorqb23/oh-my-cards
