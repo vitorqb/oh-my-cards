@@ -69,7 +69,7 @@ jobs:
             - run: 'dev/ci/ci-push-image.bash'
       - save_ohmycards_cache
     environment:
-      - DOCKER_IMG_PREFIX: vitorqb23/oh-my-cards
+      - DOCKER_IMG_PREFIX: vitorqb23/ohmycards
 
 workflows:
   version: 2
