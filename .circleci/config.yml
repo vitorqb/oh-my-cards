@@ -8,7 +8,7 @@ commands:
   save_ohmycards_cache:
     steps:
       - save_cache:
-          paths: [$HOME/.cache/coursier, $HOME/.m2, $HOME/.ivy2, $HOME/.sbt]
+          paths: [.cache/coursier, .m2, .ivy2, .sbt]
           key: ohmycards
 jobs:
   unit-tests:
