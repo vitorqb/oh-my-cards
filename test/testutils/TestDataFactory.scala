@@ -48,6 +48,27 @@ class TestDataFactory {
 
 }
 
+class CardCreateDataFactory {
+
+  private var title: String = "title"
+  private var body: String = "body"
+  private var tags: List[String] = List()
+
+  def withTags(t: List[String]): CardCreateDataFactory = {
+    tags = t
+    this
+  }
+
+  def build() = CardCreateData(title, body, tags)
+
+}
+
+object CardCreateDataFactory {
+  def apply() = new CardCreateDataFactory
+  implicit def build(factory: CardCreateDataFactory): CardCreateData =
+    factory.build()
+}
+
 object TestDataFactory {
   def run(f: TestDataFactory => Any): Unit = f(new TestDataFactory)
 }

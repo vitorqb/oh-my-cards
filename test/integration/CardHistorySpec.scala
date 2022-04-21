@@ -61,16 +61,12 @@ class CardHistorySpec
           )
           .get
         c.cardActionsWsHelper.postCard(newData)
-
-        //!!!! TODO => Delete card and test for deletion update after _93
-        // c.cardActionsWsHelper.deleteCard(id)
+        c.cardActionsWsHelper.deleteCard(id)
 
         val history = c.cardActionsWsHelper.getHistory(id)
         (history \ "history" \ 0 \ "eventType").as[String] mustEqual "creation"
         (history \ "history" \ 1 \ "eventType").as[String] mustEqual "update"
-
-        //!!!! TODO => Delete card and test for deletion update after _93
-        // (history \ "history" \ 2 \ "eventType").as[String] mustEqual "deletion"
+        (history \ "history" \ 2 \ "eventType").as[String] mustEqual "deletion"
 
         (history \ "history" \ 1 \ "fieldUpdates" \ 0 \ "fieldName")
           .as[String] mustEqual "title"

@@ -52,6 +52,8 @@ import v1.auth.CookieUserIdentifierLike
 import v1.auth.CookieUserIdentifier
 import v1.card.CardResourceHandlerLike
 import v1.card.CardResourceHandler
+import v1.card.repository.UserCardPermissionManagerLike
+import v1.card.userpermissionmanager.UserCardPermissionManager
 
 class Module extends AbstractModule with ScalaModule {
 
@@ -146,16 +148,28 @@ class Module extends AbstractModule with ScalaModule {
     new CardHistoryTracker(uuidGenerator, coreRepo, updateRepo)
 
   @Provides
+  def userCardPermissionManagerLike(): UserCardPermissionManagerLike =
+    new UserCardPermissionManager
+
+  @Provides
   def cardRepository(
       dataRepo: CardDataRepositoryLike,
       tagsRepo: TagsRepositoryLike,
       esClient: CardElasticClientLike,
       historyRecorder: CardHistoryRecorderLike,
+      userCardPermissionManager: UserCardPermissionManagerLike,
       db: Database
   )(implicit
       ec: ExecutionContext
   ): CardRepositoryLike =
-    new CardRepository(dataRepo, tagsRepo, esClient, historyRecorder, db)
+    new CardRepository(
+      dataRepo,
+      tagsRepo,
+      esClient,
+      historyRecorder,
+      userCardPermissionManager,
+      db
+    )
 
   @Provides
   def cardDataRepository()(implicit

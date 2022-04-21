@@ -34,6 +34,7 @@ import v1.card.repository.CardElasticClientLike
 import v1.card.exceptions._
 import v1.card.models._
 import v1.card.datarepository.CardDataRepository
+import v1.card.userpermissionmanager.UserCardPermissionManager
 
 class CardElasticIdFinderSpec
     extends PlaySpec
@@ -190,11 +191,13 @@ class CardElasticClientFunctionalSpec
       val dataRepo = new CardDataRepository
       val tagsRepo = new TagsRepository
       val cardElasticClient = new CardElasticClientImpl(client)
+      val userCardPermissionManager = new UserCardPermissionManager;
       val cardRepo = new CardRepository(
         dataRepo,
         tagsRepo,
         cardElasticClient,
         historyRecorder,
+        userCardPermissionManager,
         db
       )
       val testContext = TestContext(

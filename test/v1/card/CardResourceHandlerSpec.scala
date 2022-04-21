@@ -23,6 +23,7 @@ import v1.card.repository.CardHistoryRecorderLike
 import v1.card.repository.CardRepository
 import v1.card.datarepository.CardDataRepository
 import v1.card.exceptions._
+import v1.card.repository.UserCardPermissionManagerLike
 
 class CardResourceSpec extends PlaySpec {
 
@@ -228,11 +229,13 @@ class CardResourceHandlerSpec
           val refCounter = mock[ReferenceCounterLike]
           val input = CardFormInput("title", Some("body"), None)
           val historyTracker = mock[CardHistoryRecorderLike]
+          val userCardPermissionManager = mock[UserCardPermissionManagerLike]
           val repository = new CardRepository(
             dataRepo,
             tagsRepo,
             elasticClient,
             historyTracker,
+            userCardPermissionManager,
             db
           )
           val handler = new CardResourceHandler(

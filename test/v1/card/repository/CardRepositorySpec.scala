@@ -30,6 +30,9 @@ import v1.card.repository.CardRepository
 import v1.card.exceptions._
 import v1.card.datarepository.CardDataRepository
 import testutils.TestDataFactory
+import testutils.CardCreateDataFactory
+import v1.card.repository.UserCardPermissionManagerLike
+import v1.card.userpermissionmanager.UserCardPermissionManager
 
 class CardRepositorySpec
     extends PlaySpec
@@ -45,6 +48,7 @@ class CardRepositorySpec
       val tagsRepo: TagsRepositoryLike,
       val esClient: CardElasticClientLike,
       val historyRecorder: CardHistoryRecorderLike,
+      val userCardPermissionManager: UserCardPermissionManagerLike,
       val repo: CardRepositoryLike
   )
 
@@ -63,37 +67,58 @@ class CardRepositorySpec
     val tagsRepo = mock[TagsRepositoryLike]
     val esClient = mock[CardElasticClientLike]
     val historyRecorder = mock[CardHistoryRecorderLike]
+    val userCardPermissionManager = mock[UserCardPermissionManagerLike]
     val repo =
-      new CardRepository(dataRepo, tagsRepo, esClient, historyRecorder, db)
+      new CardRepository(
+        dataRepo,
+        tagsRepo,
+        esClient,
+        historyRecorder,
+        userCardPermissionManager,
+        db
+      )
     val testContext =
-      TestContext(dataRepo, tagsRepo, esClient, historyRecorder, repo)
+      TestContext(
+        dataRepo,
+        tagsRepo,
+        esClient,
+        historyRecorder,
+        userCardPermissionManager,
+        repo
+      )
     block(testContext)
   }
 
   "create" should {
 
     "send create msg to card data repository" in testContext { c =>
-      val data = CardCreateData("title", "body", List())
+      val data = CardCreateDataFactory()
       c.repo.create(data, context).futureValue
       verify(c.dataRepo).create(data, context)(connection)
     }
 
     "send create msg to tags repo" in testContext { c =>
-      val data = CardCreateData("title", "body", List("A"))
+      val data = CardCreateDataFactory().withTags(List("A"))
       c.repo.create(data, context).futureValue
       verify(c.tagsRepo).create("id", List("A"))(connection)
     }
 
     "send create data to es client" in testContext { c =>
-      val data = CardCreateData("title", "body", List("A"))
+      val data = CardCreateDataFactory()
       c.repo.create(data, context).futureValue
       verify(c.esClient).create(data, context)
     }
 
     "send create data to history recorder" in testContext { c =>
-      val data = CardCreateData("title", "body", List("A"))
+      val data = CardCreateDataFactory()
       c.repo.create(data, context).futureValue
       verify(c.historyRecorder).registerCreation(context)(connection)
+    }
+
+    "send create data to user card permission repository" in testContext { c =>
+      val data = CardCreateDataFactory()
+      c.repo.create(data, context).futureValue
+      verify(c.userCardPermissionManager).givePermission(user, context.id)
     }
 
     "returns created id" in testContext { c =>
@@ -186,6 +211,7 @@ class CardRepositoryIntegrationSpec
       val tagsRepo = new TagsRepository()
       val esClient = new CardElasticClientImpl(client)
       val dataRepo = new CardDataRepository
+      val userCardPermissionManager = new UserCardPermissionManager
       //!!!! TODO Use builder
       val historyRecorder = new CardHistoryTracker(
         new CounterUUIDGenerator,
@@ -193,7 +219,14 @@ class CardRepositoryIntegrationSpec
         new CardUpdateDataRepository(new CounterUUIDGenerator)
       )
       val repo =
-        new CardRepository(dataRepo, tagsRepo, esClient, historyRecorder, db)
+        new CardRepository(
+          dataRepo,
+          tagsRepo,
+          esClient,
+          historyRecorder,
+          userCardPermissionManager,
+          db
+        )
       val testContext = TestContext(repo)
       try {
         block(testContext)
@@ -395,7 +428,7 @@ class CardRepositoryIntegrationSpec
       c =>
         TestDataFactory.run { factory =>
           val tags = List("A")
-          val createData1 = factory.buildCardCreateData(tags = tags)
+          val createData1 = CardCreateDataFactory().withTags(tags).build
           val context1 = factory.buildCardCreationContext()
           val createData2 = factory.buildCardCreateData(tags = tags)
           val context2 =

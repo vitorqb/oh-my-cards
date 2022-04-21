@@ -125,6 +125,18 @@ trait CardHistoryRecorderLike {
 }
 
 /**
+  * A manager for card permission
+  */
+trait UserCardPermissionManagerLike {
+
+  /**
+    * Gives an user permission to a card.
+    */
+  def givePermission(user: User, cardId: String): Future[Unit]
+
+}
+
+/**
   * The implementation
   */
 class CardRepository(
@@ -132,6 +144,7 @@ class CardRepository(
     tagsRepo: TagsRepositoryLike,
     esClient: CardElasticClientLike,
     historyRecorder: CardHistoryRecorderLike,
+    permissionManager: UserCardPermissionManagerLike,
     db: Database
 )(implicit
     ec: ExecutionContext
@@ -147,6 +160,7 @@ class CardRepository(
         tagsRepo.create(context.id, data.tags)
         esClient.create(data, context)
         historyRecorder.registerCreation(context)
+        permissionManager.givePermission(context.user, context.id)
 
         context.id
       }
