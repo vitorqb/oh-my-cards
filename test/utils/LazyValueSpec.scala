@@ -17,6 +17,11 @@ class LazyValueSpec extends PlaySpec {
       myValue.get() mustEqual 2
     }
 
+    "works with implicit conversion" in {
+      val gottenValue: Int = LazyValue(() => 1)
+      gottenValue mustEqual 1
+    }
+
   }
 
 }

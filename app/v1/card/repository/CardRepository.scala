@@ -132,7 +132,16 @@ trait UserCardPermissionManagerLike {
   /**
     * Gives an user permission to a card.
     */
-  def givePermission(user: User, cardId: String): Future[Unit]
+  def givePermission(user: User, cardId: String)(implicit
+      c: Connection
+  ): Future[Unit]
+
+  /**
+    * Returns true if an user has permission to a card.
+    */
+  def hasPermission(user: User, cardId: String)(implicit
+      c: Connection
+  ): Future[Boolean]
 
 }
 

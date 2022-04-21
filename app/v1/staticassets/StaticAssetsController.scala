@@ -11,7 +11,6 @@ import services.filerepository.FileRepositoryLike
 import services.UUIDGeneratorLike
 import play.api.Logger
 import utils.RequestExtractorHelper
-import services.resourcepermissionregistry.ResourcePermissionRegistryLike
 import play.api.libs.json.Json
 import v1.auth.CookieUserIdentifierLike
 
@@ -20,7 +19,7 @@ class StaticAssetsController @Inject() (
     val silhouette: Silhouette[DefaultEnv],
     val fileRepository: FileRepositoryLike,
     val uuidGenerator: UUIDGeneratorLike,
-    val resourcePermissionRegistry: ResourcePermissionRegistryLike,
+    val permissionRegistry: StaticAssetsPermissionRegistryLike,
     val cookieUserIdentifier: CookieUserIdentifierLike
 )(implicit
     ec: ExecutionContext
@@ -47,7 +46,7 @@ class StaticAssetsController @Inject() (
               f"Handling valid body data with single file and assigned key ${key}"
             )
             fileRepository.store(key, file).flatMap { _ =>
-              resourcePermissionRegistry
+              permissionRegistry
                 .grantAccess(request.identity, key)
                 .map { _ =>
                   Ok(Json.obj("key" -> key))
@@ -68,7 +67,7 @@ class StaticAssetsController @Inject() (
         cookieUserIdentifier.identifyUser(request).flatMap {
           case None => Future.successful(Unauthorized)
           case Some(user) =>
-            resourcePermissionRegistry.hasAccess(user, key).flatMap {
+            permissionRegistry.hasAccess(user, key).flatMap {
               case false => Future.successful(NotFound)
               case true =>
                 fileRepository.read(key).map { x =>

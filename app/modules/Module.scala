@@ -54,6 +54,8 @@ import v1.card.CardResourceHandlerLike
 import v1.card.CardResourceHandler
 import v1.card.repository.UserCardPermissionManagerLike
 import v1.card.userpermissionmanager.UserCardPermissionManager
+import v1.staticassets.StaticAssetsPermissionRegistryLike
+import v1.staticassets.StaticAssetsPermissionRegistry
 
 class Module extends AbstractModule with ScalaModule {
 
@@ -148,8 +150,10 @@ class Module extends AbstractModule with ScalaModule {
     new CardHistoryTracker(uuidGenerator, coreRepo, updateRepo)
 
   @Provides
-  def userCardPermissionManagerLike(): UserCardPermissionManagerLike =
-    new UserCardPermissionManager
+  def userCardPermissionManagerLike(
+      registry: ResourcePermissionRegistryLike
+  ): UserCardPermissionManagerLike =
+    new UserCardPermissionManager(registry)
 
   @Provides
   def cardRepository(
@@ -219,12 +223,17 @@ class Module extends AbstractModule with ScalaModule {
   }
 
   @Provides
-  def resourcePermissionRegistry(
-      db: Database
-  )(implicit
+  def resourcePermissionRegistry()(implicit
       ec: ExecutionContext
   ): ResourcePermissionRegistryLike =
-    new ResourcePermissionRegistry(db)
+    new ResourcePermissionRegistry()
+
+  @Provides
+  def staticAssetsPermissionRegistryLike(
+      registry: ResourcePermissionRegistryLike,
+      db: Database
+  ): StaticAssetsPermissionRegistryLike =
+    new StaticAssetsPermissionRegistry(registry, db)
 
   @Provides
   def cookieTokenManager(

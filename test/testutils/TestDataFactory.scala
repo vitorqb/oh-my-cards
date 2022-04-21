@@ -5,6 +5,12 @@ import v1.auth.User
 import org.joda.time.DateTime
 import v1.card.models.CardCreationContext
 import services.CounterSeedUUIDGenerator
+import utils.lazyvalue.LazyValue
+
+trait TestDataFactoryLike[T] {
+  var instance: Option[T] = None
+  def build(): T
+}
 
 class Counter {
   var current = -1
@@ -48,7 +54,7 @@ class TestDataFactory {
 
 }
 
-class CardCreateDataFactory {
+case class CardCreateDataFactory() extends TestDataFactoryLike[CardCreateData] {
 
   private var title: String = "title"
   private var body: String = "body"
@@ -63,12 +69,25 @@ class CardCreateDataFactory {
 
 }
 
-object CardCreateDataFactory {
-  def apply() = new CardCreateDataFactory
-  implicit def build(factory: CardCreateDataFactory): CardCreateData =
-    factory.build()
+case class UserFactory() extends TestDataFactoryLike[User] {
+
+  private val counter = new Counter
+  private var id = LazyValue(() => counter.next().toString())
+  private var email: String = "email@email.com"
+  private var isAdmin: Boolean = false
+
+  def build() = User(id, email, isAdmin)
 }
 
 object TestDataFactory {
   def run(f: TestDataFactory => Any): Unit = f(new TestDataFactory)
+}
+
+object TestDataFactoryLike {
+  implicit def build[T](factory: TestDataFactoryLike[T]): T = {
+    if (!factory.instance.isDefined) {
+      factory.instance = Some(factory.build())
+    }
+    factory.instance.get
+  }
 }

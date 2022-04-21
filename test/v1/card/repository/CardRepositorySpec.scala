@@ -33,6 +33,7 @@ import testutils.TestDataFactory
 import testutils.CardCreateDataFactory
 import v1.card.repository.UserCardPermissionManagerLike
 import v1.card.userpermissionmanager.UserCardPermissionManager
+import services.resourcepermissionregistry.ResourcePermissionRegistry
 
 class CardRepositorySpec
     extends PlaySpec
@@ -118,7 +119,9 @@ class CardRepositorySpec
     "send create data to user card permission repository" in testContext { c =>
       val data = CardCreateDataFactory()
       c.repo.create(data, context).futureValue
-      verify(c.userCardPermissionManager).givePermission(user, context.id)
+      verify(c.userCardPermissionManager).givePermission(user, context.id)(
+        connection
+      )
     }
 
     "returns created id" in testContext { c =>
@@ -211,7 +214,9 @@ class CardRepositoryIntegrationSpec
       val tagsRepo = new TagsRepository()
       val esClient = new CardElasticClientImpl(client)
       val dataRepo = new CardDataRepository
-      val userCardPermissionManager = new UserCardPermissionManager
+      val resourcePermissionRegistry = new ResourcePermissionRegistry
+      val userCardPermissionManager =
+        new UserCardPermissionManager(resourcePermissionRegistry)
       //!!!! TODO Use builder
       val historyRecorder = new CardHistoryTracker(
         new CounterUUIDGenerator,

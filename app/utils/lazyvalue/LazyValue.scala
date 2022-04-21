@@ -7,3 +7,7 @@ case class LazyValue[T](factory: () => T) {
     currentValue = Some(x)
   }
 }
+
+object LazyValue {
+  implicit def toValue[T](x: LazyValue[T]) = x.get()
+}

@@ -18,7 +18,6 @@ import scala.io.Source
 import testutils.silhouettetestutils.SilhouetteInjectorContext
 import services.UUIDGeneratorLike
 import play.api.mvc.AnyContent
-import services.resourcepermissionregistry.ResourcePermissionRegistryLike
 import akka.actor.ActorSystem
 import akka.stream.Materializer
 import java.io.File
@@ -139,7 +138,7 @@ class StaticAssetsControllerSpec
     lazy val components = Helpers.stubControllerComponents()
     lazy val fileRepository = mock[FileRepositoryLike]
     lazy val uuidGenerator = mock[UUIDGeneratorLike]
-    lazy val permissionRegistry = mock[ResourcePermissionRegistryLike]
+    lazy val permissionRegistry = mock[StaticAssetsPermissionRegistry]
     lazy val cookieUserIdentifier = mock[CookieUserIdentifierLike]
     lazy val controller = new StaticAssetsController(
       components,

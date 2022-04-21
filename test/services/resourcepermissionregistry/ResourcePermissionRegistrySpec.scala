@@ -13,12 +13,14 @@ class ResourcePermissionRegistrySpec extends PlaySpec with ScalaFutures {
   "save and retrieve user permission" should {
     "work" in {
       TestUtils.testDB { db =>
-        val user = User("id", "a@b.c", false)
-        val key = "95fd47fb-fa65-4b92-befe-220dd247d849"
-        val registry = new ResourcePermissionRegistry(db)
-        registry.hasAccess(user, key).futureValue mustEqual false
-        registry.grantAccess(user, key).futureValue mustEqual ()
-        registry.hasAccess(user, key).futureValue mustEqual true
+        db.withConnection { implicit c =>
+          val user = User("id", "a@b.c", false)
+          val key = "95fd47fb-fa65-4b92-befe-220dd247d849"
+          val registry = new ResourcePermissionRegistry()
+          registry.hasAccess(user, key).futureValue mustEqual false
+          registry.grantAccess(user, key).futureValue mustEqual ()
+          registry.hasAccess(user, key).futureValue mustEqual true
+        }
       }
     }
   }
