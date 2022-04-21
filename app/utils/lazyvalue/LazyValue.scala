@@ -10,4 +10,5 @@ case class LazyValue[T](factory: () => T) {
 
 object LazyValue {
   implicit def toValue[T](x: LazyValue[T]) = x.get()
+  implicit def toLazy[T](x: T) = LazyValue(() => x)
 }

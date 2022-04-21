@@ -29,11 +29,13 @@ import v1.card.models._
 import v1.card.repository.CardRepository
 import v1.card.exceptions._
 import v1.card.datarepository.CardDataRepository
-import testutils.TestDataFactory
 import testutils.CardCreateDataFactory
 import v1.card.repository.UserCardPermissionManagerLike
 import v1.card.userpermissionmanager.UserCardPermissionManager
 import services.resourcepermissionregistry.ResourcePermissionRegistry
+import testutils.CardCreationContextFactory
+import testutils.UserFactory
+import testutils.Counter
 
 class CardRepositorySpec
     extends PlaySpec
@@ -431,27 +433,24 @@ class CardRepositoryIntegrationSpec
 
     "Return deduplicated tags" taggedAs (FunctionalTestsTag) in testContext {
       c =>
-        TestDataFactory.run { factory =>
-          val tags = List("A")
-          val createData1 = CardCreateDataFactory().withTags(tags).build
-          val context1 = factory.buildCardCreationContext()
-          val createData2 = factory.buildCardCreateData(tags = tags)
-          val context2 =
-            factory.buildCardCreationContext(user = Some(context1.user))
+      implicit val uuidGenerator = new CounterUUIDGenerator
+      implicit val counter = new Counter
+      val tags = List("A")
+      val createData1 = CardCreateDataFactory().withTags(tags)
+      val context1 = CardCreationContextFactory()
+      val createData2 = CardCreateDataFactory().withTags(tags)
+      val context2 = CardCreationContextFactory().withUser(context1.user)
 
-          c.repo.create(createData1, context1).futureValue
-          c.repo.create(createData2, context2).futureValue
+      c.repo.create(createData1, context1).futureValue
+      c.repo.create(createData2, context2).futureValue
 
-          c.repo.getAllTags(context1.user).futureValue mustEqual tags
-        }
+      c.repo.getAllTags(context1.user).futureValue mustEqual tags
     }
 
     "return empty array when no tags" taggedAs (FunctionalTestsTag) in testContext {
       c =>
-        TestDataFactory.run { factory =>
-          val user = factory.buildUser()
-          c.repo.getAllTags(user).futureValue mustEqual List()
-        }
+      val user = UserFactory()
+      c.repo.getAllTags(user).futureValue mustEqual List()
     }
 
   }
