@@ -8,11 +8,14 @@ import org.scalatest.concurrent.ScalaFutures
 import play.api.db.Database
 import services.resourcepermissionregistry.ResourcePermissionRegistry
 import scala.concurrent.ExecutionContext
-import v1.auth.User
+import testutils.Counter
+import services.CounterUUIDGenerator
 
 class UserCardPermissionManagerSpec extends PlaySpec with ScalaFutures {
 
-  implicit val ec = ExecutionContext.global
+  implicit val ec: ExecutionContext = ExecutionContext.global
+  implicit val uuidGenerator = new CounterUUIDGenerator
+  implicit val counter = new Counter
 
   case class TestContext(
       permissionManager: UserCardPermissionManager,
@@ -31,7 +34,7 @@ class UserCardPermissionManagerSpec extends PlaySpec with ScalaFutures {
 
     "return false if not permission for a card" taggedAs FunctionalTestsTag in testContext {
       c =>
-        val user = UserFactory()
+        val user = UserFactory().build()
         c.db.withConnection { implicit conn =>
           c.permissionManager
             .hasPermission(user, "cardId")
@@ -41,7 +44,7 @@ class UserCardPermissionManagerSpec extends PlaySpec with ScalaFutures {
 
     "return true if has permission for a card" taggedAs FunctionalTestsTag in testContext {
       c =>
-        val user = UserFactory()
+        val user = UserFactory().build()
         val cardId = "cardId"
         c.db.withConnection { implicit conn =>
           c.permissionManager

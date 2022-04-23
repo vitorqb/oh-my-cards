@@ -18,3 +18,4 @@ test.sqlite
 /.dir-locals.el
 test.sqlite-journal
 /build/
+/.vicommands
