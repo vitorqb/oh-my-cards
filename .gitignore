@@ -19,3 +19,4 @@ test.sqlite
 test.sqlite-journal
 /build/
 /.vicommands
+/dev.sqlite.bkup
