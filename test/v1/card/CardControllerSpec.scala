@@ -26,11 +26,11 @@ import v1.card.historytracker.StringFieldUpdate
 import v1.card.historytracker.TagsFieldUpdate
 import play.api.mvc.ControllerComponents
 import org.mockito.MockitoSugar
-import v1.card.historytrackerhandler.HistoryTrackerHandlerLike
 import scala.concurrent.ExecutionContext
 import v1.auth.SilhouetteEnvWrapper
-import v1.card.historytrackerhandler.CardHistoryResource
+import v1.card.CardHistoryResource
 import v1.card.models._
+import v1.card.exceptions.CardDoesNotExist
 
 trait CardListRequestParserTestUtils extends JsonUtils {
 
@@ -179,7 +179,7 @@ class CardControllerSpec
 
     def testContext(block: TestContext => Any): Any = {
       val historyTrackerHandler = mock[HistoryTrackerHandlerLike]
-      when(historyTrackerHandler.get("1"))
+      when(historyTrackerHandler.get("1", user))
         .thenReturn(Future.successful(historyResource))
       val cardResourceHandler = mock[CardResourceHandlerLike]
       when(cardResourceHandler.get("1", user))
@@ -231,8 +231,7 @@ class CardControllerSpec
     "return 404 if other user" in testContext { c =>
       val request = FakeRequest()
       reset(c.cardResourceHandler)
-      when(c.cardResourceHandler.get("1", user))
-        .thenReturn(Future.successful(None))
+      when(c.historyTrackerHandler.get("1", user)).thenReturn(Future.failed(new CardDoesNotExist))
       val response = c.controller.getHistory("1")(request)
       status(response) mustEqual 404
     }

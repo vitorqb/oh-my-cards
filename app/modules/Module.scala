@@ -33,7 +33,7 @@ import v1.card.historytracker.HistoricalEventCoreRepositoryLike
 import v1.card.historytracker.CardUpdateDataRepositoryLike
 import v1.card.historytracker.HistoricalEventCoreRepository
 import v1.card.historytracker.CardUpdateDataRepository
-import v1.card.historytrackerhandler.{
+import v1.card.{
   HistoryTrackerHandlerLike,
   HistoryTrackerHandler,
   CardHistoryTrackerLike
@@ -192,11 +192,12 @@ class Module extends AbstractModule with ScalaModule {
   @Provides
   def historyTrackerHandler(
       db: Database,
-      tracker: CardHistoryTrackerLike
+    tracker: CardHistoryTrackerLike,
+    permissionManager: UserCardPermissionManagerLike,
   )(implicit
       ec: ExecutionContext
   ): HistoryTrackerHandlerLike =
-    new HistoryTrackerHandler(db, tracker)
+    new HistoryTrackerHandler(db, tracker, permissionManager)
 
   @Provides
   def fileRepository(

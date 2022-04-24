@@ -5,7 +5,7 @@ import v1.card.models._
 import services.UUIDGeneratorLike
 import java.sql.Connection
 import org.joda.time.DateTime
-import v1.card.historytrackerhandler.CardHistoryTrackerLike
+import v1.card.CardHistoryTrackerLike
 
 /**
   * The core data for a historical event, share among all events.

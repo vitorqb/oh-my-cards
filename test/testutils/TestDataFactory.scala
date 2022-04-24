@@ -7,9 +7,9 @@ import v1.card.models.CardCreationContext
 import services.UUIDGeneratorLike
 import v1.card.models.CardData
 import v1.card.models.CardUpdateContext
+import v1.card.historytracker.CardCreation
 
 trait TestDataFactoryLike[T] {
-  var instance: Option[T] = None
   def build(): T
 }
 
@@ -117,4 +117,19 @@ case class CardUpdateContextFactory(
       now,
       oldData.getOrElse(CardDataFactory().build())
     )
+}
+
+case class DateTimeFactory() extends TestDataFactoryLike[DateTime] {
+  def build() = DateTime.parse("2020-01-01T00:00:00Z")
+}
+
+case class CardCreationHistoricalEventFactory(
+  val datetime: Option[DateTime] = None,
+  val cardId: Option[String] = None,
+  val userId: Option[String] = None,
+) (implicit val uuidGenerator: UUIDGeneratorLike) extends TestDataFactoryLike[CardCreation] {
+  def withDateTime(d: DateTime) = copy(datetime=Some(d))
+  def withCardId(i: String) = copy(cardId=Some(i))
+  def withUserId(i: String) = copy(userId=Some(i))
+  def build() = CardCreation(datetime.getOrElse(DateTimeFactory().build()), cardId.getOrElse(uuidGenerator.generate()), userId.getOrElse(uuidGenerator.generate()))
 }

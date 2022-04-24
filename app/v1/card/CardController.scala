@@ -9,7 +9,6 @@ import com.mohiva.play.silhouette.api.Silhouette
 
 import v1.auth.{DefaultEnv}
 import v1.auth.User
-import v1.card.historytrackerhandler.HistoryTrackerHandlerLike
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext
 import services.InputParser
@@ -197,13 +196,10 @@ class CardController @Inject() (
     */
   def getHistory(id: String) =
     silhouette.SecuredAction.async { implicit request =>
-      resourceHandler.get(id, request.identity) flatMap {
-        case None => throw new CardDoesNotExist
-        case Some(_) =>
-          historyTrackerHandler.get(id).map(x => Ok(Json.toJson(x)))
-      } recover { e =>
-        handleError(e)
-      }
+      historyTrackerHandler
+        .get(id, request.identity)
+        .map(x => Ok(Json.toJson(x)))
+        .recover(handleError(_))
     }
 
   /**
