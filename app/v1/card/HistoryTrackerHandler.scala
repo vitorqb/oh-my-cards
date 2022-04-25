@@ -40,7 +40,7 @@ object CardHistoryResource {
 class HistoryTrackerHandler(
     db: Database,
     tracker: CardHistoryTrackerLike,
-    permissionManager: UserCardPermissionManagerLike,
+    permissionManager: UserCardPermissionManagerLike
 )(implicit
     ec: ExecutionContext
 ) extends HistoryTrackerHandlerLike {

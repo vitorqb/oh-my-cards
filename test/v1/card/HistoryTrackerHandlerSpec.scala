@@ -25,8 +25,8 @@ class HistoryTrackerHandlerSpec
   case class TestContext(
       connection: Connection,
       db: Database,
-    tracker: CardHistoryTrackerLike,
-    permissionManager: UserCardPermissionManagerLike,
+      tracker: CardHistoryTrackerLike,
+      permissionManager: UserCardPermissionManagerLike,
       handler: HistoryTrackerHandler
   )
 
@@ -49,18 +49,26 @@ class HistoryTrackerHandlerSpec
       val user = UserFactory().build()
       val events = Seq(CardCreationHistoricalEventFactory().build())
       when(c.tracker.getEvents("id")(c.connection)).thenReturn(events)
-      when(c.permissionManager.hasPermission(user, "id")(c.connection)).thenReturn(Future.successful(true))
+      when(c.permissionManager.hasPermission(user, "id")(c.connection))
+        .thenReturn(Future.successful(true))
 
-      c.handler.get("id", user).futureValue mustEqual CardHistoryResource(events)
+      c.handler.get("id", user).futureValue mustEqual CardHistoryResource(
+        events
+      )
     }
 
-    "refuse to return a CardHistoryResource of another user" in testContext { c =>
-      val user = UserFactory().build()
-      val events = Seq(CardCreationHistoricalEventFactory().build())
-      when(c.tracker.getEvents("id")(c.connection)).thenReturn(events)
-      when(c.permissionManager.hasPermission(user, "id")(c.connection)).thenReturn(Future.successful(false))
+    "refuse to return a CardHistoryResource of another user" in testContext {
+      c =>
+        val user = UserFactory().build()
+        val events = Seq(CardCreationHistoricalEventFactory().build())
+        when(c.tracker.getEvents("id")(c.connection)).thenReturn(events)
+        when(c.permissionManager.hasPermission(user, "id")(c.connection))
+          .thenReturn(Future.successful(false))
 
-      c.handler.get("id", user).failed.futureValue mustEqual new CardDoesNotExist
+        c.handler
+          .get("id", user)
+          .failed
+          .futureValue mustEqual new CardDoesNotExist
     }
 
   }

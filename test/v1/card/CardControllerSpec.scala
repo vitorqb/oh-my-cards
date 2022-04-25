@@ -231,7 +231,8 @@ class CardControllerSpec
     "return 404 if other user" in testContext { c =>
       val request = FakeRequest()
       reset(c.cardResourceHandler)
-      when(c.historyTrackerHandler.get("1", user)).thenReturn(Future.failed(new CardDoesNotExist))
+      when(c.historyTrackerHandler.get("1", user))
+        .thenReturn(Future.failed(new CardDoesNotExist))
       val response = c.controller.getHistory("1")(request)
       status(response) mustEqual 404
     }

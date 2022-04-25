@@ -80,7 +80,10 @@ class SendgridMailServiceImpl @Inject() (ws: WSClient, conf: Configuration)(
 /**
   * Fake service for testing purposes.
   */
-class MailServiceFakeImpl @Inject() (conf: Configuration, writter: FileWritterLike) extends MailService {
+class MailServiceFakeImpl @Inject() (
+    conf: Configuration,
+    writter: FileWritterLike
+) extends MailService {
 
   private val logger = Logger(getClass)
 

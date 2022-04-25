@@ -56,7 +56,7 @@ import v1.card.repository.UserCardPermissionManagerLike
 import v1.card.userpermissionmanager.UserCardPermissionManager
 import v1.staticassets.StaticAssetsPermissionRegistryLike
 import v1.staticassets.StaticAssetsPermissionRegistry
-import utils.{FileWritterLike,FileWritter}
+import utils.{FileWritterLike, FileWritter}
 import javax.naming.ConfigurationException
 
 class Module extends AbstractModule with ScalaModule {
@@ -80,17 +80,18 @@ class Module extends AbstractModule with ScalaModule {
   def provideMailService(implicit
       ec: ExecutionContext,
       ws: WSClient,
-    conf: Configuration,
-    fileWritter: FileWritterLike
+      conf: Configuration,
+      fileWritter: FileWritterLike
   ): MailService = {
 
     conf.getOptional[String]("emailservice.type") match {
-      case Some("fake") => new MailServiceFakeImpl(conf, fileWritter)
+      case Some("fake")            => new MailServiceFakeImpl(conf, fileWritter)
       case None | Some("sendgrid") => new SendgridMailServiceImpl(ws, conf)
-      case Some("mailgun") => new MailGunMailServiceImpl(ws, conf)
-      case _ => throw new ConfigurationException("Failed to initialize email service!")
+      case Some("mailgun")         => new MailGunMailServiceImpl(ws, conf)
+      case _ =>
+        throw new ConfigurationException("Failed to initialize email service!")
     }
-      
+
   }
 
   /**
@@ -195,8 +196,8 @@ class Module extends AbstractModule with ScalaModule {
   @Provides
   def historyTrackerHandler(
       db: Database,
-    tracker: CardHistoryTrackerLike,
-    permissionManager: UserCardPermissionManagerLike,
+      tracker: CardHistoryTrackerLike,
+      permissionManager: UserCardPermissionManagerLike
   )(implicit
       ec: ExecutionContext
   ): HistoryTrackerHandlerLike =

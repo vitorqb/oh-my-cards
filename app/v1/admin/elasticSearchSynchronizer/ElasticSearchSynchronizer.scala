@@ -73,8 +73,10 @@ class ElasticSearchSynchornizer @Inject() (
             staleIds.foldLeft(Future.successful(())) { (acc, id) =>
               acc.flatMap(_ => deleteOne(id))
             }
-          }.recover(logError _)
-      }.recover(logError _)
+          }
+          .recover(logError _)
+      }
+      .recover(logError _)
   }
 }
 

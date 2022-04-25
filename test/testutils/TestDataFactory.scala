@@ -124,12 +124,18 @@ case class DateTimeFactory() extends TestDataFactoryLike[DateTime] {
 }
 
 case class CardCreationHistoricalEventFactory(
-  val datetime: Option[DateTime] = None,
-  val cardId: Option[String] = None,
-  val userId: Option[String] = None,
-) (implicit val uuidGenerator: UUIDGeneratorLike) extends TestDataFactoryLike[CardCreation] {
-  def withDateTime(d: DateTime) = copy(datetime=Some(d))
-  def withCardId(i: String) = copy(cardId=Some(i))
-  def withUserId(i: String) = copy(userId=Some(i))
-  def build() = CardCreation(datetime.getOrElse(DateTimeFactory().build()), cardId.getOrElse(uuidGenerator.generate()), userId.getOrElse(uuidGenerator.generate()))
+    val datetime: Option[DateTime] = None,
+    val cardId: Option[String] = None,
+    val userId: Option[String] = None
+)(implicit val uuidGenerator: UUIDGeneratorLike)
+    extends TestDataFactoryLike[CardCreation] {
+  def withDateTime(d: DateTime) = copy(datetime = Some(d))
+  def withCardId(i: String) = copy(cardId = Some(i))
+  def withUserId(i: String) = copy(userId = Some(i))
+  def build() =
+    CardCreation(
+      datetime.getOrElse(DateTimeFactory().build()),
+      cardId.getOrElse(uuidGenerator.generate()),
+      userId.getOrElse(uuidGenerator.generate())
+    )
 }
