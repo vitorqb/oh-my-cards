@@ -75,6 +75,6 @@ The sbt console is usefull and can be used for many of the tasks.
 #### Running the app
 
 ```sh
-./dev/start-es.bash -p 9200 -d ohmycards-es-local
+./dev/start-es.bash
 (. .env && sbt run)
 ```

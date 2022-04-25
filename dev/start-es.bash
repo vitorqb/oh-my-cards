@@ -21,6 +21,8 @@ DOCKER="${DOCKER:-docker}"
 
 # Defaults
 BACKGROUND=0
+PORT=9200
+DATA_DIR=ohmycards-es-local
 
 
 # GetOpt configuration
@@ -64,11 +66,6 @@ done
 # Setup
 REPO_ROOT=$(git rev-parse --show-toplevel)
 source ${REPO_ROOT}/dev/utils.bash
-
-
-# Checks
-ensure_var PORT "$PORT"
-ensure_var DATA_DIR "$DATA_DIR"
 
 
 # Script

@@ -56,6 +56,8 @@ import v1.card.repository.UserCardPermissionManagerLike
 import v1.card.userpermissionmanager.UserCardPermissionManager
 import v1.staticassets.StaticAssetsPermissionRegistryLike
 import v1.staticassets.StaticAssetsPermissionRegistry
+import utils.{FileWritterLike,FileWritter}
+import javax.naming.ConfigurationException
 
 class Module extends AbstractModule with ScalaModule {
 
@@ -68,6 +70,9 @@ class Module extends AbstractModule with ScalaModule {
     bind[SilhouetteClock].toInstance(new Clock)
   }
 
+  @Provides
+  def fileWritter(): FileWritterLike = new FileWritter
+
   /**
     * Provider for the MailService.
     */
@@ -75,19 +80,17 @@ class Module extends AbstractModule with ScalaModule {
   def provideMailService(implicit
       ec: ExecutionContext,
       ws: WSClient,
-      conf: Configuration
+    conf: Configuration,
+    fileWritter: FileWritterLike
   ): MailService = {
 
-    if (conf.get[String]("test") == "1")
-      new MailServiceFakeImpl(conf)
-
-    //Give preference to sendgrid
-    else if (Helpers.shouldUseSendgrid(conf))
-      new SendgridMailServiceImpl(ws, conf)
-
-    //Fallback
-    else
-      new MailGunMailServiceImpl(ws, conf)
+    conf.getOptional[String]("emailservice.type") match {
+      case Some("fake") => new MailServiceFakeImpl(conf, fileWritter)
+      case None | Some("sendgrid") => new SendgridMailServiceImpl(ws, conf)
+      case Some("mailgun") => new MailGunMailServiceImpl(ws, conf)
+      case _ => throw new ConfigurationException("Failed to initialize email service!")
+    }
+      
   }
 
   /**

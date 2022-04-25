@@ -20,3 +20,4 @@ test.sqlite-journal
 /build/
 /.vicommands
 /dev.sqlite.bkup
+/.email

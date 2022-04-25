@@ -7,6 +7,7 @@ import play.api.libs.ws.{WSAuthScheme, WSClient}
 import play.api.Configuration
 import play.api.Logger
 import play.api.libs.json.Json
+import utils.FileWritterLike
 
 trait MailService {
 
@@ -79,7 +80,7 @@ class SendgridMailServiceImpl @Inject() (ws: WSClient, conf: Configuration)(
 /**
   * Fake service for testing purposes.
   */
-class MailServiceFakeImpl @Inject() (conf: Configuration) extends MailService {
+class MailServiceFakeImpl @Inject() (conf: Configuration, writter: FileWritterLike) extends MailService {
 
   private val logger = Logger(getClass)
 
@@ -93,6 +94,7 @@ class MailServiceFakeImpl @Inject() (conf: Configuration) extends MailService {
     logger.info(
       "PRETENDING to send email with url=" + url + ", from=" + from + ", body=" + body
     )
+    writter.write(".email", body)
     ()
   }
 

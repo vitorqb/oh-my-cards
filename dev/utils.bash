@@ -7,20 +7,24 @@ NC='\e[0m'
 DOCKER=${DOCKER:-docker}
 
 function msg() {
-    echo -e ""
-    echo -e "${RED}=> ${@}${NC}"
-    echo -e ""
+    echo -e "" >&2
+    echo -e "${CYAN}=> ${@}${NC}" >&2
+    echo -e "" >&2
+}
+
+function errmsg() {
+    echo -e "" >&2
+    echo -e "${RED}ERROR: ${@}${NC}" >&2
+    echo -e "" >&2
 }
 
 function err() {
-    echo -e ""
-    echo -e "${RED}ERROR: ${@}${NC}"
-    echo -e ""
+    errmsg "$@"
     exit 1
 }
 
 function run() {
-    echo -e "${CYAN}=> => ${@}${NC}"
+    echo -e "${CYAN}=> => ${@}${NC}" >&2
     "$@"
 }
 
