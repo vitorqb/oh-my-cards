@@ -58,6 +58,7 @@ import v1.staticassets.StaticAssetsPermissionRegistryLike
 import v1.staticassets.StaticAssetsPermissionRegistry
 import utils.{FileWritterLike, FileWritter}
 import javax.naming.ConfigurationException
+import services.eventbus.ApplicationEventBus
 
 class Module extends AbstractModule with ScalaModule {
 
@@ -65,6 +66,7 @@ class Module extends AbstractModule with ScalaModule {
     * Simple configurations.
     */
   override def configure() = {
+    bind[ApplicationEventBus].toInstance(new ApplicationEventBus)
     bind[RandomStringGenerator].toInstance(new RandomStringGenerator)
     bind[UUIDGeneratorLike].toInstance(new UUIDGenerator)
     bind[SilhouetteClock].toInstance(new Clock)
